@@ -1,4 +1,4 @@
-name: risk_metric_maps
+name: pyrmm
 dependencies:
   - python=3
   - ipython     # convenience

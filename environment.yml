@@ -1,0 +1,7 @@
+name: risk_metric_maps
+dependencies:
+  - python=3
+  - ipython
+  - nb_conda
+  - pip
+  - git

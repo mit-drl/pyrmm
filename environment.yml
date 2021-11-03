@@ -1,7 +1,12 @@
 name: risk_metric_maps
 dependencies:
   - python=3
-  - ipython
+  - ipython     # convenience
+  - pytest      # package testing
+  - hypothesis  # package testing
   - nb_conda
-  - pip
   - git
+  - pip
+  - pip:
+    - -e . # this package
+    - -r requirements.txt

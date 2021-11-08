@@ -1,10 +1,6 @@
 name: pyrmm
-channels:
-  - conda-forge
-  - defaults
 dependencies:
   - python=3
-  - ompl        # only installed via conda, not pip
   - ipython     # convenience
   - pytest      # package testing
   - hypothesis  # package testing

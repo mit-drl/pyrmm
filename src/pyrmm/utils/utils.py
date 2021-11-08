@@ -6,7 +6,7 @@ Examples: collision checkers, tree and node definitions
 
 from typing import List
 
-class Node:
+class Node2D:
     """
     RRT Node
     """
@@ -18,7 +18,7 @@ class Node:
         self.path_y = [y]
         self.parent = None
 
-def check_collision_circular_obstacles(node: Node, obstacleList: List):
+def check_collision_2D_circular_obstacles(node: Node2D, obstacleList: List):
     ''' check if node, and path to node, is in collision with any circular obstacles
 
     Args:

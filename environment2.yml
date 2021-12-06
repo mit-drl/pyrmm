@@ -1,0 +1,11 @@
+name: pyrmm2
+channels:
+  - conda-forge
+dependencies:
+  - pypy3.8
+  # - ipython     # convenience
+  - git
+  # - pip
+  - mpip:
+    - -e . # this package
+    - -r requirements2.txt

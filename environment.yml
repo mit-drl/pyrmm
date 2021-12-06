@@ -1,6 +1,6 @@
 name: pyrmm
 dependencies:
-  - python=3
+  - python=3.8
   - ipython     # convenience
   - pytest      # package testing
   - hypothesis  # package testing

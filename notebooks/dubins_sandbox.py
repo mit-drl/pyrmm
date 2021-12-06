@@ -8,14 +8,15 @@ Ref:
 '''
 
 import pathlib
+import dubins
+import numpy as np
+
+from functools import partial
+from matplotlib import pyplot as plt
 
 from ompl import util as ou
 from ompl import base as ob
 from ompl import geometric as og
-
-from functools import partial
-
-
  
 # def isStateValid(state):
 #     # "state" is of type SE2StateInternal, so we don't need to use the "()"
@@ -80,9 +81,8 @@ class DubinsEnvironment:
         '''
         self.ppm = ou.PPM()
         self.ppm.loadFile(ppm_file)
-        space = ob.DubinsStateSpace(turningRadius=turn_rad)
-        # space.addDimension(0.0, self.ppm.getWidth())
-        # space.addDimension(0.0, self.ppm.getHeight())
+        self.rho = turn_rad
+        space = ob.DubinsStateSpace(turningRadius=self.rho)
         self.maxWidth = self.ppm.getWidth()-1
         self.maxHeight = self.ppm.getHeight()-1
 
@@ -110,6 +110,49 @@ class DubinsEnvironment:
         self.ss.getSpaceInformation().setStateValidityCheckingResolution(
             1.0 / space.getMaximumExtent()
         )
+
+    def sampleReachable(self, state, distance, n_samples, policy='random'):
+        '''Draw n samples from state space near a given state using a policy
+
+        Args:
+            state : ob.State
+                state for which nearby samples are to be drawn
+            distance : double
+                state-space-specific distance to sample within
+            n_samples : int
+                number of samples to draw
+            policy : str
+                string description of policy to use
+
+        Returns:
+            samples : list(ob.State)
+                list of sampled states
+            paths : list(dubins._DubinsPath)
+                list of dubins paths to sampled states
+        '''
+
+        if policy == 'random':
+            sampler = self.ss.getStateSpace().allocDefaultStateSampler()
+            samples = []
+            paths = []
+            for i in range(n_samples):
+
+                # sample nearby random state
+                s = ob.State(self.ss.getStateSpace())
+                sampler.sampleUniformNear(s(), state(), distance)
+                samples.append(s)
+
+                # compute dubins path to sampled state
+                p = dubins.shortest_path(
+                    q0 = (state().getX(), state().getY(), state().getYaw()),
+                    q1 = (s().getX(), s().getY(), s().getYaw()),
+                    rho = self.rho
+                )
+                paths.append(p)
+        else:
+            raise NotImplementedError("No reachable set sampling implemented for policy {}".format(policy))
+
+        return samples, paths
 
     def plan(self, 
         start_x, start_y, start_yaw, 
@@ -183,17 +226,26 @@ class DubinsEnvironment:
  
 if __name__ == "__main__":
     
+    # initial state and environment turning radius in pixels
+    x0 = 500
+    y0 = 100
+    theta0 = 0
+    rho = 50
+    sample_distance = 100
+    path_step_size = 10
+    n_samples = 5
+
     # create planning environment from image
     fname = 'border_640x400.ppm'
     fpath = str(pathlib.Path(__file__).parent.resolve().joinpath(fname))
-    turn_rad = 50
-    env = DubinsEnvironment(fpath, turn_rad)
+    env = DubinsEnvironment(fpath, rho)
 
+    # try finding an obstacle-free plan from one state to another
     res_file = "result_demo.ppm"
     if env.plan(
-        start_x=500,
-        start_y=100,
-        start_yaw=0,
+        start_x=x0,
+        start_y=y0,
+        start_yaw=theta0,
         goal_x=100,
         goal_y=300,
         goal_yaw=0,
@@ -203,5 +255,29 @@ if __name__ == "__main__":
         env.save(res_file)
     else:
         print("\nNo Solution Found!\n")
+
+    # generate reachable set samples
+    s0 = ob.State(env.ss.getStateSpace())
+    s0().setX(x0)
+    s0().setY(y0)
+    s0().setYaw(theta0)
+    samples, paths = env.sampleReachable(s0, sample_distance, n_samples)
+    X = [s().getX() for s in samples]
+    Y = [s().getY() for s in samples]
+    TH = [s().getYaw() for s in samples]
+    # plt.arrow(s0().getX(), s0().getY(), 10*np.cos(s0().getYaw()), 10*np.sin(s0().getYaw()),color='g')
+    # plt.plot(s0().getX(), s0().getY(), 'gX')
+    plt.quiver([s0().getX()], [s0().getY()], [np.cos(s0().getYaw())], [np.sin(s0().getYaw())], color='g')
+    # plt.scatter(X, Y)
+    plt.quiver(X, Y, np.cos(TH), np.sin(TH), color='b')
+    for pth in paths:
+        # discretize and plot the dubins path to a sample
+        path_steps, _ = pth.sample_many(path_step_size)
+        XP = [s[0] for s in path_steps]
+        YP = [s[1] for s in path_steps]
+        TP = [s[2] for s in path_steps]
+        plt.quiver(XP, YP, np.cos(TP), np.sin(TP), scale=50, alpha=0.2)
+    plt.show()
+
         
     print("Done!")

@@ -8,4 +8,8 @@ def test_SystemSetup_init_0():
     '''
     state_space = ob.SO2StateSpace()
     control_space = oc.RealVectorControlSpace(stateSpace=state_space, dim=2)
-    SystemSetup(state_space, control_space, None, None)
+    SystemSetup(
+        state_space=state_space, 
+        control_space=control_space, 
+        state_validity_fn=lambda spaceInformation, state: True, 
+        state_propagator=None)

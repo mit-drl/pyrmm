@@ -364,9 +364,9 @@ if __name__ == "__main__":
     x0 = 500
     y0 = 100
     theta0 = 0
-    x1 = 600
-    y1 = 200
-    theta1 = 0
+    x1 = 300
+    y1 = 40
+    theta1 = np.pi/2.0
     rho = 50
     sample_distance = 100
     path_step_size = 10

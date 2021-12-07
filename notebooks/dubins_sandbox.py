@@ -68,7 +68,20 @@ from ompl import geometric as og
 #         ss.simplifySolution()
 #         # print the simplified path
 #         print(ss.getSolutionPath())
- 
+
+class DubinsTrajectorySegment:
+    def __init__(self, alpha, beta, path):
+        ''' 
+        Args:
+            alpha: ob.State
+                initial state of segment
+            beta: ob.State
+                final state of segment
+            path: dubins._DubinsPath
+        '''
+        self.alpha = alpha
+        self.beta = beta
+        self.path = path
 
 class DubinsEnvironment:
     def __init__(self, ppm_file, turn_rad):
@@ -125,6 +138,8 @@ class DubinsEnvironment:
                 string description of policy to use
 
         Returns:
+            traj_samples : list(DubinsTrajectorySegments)
+                list of dubins trajectory segments 
             samples : list(ob.State)
                 list of sampled states
             paths : list(dubins._DubinsPath)
@@ -133,14 +148,15 @@ class DubinsEnvironment:
 
         if policy == 'random':
             sampler = self.ss.getStateSpace().allocDefaultStateSampler()
-            samples = []
-            paths = []
+            # samples = []
+            # paths = []
+            traj_samples = []
             for i in range(n_samples):
 
                 # sample nearby random state
                 s = ob.State(self.ss.getStateSpace())
                 sampler.sampleUniformNear(s(), state(), distance)
-                samples.append(s)
+                # samples.append(s)
 
                 # compute dubins path to sampled state
                 p = dubins.shortest_path(
@@ -148,11 +164,13 @@ class DubinsEnvironment:
                     q1 = (s().getX(), s().getY(), s().getYaw()),
                     rho = self.rho
                 )
-                paths.append(p)
+                # paths.append(p)
+
+                traj_samples.append(DubinsTrajectorySegment(alpha=state, beta=s, path=p))
         else:
             raise NotImplementedError("No reachable set sampling implemented for policy {}".format(policy))
 
-        return samples, paths
+        return traj_samples
 
     def plan(self, 
         start_x, start_y, start_yaw, 
@@ -261,18 +279,18 @@ if __name__ == "__main__":
     s0().setX(x0)
     s0().setY(y0)
     s0().setYaw(theta0)
-    samples, paths = env.sampleReachable(s0, sample_distance, n_samples)
-    X = [s().getX() for s in samples]
-    Y = [s().getY() for s in samples]
-    TH = [s().getYaw() for s in samples]
+    trajs = env.sampleReachable(s0, sample_distance, n_samples)
+    X = [s.beta().getX() for s in trajs]
+    Y = [s.beta().getY() for s in trajs]
+    TH = [s.beta().getYaw() for s in trajs]
     # plt.arrow(s0().getX(), s0().getY(), 10*np.cos(s0().getYaw()), 10*np.sin(s0().getYaw()),color='g')
     # plt.plot(s0().getX(), s0().getY(), 'gX')
     plt.quiver([s0().getX()], [s0().getY()], [np.cos(s0().getYaw())], [np.sin(s0().getYaw())], color='g')
     # plt.scatter(X, Y)
     plt.quiver(X, Y, np.cos(TH), np.sin(TH), color='b')
-    for pth in paths:
+    for traj in trajs:
         # discretize and plot the dubins path to a sample
-        path_steps, _ = pth.sample_many(path_step_size)
+        path_steps, _ = traj.path.sample_many(path_step_size)
         XP = [s[0] for s in path_steps]
         YP = [s[1] for s in path_steps]
         TP = [s[2] for s in path_steps]

@@ -317,7 +317,7 @@ class DubinsEnvironment:
 
             # no invalid states found in trajectory
             return False
-            
+
         else:
             return False
 
@@ -364,6 +364,9 @@ if __name__ == "__main__":
     x0 = 500
     y0 = 100
     theta0 = 0
+    x1 = 600
+    y1 = 200
+    theta1 = 0
     rho = 50
     sample_distance = 100
     path_step_size = 10
@@ -414,8 +417,12 @@ if __name__ == "__main__":
     plt.show()
 
     # compute risk metric at s0
+    s1 = ob.State(env.ss.getStateSpace())
+    s1().setX(x1)
+    s1().setY(y1)
+    s1().setYaw(theta1)
     rho_s = env.EstimateRiskMetric(
-        state=s0, 
+        state=s1, 
         trajectory=None,
         distance=sample_distance,
         branch_fact=n_samples,

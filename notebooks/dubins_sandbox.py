@@ -11,6 +11,7 @@ import pathlib
 import dubins
 import numpy as np
 
+from copy import deepcopy
 from functools import partial
 from matplotlib import pyplot as plt
 
@@ -83,6 +84,30 @@ class DubinsTrajectorySegment:
         self.beta = beta
         self.path = path
 
+    def discrete_path(self, step_size):
+        '''discretize the path into States
+        
+        Args:
+            step_size : float
+                step size to use in dubins.path.sample_many
+        
+        Returns:
+            disc_path : list(ob.State)
+                list of discrete states
+        '''
+        cfgs, _ = self.path.sample_many(step_size)
+        n_steps = len(cfgs)
+        disc_path = n_steps*[None]
+        for i in range(n_steps):
+            # s = deepcopy(self.alpha)
+            s = ob.State(ob.DubinsStateSpace())
+            s().setX(cfgs[i][0])
+            s().setY(cfgs[i][1])
+            s().setYaw(cfgs[i][2])
+            disc_path[i] = s
+
+        return disc_path
+
 class DubinsEnvironment:
     def __init__(self, ppm_file, turn_rad):
         '''
@@ -92,8 +117,9 @@ class DubinsEnvironment:
             turn_rad: float
                 turning radius of the dubins vehicle
         '''
+        self.ppm_file = ppm_file
         self.ppm = ou.PPM()
-        self.ppm.loadFile(ppm_file)
+        self.ppm.loadFile(self.ppm_file)
         self.rho = turn_rad
         space = ob.DubinsStateSpace(turningRadius=self.rho)
         self.maxWidth = self.ppm.getWidth()-1
@@ -124,6 +150,58 @@ class DubinsEnvironment:
             1.0 / space.getMaximumExtent()
         )
 
+    def EstimateRiskMetric(self, state, trajectory, distance, branch_fact, depth, step_size, policy='random'):
+        '''Sampling-based risk metric estimation at specific state
+        
+        Args:
+            state : ob.State
+                state at which to evaluate risk metric
+            trajectory : DubinsTrajectorySegment
+                trajectory arriving at state 
+            distance : double
+                state-space-specific distance to sample within
+            branch_fact : int
+                number of samples to draw
+            depth : int
+                number of recursive steps to estimate risk
+            step_size : float
+                step size used to discretize trajectory
+            policy : str
+                string description of policy to use
+
+        Returns:
+            risk_est : float
+                coherent risk metric estimate at state
+        '''
+
+        # check if state and trajectory are in collision
+        z = self.isFailure(state, trajectory, step_size=step_size)
+
+        if z or depth <= 0:
+            # state is failure or at leaf of tree
+            return float(z)
+
+        # sample reachable states
+        samples = self.sampleReachable(state=state, distance=distance, n_samples=branch_fact, policy=policy)
+
+        # recursively compute risk estimates at sampled states
+        risk_vals = branch_fact*[None]
+        for i in range(branch_fact):
+            risk_vals[i] = self.EstimateRiskMetric(
+                state=samples[i].beta,
+                trajectory=samples[i],
+                distance=distance,
+                branch_fact=branch_fact,
+                depth=depth-1,
+                step_size=step_size,
+                policy=policy
+            )
+
+        # TODO: generalize this so we can use other coherent risk metrics like CVaR
+        return np.mean(risk_vals)
+
+        
+
     def sampleReachable(self, state, distance, n_samples, policy='random'):
         '''Draw n samples from state space near a given state using a policy
 
@@ -140,10 +218,10 @@ class DubinsEnvironment:
         Returns:
             traj_samples : list(DubinsTrajectorySegments)
                 list of dubins trajectory segments 
-            samples : list(ob.State)
-                list of sampled states
-            paths : list(dubins._DubinsPath)
-                list of dubins paths to sampled states
+            # samples : list(ob.State)
+            #     list of sampled states
+            # paths : list(dubins._DubinsPath)
+            #     list of dubins paths to sampled states
         '''
 
         if policy == 'random':
@@ -206,6 +284,42 @@ class DubinsEnvironment:
             return True
         return False
 
+    def isFailure(self, state, trajectory, step_size):
+        ''' check if state and arriving trajectory are in collision with obstacles
+
+        Args:
+            state : ob.State
+                state to check for failure
+            trajectory : DubinsTrajectorySegment
+                trajectory leading to state
+            step_size : float
+                step size used to discretize trajectory
+        
+        Returns
+            fail : bool
+                True if state or trajectory are in collision with obs
+        '''
+
+        is_state_valid = self.isStateValid(state=state())
+
+        if not is_state_valid:
+            return True
+        elif trajectory is not None:
+            disc_traj = trajectory.discrete_path(step_size)
+
+            # check each discretized state, return if any are in collision
+            for d in disc_traj:
+                # NOTE: this could be parallelized
+                if self.isStateValid(state=d()):
+                    pass
+                else:
+                    return True
+
+            # no invalid states found in trajectory
+            return False
+            
+        else:
+            return False
 
     def isStateValid(self, state):
         ''' check ppm image colors for obstacle collision
@@ -228,10 +342,12 @@ class DubinsEnvironment:
             return
         p = self.ss.getSolutionPath()
         p.interpolate()
+        self.ppm_output = ou.PPM()
+        self.ppm_output.loadFile(self.ppm_file)
         for i in range(p.getStateCount()):
             w = min(self.maxWidth, int(p.getState(i).getX()))
             h = min(self.maxHeight, int(p.getState(i).getY()))
-            c = self.ppm.getPixel(h, w)
+            c = self.ppm_output.getPixel(h, w)
             c.red = 255
             c.green = 0
             c.blue = 0
@@ -239,7 +355,7 @@ class DubinsEnvironment:
     def save(self, filename):
         if not self.ss:
             return
-        self.ppm.saveFile(filename)
+        self.ppm_output.saveFile(filename)
 
  
 if __name__ == "__main__":
@@ -296,6 +412,16 @@ if __name__ == "__main__":
         TP = [s[2] for s in path_steps]
         plt.quiver(XP, YP, np.cos(TP), np.sin(TP), scale=50, alpha=0.2)
     plt.show()
+
+    # compute risk metric at s0
+    rho_s = env.EstimateRiskMetric(
+        state=s0, 
+        trajectory=None,
+        distance=sample_distance,
+        branch_fact=n_samples,
+        step_size=path_step_size,
+        depth=5)
+    print("Estimated risk metric at {}: {}".format(s0, rho_s))
 
         
     print("Done!")

@@ -100,23 +100,21 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
         self.speed = speed
         super().__init__(si=spaceInformation)
 
-    def propagate(self, start, control, duration, state):
+    def propagate(self, state, control, duration, result):
         ''' propagate from start based on control, store in state
         Args:
-            start : ob.State
+            state : ob.State
                 start state of propagation
             control : oc.Control
                 control to apply during propagation
             duration : float
                 duration of propagation
-            state : ob.State
+            result : ob.State
                 end state of propagation, modified in place
         '''
-        state.setX(start.getX() + self.speed * duration * np.cos(start.getYaw()))
-        state.setY(start.getY() + self.speed * duration * np.sin(start.getYaw()))
-        # state.setX(start.getX() + 1.0 * duration * np.cos(start.getYaw()))
-        # state.setY(start.getY() + 1.0 * duration * np.sin(start.getYaw()))
-        state.setYaw(start.getYaw() + control[0] * duration)
+        result.setX(state.getX() + self.speed * duration * np.cos(state.getYaw()))
+        result.setY(state.getY() + self.speed * duration * np.sin(state.getYaw()))
+        result.setYaw(state.getYaw() + control[0] * duration)
 
     def canPropagateBackwards(self):
         return False

@@ -42,5 +42,51 @@ class SystemSetup:
         # set state-control propagator
         statePropagator = propagator_cls(self.ssetup.getSpaceInformation())
         self.ssetup.setStatePropagator(statePropagator)
-        # self.ssetup.setStatePropagator(oc.StatePropagatorFn(propagator_fn))
+
+    def sampleReachableSet(self, state, distance, n_samples, policy='default'):
+        '''Draw n samples from state space near a given state using a policy
+
+        Args:
+            state : ob.State
+                state for which nearby samples are to be drawn
+            distance : float
+                state-space-specific distance to sample within
+            n_samples : int
+                number of samples to draw
+            policy : str
+                string description of policy to use
+                defaults to undirected control sampler
+
+        Returns:
+            samples : list(ob.State)
+                list of sampled states
+        '''
+
+        if policy == 'default':
+
+            # access space information
+            si = self.ssetup.getSpaceInformation()
+
+            # use default undirected control sampler 
+            csampler = si.allocControlSampler()
+            c = si.allocControl()
+            samples = [None]*n_samples
+
+            for i in range(n_samples):
+
+                # allocate memory for sampled state
+                samples[i] = si.allocState() 
+
+                # sample control input
+                csampler.sample(c)
+
+                # propagate sampled control
+                si.getStatePropagator().propagate(
+                    state = state(),
+                    control = c,
+                    duration = distance,
+                    result = samples[i]
+                )
+        else:
+            raise NotImplementedError("No reachable set sampling implemented for policy {}".format(policy))
         

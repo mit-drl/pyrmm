@@ -15,13 +15,11 @@ class SystemSetup:
     Refs:
         https://ompl.kavrakilab.org/api_overview.html
     '''
-    def __init__(self, state_space, control_space, state_validity_fn, propagator_cls):
+    def __init__(self, space_information, state_validity_fn, propagator_cls):
         ''' create SimpleSetup object
         Args:
-            state_space : ob.StateSpace
-                state space in which risk metrics are to be evaluated
-            control_space : oc.ControlSpace
-                control space of system
+            space_information : ob.SpaceInformation OR oc.SpaceInformation
+                state and control space info for which risk metrics are to be evaluated
             state_validity_fn : callable
                 decides whether a given state from a specific StateSpace is valid
             propagator_cls : class
@@ -30,7 +28,7 @@ class SystemSetup:
         '''
         
         # define the simple setup class
-        self.ssetup = oc.SimpleSetup(control_space) 
+        self.ssetup = oc.SimpleSetup(space_information) 
 
         # set state validity checker
         validityChecker = ob.StateValidityCheckerFn(partial(

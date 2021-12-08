@@ -52,6 +52,9 @@ class DubinsPPMSetup(SystemSetup):
         cbounds.setHigh(dtheta)
         control_space.setBounds(cbounds)
 
+        # create space information for state and control space
+        space_info = oc.SpaceInformation(stateSpace=state_space, controlSpace=control_space)
+
         # create a partially-implemented propagator class
         # NOTE: passing a class instead of a propagate func was necessary to avoid
         # lvalue conversion error: 
@@ -62,8 +65,7 @@ class DubinsPPMSetup(SystemSetup):
 
         # call parent init to create simple setup
         super().__init__(
-            state_space=state_space, 
-            control_space=control_space, 
+            space_information=space_info,
             state_validity_fn=self.isStateValid, 
             propagator_cls=propagator_partial_cls)
 

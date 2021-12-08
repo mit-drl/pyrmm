@@ -4,7 +4,18 @@ Utility functions and classes for risk metric maps
 Examples: collision checkers, tree and node definitions
 '''
 
+import functools
 from typing import List
+
+
+def partialclass(cls, *args, **kwds):
+    '''Ref: https://stackoverflow.com/questions/38911146/python-equivalent-of-functools-partial-for-a-class-constructor'''
+
+    class NewCls(cls):
+        __init__ = functools.partialmethod(cls.__init__, *args, **kwds)
+
+    return NewCls
+
 
 class Node2D:
     """

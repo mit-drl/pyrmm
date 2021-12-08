@@ -15,7 +15,7 @@ class SystemSetup:
     Refs:
         https://ompl.kavrakilab.org/api_overview.html
     '''
-    def __init__(self, state_space, control_space, state_validity_fn, propagator_fn):
+    def __init__(self, state_space, control_space, state_validity_fn, propagator_cls):
         ''' create SimpleSetup object
         Args:
             state_space : ob.StateSpace
@@ -24,7 +24,7 @@ class SystemSetup:
                 control space of system
             state_validity_fn : callable
                 decides whether a given state from a specific StateSpace is valid
-            propagator_fn : callable
+            propagator_cls : class
                 returns state obtained by applying a control to some arbitrary initial state
 
         '''
@@ -40,5 +40,7 @@ class SystemSetup:
         self.ssetup.setStateValidityChecker(validityChecker)
 
         # set state-control propagator
-        self.ssetup.setStatePropagator(oc.StatePropagatorFn(propagator_fn))
+        statePropagator = propagator_cls(self.ssetup.getSpaceInformation())
+        self.ssetup.setStatePropagator(statePropagator)
+        # self.ssetup.setStatePropagator(oc.StatePropagatorFn(propagator_fn))
         

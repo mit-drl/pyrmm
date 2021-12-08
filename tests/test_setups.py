@@ -8,8 +8,11 @@ def test_SystemSetup_init_0():
     '''
     state_space = ob.SO2StateSpace()
     control_space = oc.RealVectorControlSpace(stateSpace=state_space, dim=2)
+    class prop_cls(oc.StatePropagator):
+        def __init__(self, spaceInformation):
+            super().__init__(spaceInformation)
     SystemSetup(
         state_space=state_space, 
         control_space=control_space, 
         state_validity_fn=lambda spaceInformation, state: True, 
-        propagator_fn=lambda start, control, duration, state: None)
+        propagator_cls=prop_cls)

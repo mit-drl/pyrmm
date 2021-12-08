@@ -5,12 +5,13 @@ from __future__ import division
 
 import numpy as np
 
-from functools import partial
+# from functools import partial
 from ompl import util as ou
 from ompl import base as ob
 from ompl import control as oc
 
 from pyrmm.setups import SystemSetup
+from pyrmm.utils.utils import partialclass
 
 class DubinsPPMSetup(SystemSetup):
     ''' Dubins car with ppm file for obstacle configuration space
@@ -28,8 +29,6 @@ class DubinsPPMSetup(SystemSetup):
 
         assert speed > 0
         assert turning_radius > 0
-
-        self.speed = speed
 
         # generate configuration space from ppm file
         ppm_file = ppm_file
@@ -53,12 +52,20 @@ class DubinsPPMSetup(SystemSetup):
         cbounds.setHigh(dtheta)
         control_space.setBounds(cbounds)
 
+        # create a partially-implemented propagator class
+        # NOTE: passing a class instead of a propagate func was necessary to avoid
+        # lvalue conversion error: 
+        # https://stackoverflow.com/questions/20825662/boost-python-argument-types-did-not-match-c-signature
+        # NOTE: partially constructing the class was necessary to pass Dubins-specific "speed" attribute
+        # without passing the spaceInformation that is only available in SystemSetup
+        propagator_partial_cls = partialclass(DubinsPPMStatePropagator, speed)
+
         # call parent init to create simple setup
         super().__init__(
             state_space=state_space, 
             control_space=control_space, 
             state_validity_fn=self.isStateValid, 
-            propagator_fn=self.propagate)
+            propagator_cls=propagator_partial_cls)
 
     def isStateValid(self, spaceInformation, state):
         ''' check ppm image colors for obstacle collision
@@ -87,6 +94,12 @@ class DubinsPPMSetup(SystemSetup):
         else:
             return False
 
+class DubinsPPMStatePropagator(oc.StatePropagator):
+
+    def __init__(self, speed, spaceInformation):
+        self.speed = speed
+        super().__init__(si=spaceInformation)
+
     def propagate(self, start, control, duration, state):
         ''' propagate from start based on control, store in state
         Args:
@@ -101,4 +114,15 @@ class DubinsPPMSetup(SystemSetup):
         '''
         state.setX(start.getX() + self.speed * duration * np.cos(start.getYaw()))
         state.setY(start.getY() + self.speed * duration * np.sin(start.getYaw()))
+        # state.setX(start.getX() + 1.0 * duration * np.cos(start.getYaw()))
+        # state.setY(start.getY() + 1.0 * duration * np.sin(start.getYaw()))
         state.setYaw(start.getYaw() + control[0] * duration)
+
+    def canPropagateBackwards(self):
+        return False
+
+    def steer(self, from_state, to_state, control, duration):
+        return False
+
+    def canSteer(self):
+        return False

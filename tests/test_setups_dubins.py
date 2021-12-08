@@ -1,4 +1,5 @@
 import pathlib
+import numpy as np
 
 from pyrmm.setups.dubins import DubinsPPMSetup
 
@@ -39,7 +40,7 @@ def test_DubinsPPMSetup_propagator_0():
 
     # ~~~ ARRANGE ~~~
     ds = DubinsPPMSetup(PPM_FILE_0, 1, 1)
-    prop_fn = ds.ssetup.getStatePropagator()
+    propagator = ds.ssetup.getStatePropagator()
 
     # create initial state
     s0 = ob.State(ob.DubinsStateSpace())
@@ -58,7 +59,42 @@ def test_DubinsPPMSetup_propagator_0():
 
     # ~~~ ACT ~~~
     # propagate state
-    prop_fn.propagate(s0, c0, duration, s1)
+    propagator.propagate(s0(), c0, duration, s1())
     
     # ~~~ ASSERT ~~~
     assert cspace.getDimension() == 1
+    assert np.isclose(s1().getX(), 301)
+    assert np.isclose(s1().getY(), 200)
+    assert np.isclose(s1().getYaw(), 0)
+
+def test_DubinsPPMSetup_propagator_1():
+    '''test that propagator arrives at expected state'''
+
+    # ~~~ ARRANGE ~~~
+    ds = DubinsPPMSetup(PPM_FILE_0, 10, 1)
+    propagator = ds.ssetup.getStatePropagator()
+
+    # create initial state
+    s0 = ob.State(ob.DubinsStateSpace())
+    s0().setX(300)
+    s0().setY(200)
+    s0().setYaw(0)
+
+    # create control input and duration
+    cspace = ds.ssetup.getControlSpace()
+    c0 = cspace.allocControl()
+    c0[0] = 0.0
+    duration = 1.0
+
+    # create state object to store propagated state
+    s1 = ob.State(ob.DubinsStateSpace())
+
+    # ~~~ ACT ~~~
+    # propagate state
+    propagator.propagate(s0(), c0, duration, s1())
+    
+    # ~~~ ASSERT ~~~
+    assert cspace.getDimension() == 1
+    assert np.isclose(s1().getX(), 310)
+    assert np.isclose(s1().getY(), 200)
+    assert np.isclose(s1().getYaw(), 0)

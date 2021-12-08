@@ -12,4 +12,4 @@ def test_SystemSetup_init_0():
         state_space=state_space, 
         control_space=control_space, 
         state_validity_fn=lambda spaceInformation, state: True, 
-        state_propagator=None)
+        propagator_fn=lambda start, control, duration, state: None)

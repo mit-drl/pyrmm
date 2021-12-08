@@ -5,13 +5,13 @@ from __future__ import division
 
 import numpy as np
 
-# from functools import partial
+from functools import partial
 from ompl import util as ou
 from ompl import base as ob
 from ompl import control as oc
 
 from pyrmm.setups import SystemSetup
-from pyrmm.utils.utils import partialclass
+# from pyrmm.utils.utils import partialclass
 
 class DubinsPPMSetup(SystemSetup):
     ''' Dubins car with ppm file for obstacle configuration space
@@ -55,19 +55,24 @@ class DubinsPPMSetup(SystemSetup):
         # create space information for state and control space
         space_info = oc.SpaceInformation(stateSpace=state_space, controlSpace=control_space)
 
+        # create and set propagator class
+        propagator = DubinsPPMStatePropagator(speed=speed, spaceInformation=space_info)
+        space_info.setStatePropagator(propagator)
+
+        # create and set state validity checker
+        validityChecker = ob.StateValidityCheckerFn(partial(self.isStateValid, space_info))
+        space_info.setStateValidityChecker(validityChecker)
+
         # create a partially-implemented propagator class
         # NOTE: passing a class instead of a propagate func was necessary to avoid
         # lvalue conversion error: 
         # https://stackoverflow.com/questions/20825662/boost-python-argument-types-did-not-match-c-signature
         # NOTE: partially constructing the class was necessary to pass Dubins-specific "speed" attribute
         # without passing the spaceInformation that is only available in SystemSetup
-        propagator_partial_cls = partialclass(DubinsPPMStatePropagator, speed)
+        # propagator_partial_cls = partialclass(DubinsPPMStatePropagator, speed)
 
         # call parent init to create simple setup
-        super().__init__(
-            space_information=space_info,
-            state_validity_fn=self.isStateValid, 
-            propagator_cls=propagator_partial_cls)
+        super().__init__(space_information=space_info)
 
     def isStateValid(self, spaceInformation, state):
         ''' check ppm image colors for obstacle collision

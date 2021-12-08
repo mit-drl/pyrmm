@@ -15,31 +15,42 @@ class SystemSetup:
     Refs:
         https://ompl.kavrakilab.org/api_overview.html
     '''
-    def __init__(self, space_information, state_validity_fn, propagator_cls):
+    def __init__(self, space_information):
         ''' create SimpleSetup object
         Args:
             space_information : ob.SpaceInformation OR oc.SpaceInformation
                 state and control space info for which risk metrics are to be evaluated
-            state_validity_fn : callable
-                decides whether a given state from a specific StateSpace is valid
-            propagator_cls : class
-                returns state obtained by applying a control to some arbitrary initial state
+            # state_validity_fn : callable
+            #     decides whether a given state from a specific StateSpace is valid
+            # propagator_cls : class
+            #     returns state obtained by applying a control to some arbitrary initial state
 
         '''
+
+        # make space_information a member attribute
+        self.space_info = space_information
+
+        # ensure that a state validity checker has been set
+        if self.space_info.getStateValidityChecker() is None:
+            raise AttributeError("State validity checker must be set by child class!")
+
+        # ensure that a state propagator has been set
+        if self.space_info.getStatePropagator() is None:
+            raise AttributeError("State propagator must be set by child class!")
         
         # define the simple setup class
-        self.ssetup = oc.SimpleSetup(space_information) 
+        # self.ssetup = oc.SimpleSetup(space_information) 
 
-        # set state validity checker
-        validityChecker = ob.StateValidityCheckerFn(partial(
-            state_validity_fn, 
-            self.ssetup.getSpaceInformation()
-        ))
-        self.ssetup.setStateValidityChecker(validityChecker)
+        # # set state validity checker
+        # validityChecker = ob.StateValidityCheckerFn(partial(
+        #     state_validity_fn, 
+        #     self.ssetup.getSpaceInformation()
+        # ))
+        # self.ssetup.setStateValidityChecker(validityChecker)
 
-        # set state-control propagator
-        statePropagator = propagator_cls(self.ssetup.getSpaceInformation())
-        self.ssetup.setStatePropagator(statePropagator)
+        # # set state-control propagator
+        # statePropagator = propagator_cls(self.ssetup.getSpaceInformation())
+        # self.ssetup.setStatePropagator(statePropagator)
 
     def sampleReachableSet(self, state, distance, n_samples, policy='default'):
         '''Draw n samples from state space near a given state using a policy

@@ -17,7 +17,7 @@ def test_DubinsPPMSetup_state_checker_0():
 
     # ~~~ ARRANGE ~~~
     ds = DubinsPPMSetup(PPM_FILE_0, 1, 1)
-    valid_fn = ds.ssetup.getStateValidityChecker()
+    valid_fn = ds.space_info.getStateValidityChecker()
     s0 = ob.State(ob.DubinsStateSpace())
     s0().setX(300)
     s0().setY(200)
@@ -40,7 +40,7 @@ def test_DubinsPPMSetup_propagator_0():
 
     # ~~~ ARRANGE ~~~
     ds = DubinsPPMSetup(PPM_FILE_0, 1, 1)
-    propagator = ds.ssetup.getStatePropagator()
+    propagator = ds.space_info.getStatePropagator()
 
     # create initial state
     s0 = ob.State(ob.DubinsStateSpace())
@@ -49,7 +49,7 @@ def test_DubinsPPMSetup_propagator_0():
     s0().setYaw(0)
 
     # create control input and duration
-    cspace = ds.ssetup.getControlSpace()
+    cspace = ds.space_info.getControlSpace()
     c0 = cspace.allocControl()
     c0[0] = 0.0
     duration = 1.0
@@ -72,7 +72,7 @@ def test_DubinsPPMSetup_propagator_1():
 
     # ~~~ ARRANGE ~~~
     ds = DubinsPPMSetup(PPM_FILE_0, 10, 1)
-    propagator = ds.ssetup.getStatePropagator()
+    propagator = ds.space_info.getStatePropagator()
 
     # create initial state
     s0 = ob.State(ob.DubinsStateSpace())
@@ -81,7 +81,7 @@ def test_DubinsPPMSetup_propagator_1():
     s0().setYaw(0)
 
     # create control input and duration
-    cspace = ds.ssetup.getControlSpace()
+    cspace = ds.space_info.getControlSpace()
     c0 = cspace.allocControl()
     c0[0] = 0.0
     duration = 1.0

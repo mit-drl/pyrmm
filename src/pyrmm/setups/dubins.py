@@ -4,6 +4,7 @@ Create SimpleSetup for Dubins Car
 from __future__ import division
 
 import numpy as np
+from scipy.integrate import odeint
 
 from functools import partial
 from ompl import util as ou
@@ -36,7 +37,8 @@ class DubinsPPMSetup(SystemSetup):
         self.ppm_config_space.loadFile(ppm_file)
 
         # create state space and set bounds
-        state_space = ob.DubinsStateSpace(turningRadius=turning_radius)
+        # state_space = ob.DubinsStateSpace(turningRadius=turning_radius)
+        state_space = ob.SE2StateSpace()
         sbounds = ob.RealVectorBounds(2)
         sbounds.setLow(0, 0.0)
         sbounds.setHigh(0, self.ppm_config_space.getWidth())
@@ -55,7 +57,11 @@ class DubinsPPMSetup(SystemSetup):
         # create space information for state and control space
         space_info = oc.SpaceInformation(stateSpace=state_space, controlSpace=control_space)
 
-        # create and set propagator class
+        # create and set propagator class from ODEs
+        # Ref: https://ompl.kavrakilab.org/RigidBodyPlanningWithODESolverAndControls_8py_source.html
+        # ode = oc.ODE(dubinsODE)
+        # odeSolver = oc.ODEBasicSolver(si=space_info, ode=ode)
+        # propagator = oc.ODESolver.getStatePropagator(odeSolver)
         propagator = DubinsPPMStatePropagator(speed=speed, spaceInformation=space_info)
         space_info.setStatePropagator(propagator)
 
@@ -101,6 +107,46 @@ class DubinsPPMSetup(SystemSetup):
         else:
             return False
 
+# def dubinsODE(q, u, qdot):
+#     '''dubins vehicle ordinary differential equations
+    
+#     Args:
+#         q : np.array
+#             state vector [x, y, theta]
+#         u : np.array
+#             control vector [dtheta]
+#         qdot : np.array
+#             state time derivative [dx, dy, dtheta], modified in place
+#     '''
+#     # if len(q) == 0:
+#     #     return
+#     theta = q[2]
+#     # qdot[0] = speed * np.cos(theta)
+#     # qdot[1] = speed * np.sin(theta)
+#     qdot[0] = np.cos(theta)
+#     qdot[1] = np.sin(theta)
+#     qdot[2] = u[0]
+
+def dubinsODE(y, t, u, speed):
+            '''dubins vehicle ordinary differential equations
+            
+            Args:
+                q : ???
+                    state variable vector [x, y, theta]
+                t : ???
+                    time variable
+                u : np.array
+                    control vector [dtheta]
+                speed : float
+                    constant tangential speed
+            '''
+
+            dydt = 3*[None]
+            dydt[0] = speed * np.cos(y[2])
+            dydt[1] = speed * np.sin(y[2])
+            dydt[2] = u[0]
+            return dydt
+
 class DubinsPPMStatePropagator(oc.StatePropagator):
 
     def __init__(self, speed, spaceInformation):
@@ -118,10 +164,35 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
                 duration of propagation
             result : ob.State
                 end state of propagation, modified in place
+
+        Notes:
+            By default, propagate does not perform or is used in integration,
+            even when defined through an ODESolver; see:
+            https://ompl.kavrakilab.org/RigidBodyPlanningWithODESolverAndControls_8py_source.html
+            https://ompl.kavrakilab.org/classompl_1_1control_1_1StatePropagator.html#a4bf54becfce458e1e8abfa4a37ae8dff
+            Therefore we must implement an ODE solver ourselves.
+            Currently using scipy's odeint. This creates a dependency on scipy and is likely inefficient
+            because it's integrating in python instead of C++. 
+            Could be improved later
         '''
-        result.setX(state.getX() + self.speed * duration * np.cos(state.getYaw()))
-        result.setY(state.getY() + self.speed * duration * np.sin(state.getYaw()))
-        result.setYaw(state.getYaw() + control[0] * duration)
+
+        # package init state and time vector
+        # NOTE: only using 2-step time vector. Not sure if this degrades 
+        # accuracy or just reduces the amount of data output
+        s0 = [state.getX(), state.getY(), state.getYaw()]
+        t = [0.0, duration]
+
+        # call scipy's ode integrator
+        sol = odeint(dubinsODE, s0, t, args=(control, self.speed))
+
+        # store solution in result
+        result.setX(sol[-1,0])
+        result.setY(sol[-1,1])
+        result.setYaw(sol[-1,2])
+
+        # result.setX(state.getX() + self.speed * duration * np.cos(state.getYaw()))
+        # result.setY(state.getY() + self.speed * duration * np.sin(state.getYaw()))
+        # result.setYaw(state.getYaw() + control[0] * duration)
 
     def canPropagateBackwards(self):
         return False

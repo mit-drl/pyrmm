@@ -1,10 +1,12 @@
 import pathlib
 import numpy as np
+from scipy.integrate import odeint
 
-from pyrmm.setups.dubins import DubinsPPMSetup
+from pyrmm.setups.dubins import DubinsPPMSetup, dubinsODE
 
 from ompl import base as ob
 from ompl import control as oc
+
 
 PPM_FILE_0 = str(pathlib.Path(__file__).parent.absolute().joinpath("border_640x400.ppm"))
 
@@ -99,6 +101,31 @@ def test_DubinsPPMSetup_propagator_1():
     assert np.isclose(s1().getY(), 200)
     assert np.isclose(s1().getYaw(), 0)
 
+def test_DubinsPPMSetup_dubinsODE_integration_0():
+    '''test that the dubins ODE integrates to expected values'''
+
+    # ~~~ ARRANGE ~~~
+    # create initial conditions and time vector
+    y0 = [300, 200, 0]
+    # t = np.linspace(0, 10, 2)
+    t = [0, 10]
+
+    # specify the control (turning rate) and speed 
+    u = [0]
+    speed = 1
+
+    # ~~~ ACT ~~~
+    sol = odeint(dubinsODE, y0, t, args=(u, speed))
+
+    # ~~~ ASSERT ~~~
+    # check that final timestep is as expected
+    assert np.isclose(sol[-1,0], 310)
+    assert np.isclose(sol[-1,1], 200)
+    assert np.isclose(sol[-1,2], 0)
+
+
+
+
 # def test_DubinsPPMSetup_sampleReachableSet():
 #     '''test that propagator arrives at expected state'''
 
@@ -129,4 +156,7 @@ def test_DubinsPPMSetup_propagator_1():
 #     assert cspace.getDimension() == 1
 #     assert np.isclose(s1().getX(), 310)
 #     assert np.isclose(s1().getY(), 200)
-    assert np.isclose(s1().getYaw(), 0)
+#     assert np.isclose(s1().getYaw(), 0)
+
+if __name__ == "__main__":
+    test_DubinsPPMSetup_propagator_0()

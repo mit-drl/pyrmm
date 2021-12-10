@@ -38,19 +38,6 @@ class SystemSetup:
         if self.space_info.getStatePropagator() is None:
             raise AttributeError("State propagator must be set by child class!")
         
-        # define the simple setup class
-        # self.ssetup = oc.SimpleSetup(space_information) 
-
-        # # set state validity checker
-        # validityChecker = ob.StateValidityCheckerFn(partial(
-        #     state_validity_fn, 
-        #     self.ssetup.getSpaceInformation()
-        # ))
-        # self.ssetup.setStateValidityChecker(validityChecker)
-
-        # # set state-control propagator
-        # statePropagator = propagator_cls(self.ssetup.getSpaceInformation())
-        # self.ssetup.setStatePropagator(statePropagator)
 
     def sampleReachableSet(self, state, distance, n_samples, policy='default'):
         '''Draw n samples from state space near a given state using a policy

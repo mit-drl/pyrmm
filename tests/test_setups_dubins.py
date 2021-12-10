@@ -234,37 +234,31 @@ def test_DubinsPPMSetup_propagator_4():
     assert np.isclose(np.cos(s1().getYaw()), np.cos(yaw0))
 
 
-# def test_DubinsPPMSetup_sampleReachableSet():
-#     '''test that propagator arrives at expected state'''
+def test_DubinsPPMSetup_sampleReachableSet_0():
+    '''test that propagator arrives at expected state'''
 
-#     # ~~~ ARRANGE ~~~
-#     ds = DubinsPPMSetup(PPM_FILE_0, 10, 1)
-#     propagator = ds.ssetup.getStatePropagator()
+    # ~~~ ARRANGE ~~~
+    speed = 2.0
+    turning_radius = 10.0
+    duration = 1.0
+    n_samples = 10
+    x0 = 300
+    y0 = 200
+    yaw0 = 0
+    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, turning_radius=turning_radius)
 
-#     # create initial state
-#     s0 = ob.State(ob.DubinsStateSpace())
-#     s0().setX(300)
-#     s0().setY(200)
-#     s0().setYaw(0)
+    # create initial state
+    s0 = ob.State(ob.DubinsStateSpace())
+    s0().setX(x0)
+    s0().setY(y0)
+    s0().setYaw(yaw0)
 
-#     # create control input and duration
-#     cspace = ds.ssetup.getControlSpace()
-#     c0 = cspace.allocControl()
-#     c0[0] = 0.0
-#     duration = 1.0
-
-#     # create state object to store propagated state
-#     s1 = ob.State(ob.DubinsStateSpace())
-
-#     # ~~~ ACT ~~~
-#     # propagate state
-#     propagator.propagate(s0(), c0, duration, s1())
+    # ~~~ ACT ~~~
+    # sample controls
+    samples = ds.sampleReachableSet(s0, duration, n_samples)
     
-#     # ~~~ ASSERT ~~~
-#     assert cspace.getDimension() == 1
-#     assert np.isclose(s1().getX(), 310)
-#     assert np.isclose(s1().getY(), 200)
-#     assert np.isclose(s1().getYaw(), 0)
+    # ~~~ ASSERT ~~~
+    assert len(samples) == n_samples
 
 if __name__ == "__main__":
     test_DubinsPPMSetup_propagator_4()

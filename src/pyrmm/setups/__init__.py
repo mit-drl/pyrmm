@@ -74,7 +74,7 @@ class SystemSetup:
         if policy == 'default':
 
             # access space information
-            si = self.ssetup.getSpaceInformation()
+            si = self.space_info
 
             # use default undirected control sampler 
             csampler = si.allocControlSampler()
@@ -98,4 +98,6 @@ class SystemSetup:
                 )
         else:
             raise NotImplementedError("No reachable set sampling implemented for policy {}".format(policy))
+
+        return samples
         

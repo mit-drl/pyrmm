@@ -243,8 +243,8 @@ def test_DubinsPPMSetup_propagator_4():
     st.floats(allow_nan=False, allow_infinity=False),
     st.floats(min_value=1e-6, max_value=1e6, allow_nan=False, allow_infinity=False),
 )
-def test_hypothesis_DubinsPPMSetup_propagator(speed, min_turn_radius, x0, y0, yaw0, ctrl, dur):
-    '''test a broad range of propagator inputs'''
+def test_hypothesis_DubinsPPMSetup_propagator_error_check(speed, min_turn_radius, x0, y0, yaw0, ctrl, dur):
+    '''test a broad range of propagator inputs to see if they raise errors'''
     # ~~~ ARRANGE ~~~
 
     ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, min_turn_radius=min_turn_radius)
@@ -280,6 +280,66 @@ def test_hypothesis_DubinsPPMSetup_propagator(speed, min_turn_radius, x0, y0, ya
     # assert np.isclose(np.sin(s1().getYaw()), np.sin(exp_yaw1), atol=0.1)
     # assert np.isclose(np.cos(s1().getYaw()), np.cos(exp_yaw1), atol=0.1)
 
+@given(
+    st.floats(min_value=1e-2, max_value=1e2, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=1e-2, max_value=1e2, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=-1e3, max_value=1e3, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=-1e3, max_value=1e3, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=-10*np.pi, max_value=10*np.pi, allow_nan=False, allow_infinity=False),
+    st.booleans(),
+    st.floats(min_value=0, max_value=100, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=1e-3, max_value=1, allow_nan=False, allow_infinity=False),
+)
+def test_hypothesis_DubinsPPMSetup_propagator_clipped_ctrl(speed, min_turn_radius, x0, y0, yaw0, ctrl_neg, ctrl_dev, dur_scale):
+    '''test a narrow range of propagator inputs with clipped control value'''
+    # ~~~ ARRANGE ~~~
+
+    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, min_turn_radius=min_turn_radius)
+    propagator = ds.space_info.getStatePropagator()
+    cbounds = ds.space_info.getControlSpace().getBounds()
+
+    # create initial state
+    s0 = ob.State(ob.DubinsStateSpace())
+    s0().setX(x0)
+    s0().setY(y0)
+    s0().setYaw(yaw0)
+
+    # create control input to ensure it exceeds cspace bounds
+    cspace = ds.space_info.getControlSpace()
+    c0 = cspace.allocControl()
+    # rndsign = 1 if np.random.rand() > 0.5 else -1
+    # rndctrl = 100*np.random.rand()
+    ctrl_sign = -1 if ctrl_neg else 1
+    ctrl = ctrl_sign * (speed / min_turn_radius + ctrl_dev)
+    c0[0] = ctrl
+
+    # create duration to ensure it is less than 2 full revolutions
+    bnd_ctrl = np.clip(ctrl, cbounds.low[0], cbounds.high[0])
+    dur = (4*np.pi / bnd_ctrl) * dur_scale
+
+    # create state object to store propagated state
+    s1 = ob.State(ob.DubinsStateSpace())
+
+    # ~~~ ACT ~~~
+    # propagate state
+    propagator.propagate(s0(), c0, dur, s1())
+
+    # ~~~ ASSERT ~~~
+    # numerical integration very inprecise
+    # use very loose assertions, mostly just checking errors arent' thrown
+    exp_turn_radius = abs(speed / bnd_ctrl)
+    assert np.isclose(exp_turn_radius, min_turn_radius)
+    # bnd_ctrl = np.clip(ctrl, cbounds.low, cbounds.high)
+    # turn_radius = speed / bnd_ctrl
+    # eps = 1e-5
+    # assert np.less_equal(s1().getX(), x0 + dur*speed + eps)
+    exp_yaw1 = bnd_ctrl * dur + yaw0
+    assert np.isclose(np.sin(s1().getYaw()), np.sin(exp_yaw1))
+    assert np.isclose(np.cos(s1().getYaw()), np.cos(exp_yaw1))
+    exp_x1 = x0 + exp_turn_radius * ctrl_sign * (np.sin(exp_yaw1) - np.sin(yaw0))
+    exp_y1 = y0 + exp_turn_radius * ctrl_sign * (-np.cos(exp_yaw1) + np.cos(yaw0))
+    assert np.isclose(s1().getX(), exp_x1)
+    assert np.isclose(s1().getY(), exp_y1)
 
 
 def test_DubinsPPMSetup_sampleReachableSet_0():
@@ -315,4 +375,5 @@ def test_DubinsPPMSetup_sampleReachableSet_0():
         assert np.greater_equal(s.getY(), y0 - duration*speed)
 
 if __name__ == "__main__":
-    test_DubinsPPMSetup_propagator_4()
+    # test_DubinsPPMSetup_propagator_4()
+    test_hypothesis_DubinsPPMSetup_propagator_clipped_ctrl()

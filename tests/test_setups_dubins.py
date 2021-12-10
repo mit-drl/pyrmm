@@ -289,7 +289,7 @@ def test_DubinsPPMSetup_sampleReachableSet_0():
     speed = 2.0
     min_turn_radius = 10.0
     duration = 1.0
-    n_samples = 10
+    n_samples = 100
     x0 = 300
     y0 = 200
     yaw0 = 0
@@ -307,6 +307,12 @@ def test_DubinsPPMSetup_sampleReachableSet_0():
     
     # ~~~ ASSERT ~~~
     assert len(samples) == n_samples
+    for s in samples:
+        # very loose bounds on the possible samples
+        assert np.less_equal(s.getX(), x0 + duration*speed)
+        assert np.greater_equal(s.getX(), x0 - duration*speed)
+        assert np.less_equal(s.getY(), y0 + duration*speed)
+        assert np.greater_equal(s.getY(), y0 - duration*speed)
 
 if __name__ == "__main__":
     test_DubinsPPMSetup_propagator_4()

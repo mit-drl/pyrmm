@@ -58,24 +58,12 @@ class DubinsPPMSetup(SystemSetup):
         space_info = oc.SpaceInformation(stateSpace=state_space, controlSpace=control_space)
 
         # create and set propagator class from ODEs
-        # Ref: https://ompl.kavrakilab.org/RigidBodyPlanningWithODESolverAndControls_8py_source.html
-        # ode = oc.ODE(dubinsODE)
-        # odeSolver = oc.ODEBasicSolver(si=space_info, ode=ode)
-        # propagator = oc.ODESolver.getStatePropagator(odeSolver)
         propagator = DubinsPPMStatePropagator(speed=speed, spaceInformation=space_info)
         space_info.setStatePropagator(propagator)
 
         # create and set state validity checker
         validityChecker = ob.StateValidityCheckerFn(partial(self.isStateValid, space_info))
         space_info.setStateValidityChecker(validityChecker)
-
-        # create a partially-implemented propagator class
-        # NOTE: passing a class instead of a propagate func was necessary to avoid
-        # lvalue conversion error: 
-        # https://stackoverflow.com/questions/20825662/boost-python-argument-types-did-not-match-c-signature
-        # NOTE: partially constructing the class was necessary to pass Dubins-specific "speed" attribute
-        # without passing the spaceInformation that is only available in SystemSetup
-        # propagator_partial_cls = partialclass(DubinsPPMStatePropagator, speed)
 
         # call parent init to create simple setup
         super().__init__(space_information=space_info)
@@ -107,25 +95,6 @@ class DubinsPPMSetup(SystemSetup):
         else:
             return False
 
-# def dubinsODE(q, u, qdot):
-#     '''dubins vehicle ordinary differential equations
-    
-#     Args:
-#         q : np.array
-#             state vector [x, y, theta]
-#         u : np.array
-#             control vector [dtheta]
-#         qdot : np.array
-#             state time derivative [dx, dy, dtheta], modified in place
-#     '''
-#     # if len(q) == 0:
-#     #     return
-#     theta = q[2]
-#     # qdot[0] = speed * np.cos(theta)
-#     # qdot[1] = speed * np.sin(theta)
-#     qdot[0] = np.cos(theta)
-#     qdot[1] = np.sin(theta)
-#     qdot[2] = u[0]
 
 def dubinsODE(y, t, u, speed):
             '''dubins vehicle ordinary differential equations
@@ -181,6 +150,7 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
         # accuracy or just reduces the amount of data output
         s0 = [state.getX(), state.getY(), state.getYaw()]
         t = [0.0, duration]
+        # t = np.linspace(0, duration, 101)
 
         # call scipy's ode integrator
         sol = odeint(dubinsODE, s0, t, args=(control, self.speed))
@@ -189,10 +159,6 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
         result.setX(sol[-1,0])
         result.setY(sol[-1,1])
         result.setYaw(sol[-1,2])
-
-        # result.setX(state.getX() + self.speed * duration * np.cos(state.getYaw()))
-        # result.setY(state.getY() + self.speed * duration * np.sin(state.getYaw()))
-        # result.setYaw(state.getYaw() + control[0] * duration)
 
     def canPropagateBackwards(self):
         return False

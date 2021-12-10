@@ -37,6 +37,28 @@ def test_DubinsPPMSetup_state_checker_0():
     assert s0_valid
     assert not s1_valid
 
+def test_DubinsPPMSetup_dubinsODE_integration_0():
+    '''test that the dubins ODE integrates to expected values'''
+
+    # ~~~ ARRANGE ~~~
+    # create initial conditions and time vector
+    y0 = [300, 200, 0]
+    # t = np.linspace(0, 10, 2)
+    t = [0, 10]
+
+    # specify the control (turning rate) and speed 
+    u = [0]
+    speed = 1
+
+    # ~~~ ACT ~~~
+    sol = odeint(dubinsODE, y0, t, args=(u, speed))
+
+    # ~~~ ASSERT ~~~
+    # check that final timestep is as expected
+    assert np.isclose(sol[-1,0], 310)
+    assert np.isclose(sol[-1,1], 200)
+    assert np.isclose(sol[-1,2], 0)
+
 def test_DubinsPPMSetup_propagator_0():
     '''test that propagator arrives at expected state'''
 
@@ -101,29 +123,75 @@ def test_DubinsPPMSetup_propagator_1():
     assert np.isclose(s1().getY(), 200)
     assert np.isclose(s1().getYaw(), 0)
 
-def test_DubinsPPMSetup_dubinsODE_integration_0():
-    '''test that the dubins ODE integrates to expected values'''
+def test_DubinsPPMSetup_propagator_2():
+    '''test that propagator arrives at expected state'''
 
     # ~~~ ARRANGE ~~~
-    # create initial conditions and time vector
-    y0 = [300, 200, 0]
-    # t = np.linspace(0, 10, 2)
-    t = [0, 10]
+    ds = DubinsPPMSetup(PPM_FILE_0, 10, 1)
+    propagator = ds.space_info.getStatePropagator()
 
-    # specify the control (turning rate) and speed 
-    u = [0]
-    speed = 1
+    # create initial state
+    s0 = ob.State(ob.DubinsStateSpace())
+    s0().setX(300)
+    s0().setY(200)
+    s0().setYaw(np.pi/2.0)
+
+    # create control input and duration
+    cspace = ds.space_info.getControlSpace()
+    c0 = cspace.allocControl()
+    c0[0] = 0.0
+    duration = 1.0
+
+    # create state object to store propagated state
+    s1 = ob.State(ob.DubinsStateSpace())
 
     # ~~~ ACT ~~~
-    sol = odeint(dubinsODE, y0, t, args=(u, speed))
-
+    # propagate state
+    propagator.propagate(s0(), c0, duration, s1())
+    
     # ~~~ ASSERT ~~~
-    # check that final timestep is as expected
-    assert np.isclose(sol[-1,0], 310)
-    assert np.isclose(sol[-1,1], 200)
-    assert np.isclose(sol[-1,2], 0)
+    assert cspace.getDimension() == 1
+    assert np.isclose(s1().getX(), 300)
+    assert np.isclose(s1().getY(), 210)
+    assert np.isclose(s1().getYaw(), np.pi/2)
 
+def test_DubinsPPMSetup_propagator_3():
+    '''test that propagator arrives nears init state after a circle'''
 
+    # ~~~ ARRANGE ~~~
+    speed = 2.0
+    turning_radius = 10.0
+    x0 = 300
+    y0 = 200
+    yaw0 = 0
+    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, turning_radius=turning_radius)
+    propagator = ds.space_info.getStatePropagator()
+
+    # create initial state
+    s0 = ob.State(ob.DubinsStateSpace())
+    s0().setX(x0)
+    s0().setY(y0)
+    s0().setYaw(yaw0)
+
+    # create control input and duration
+    cspace = ds.space_info.getControlSpace()
+    c0 = cspace.allocControl()
+    c0[0] = -17.389273   # rad/s exceeds control bounds, should constrain to speed/turn
+    duration = 2 * np.pi * turning_radius / speed
+
+    # create state object to store propagated state
+    s1 = ob.State(ob.DubinsStateSpace())
+
+    # ~~~ ACT ~~~
+    # propagate state
+    propagator.propagate(s0(), c0, duration, s1())
+    
+    # ~~~ ASSERT ~~~
+    assert cspace.getDimension() == 1
+    assert np.isclose(s1().getX(), x0, rtol=0.001)
+    assert np.isclose(s1().getY(), y0, rtol=0.001)
+    normYaw = s1().getYaw() % (2*np.pi)
+    # assert np.isclose(normYaw, yaw0), 'Might need to clamp yaw to 0, 2pi'
 
 
 # def test_DubinsPPMSetup_sampleReachableSet():

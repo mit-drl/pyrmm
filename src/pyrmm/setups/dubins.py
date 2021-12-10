@@ -17,19 +17,19 @@ from pyrmm.setups import SystemSetup
 class DubinsPPMSetup(SystemSetup):
     ''' Dubins car with ppm file for obstacle configuration space
     '''
-    def __init__(self, ppm_file, speed, turning_radius):
+    def __init__(self, ppm_file, speed, min_turn_radius):
         '''
         Args:
             ppm_file : str
                 file path to ppm image used as obstacle configuration space
             speed : float
                 tangential speed of dubins vehicle
-            turning_radius : float
-                turning radius of the dubins vehicle
+            min_turn_radius : float
+                minimum turning radius of the dubins vehicle
         '''
 
         assert speed > 0
-        assert turning_radius > 0
+        assert min_turn_radius > 0
 
         # generate configuration space from ppm file
         ppm_file = ppm_file
@@ -48,7 +48,7 @@ class DubinsPPMSetup(SystemSetup):
 
         # create control space and set bounds
         control_space = oc.RealVectorControlSpace(stateSpace=state_space, dim=1)
-        dtheta = speed/turning_radius
+        dtheta = speed/min_turn_radius
         cbounds = ob.RealVectorBounds(1)
         cbounds.setLow(-dtheta)
         cbounds.setHigh(dtheta)

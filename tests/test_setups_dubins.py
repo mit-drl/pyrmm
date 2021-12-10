@@ -159,6 +159,44 @@ def test_DubinsPPMSetup_propagator_3():
     '''test that propagator arrives nears init state after a circle'''
 
     # ~~~ ARRANGE ~~~
+    speed = 1.0
+    turning_radius = 50.0
+    x0 = 300
+    y0 = 200
+    yaw0 = 0
+    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, turning_radius=turning_radius)
+    propagator = ds.space_info.getStatePropagator()
+
+    # create initial state
+    s0 = ob.State(ob.DubinsStateSpace())
+    s0().setX(x0)
+    s0().setY(y0)
+    s0().setYaw(yaw0)
+
+    # create control input and duration
+    cspace = ds.space_info.getControlSpace()
+    c0 = cspace.allocControl()
+    duration = np.pi * turning_radius / (2.0 * speed)
+    c0[0] = np.pi/(2.0 * duration)   # rad/s exceeds control bounds, should constrain to speed/turn
+
+    # create state object to store propagated state
+    s1 = ob.State(ob.DubinsStateSpace())
+
+    # ~~~ ACT ~~~
+    # propagate state
+    propagator.propagate(s0(), c0, duration, s1())
+    
+    # ~~~ ASSERT ~~~
+    assert cspace.getDimension() == 1
+    assert np.isclose(s1().getX(), x0 + turning_radius, rtol=0.001)
+    assert np.isclose(s1().getY(), y0 + turning_radius, rtol=0.001)
+    normYaw = s1().getYaw() % (2*np.pi)
+    assert np.isclose(normYaw, yaw0 + np.pi/2.0), 'Might need to clamp yaw to 0, 2pi'
+
+def test_DubinsPPMSetup_propagator_4():
+    '''test that propagator arrives nears init state after a circle'''
+
+    # ~~~ ARRANGE ~~~
     speed = 2.0
     turning_radius = 10.0
     x0 = 300
@@ -190,8 +228,10 @@ def test_DubinsPPMSetup_propagator_3():
     assert cspace.getDimension() == 1
     assert np.isclose(s1().getX(), x0, rtol=0.001)
     assert np.isclose(s1().getY(), y0, rtol=0.001)
-    normYaw = s1().getYaw() % (2*np.pi)
+    # normYaw = s1().getYaw() % (2*np.pi)
     # assert np.isclose(normYaw, yaw0), 'Might need to clamp yaw to 0, 2pi'
+    assert np.isclose(np.sin(s1().getYaw()), np.sin(yaw0))
+    assert np.isclose(np.cos(s1().getYaw()), np.cos(yaw0))
 
 
 # def test_DubinsPPMSetup_sampleReachableSet():
@@ -227,4 +267,4 @@ def test_DubinsPPMSetup_propagator_3():
 #     assert np.isclose(s1().getYaw(), 0)
 
 if __name__ == "__main__":
-    test_DubinsPPMSetup_propagator_0()
+    test_DubinsPPMSetup_propagator_4()

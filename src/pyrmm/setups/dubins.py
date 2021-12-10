@@ -120,6 +120,7 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
 
     def __init__(self, speed, spaceInformation):
         self.speed = speed
+        self.cbounds = spaceInformation.getControlSpace().getBounds()
         super().__init__(si=spaceInformation)
 
     def propagate(self, state, control, duration, result):
@@ -152,8 +153,11 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
         t = [0.0, duration]
         # t = np.linspace(0, duration, 101)
 
+        # clip the control to ensure it is within the control bounds
+        bounded_control = np.clip([control[0]], self.cbounds.low, self.cbounds.high)
+
         # call scipy's ode integrator
-        sol = odeint(dubinsODE, s0, t, args=(control, self.speed))
+        sol = odeint(dubinsODE, s0, t, args=(bounded_control, self.speed))
 
         # store solution in result
         result.setX(sol[-1,0])

@@ -349,7 +349,7 @@ def test_DubinsPPMSetup_sampleReachableSet_0():
     speed = 2.0
     min_turn_radius = 10.0
     duration = 1.0
-    n_samples = 100
+    n_samples = 1000
     x0 = 300
     y0 = 200
     yaw0 = 0

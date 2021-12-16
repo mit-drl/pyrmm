@@ -25,6 +25,10 @@ wheels/
 *.egg
 MANIFEST
 
+# pytorch lightning data and  logs
+lightning_logs/
+notebooks/bike_sharing_*.csv
+
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.

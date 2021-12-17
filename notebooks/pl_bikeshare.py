@@ -17,6 +17,7 @@ from pytorch_lightning.profiler import AdvancedProfiler
 
 L_RATE = 0.2
 MSE_LOSS = nn.MSELoss(reduction='mean')
+MAX_EPOCHS= 50
 
 class RegressionModule(pl.LightningModule):
     ''' The Model'''
@@ -57,31 +58,48 @@ class RegressionModule(pl.LightningModule):
         x, y = batch
         y_out = self.forward(x)
         loss = MSE_LOSS(y_out, y)
-        logs = {'loss': loss}
-        return {'loss': loss, 'log': logs}
+        # logs = {'loss': loss}
+        # return {'loss': loss, 'log': logs}
+        self.log('train_loss', loss, prog_bar=True)
+        # logs = {'train_loss': loss}
+        return {'loss': loss}
+
+    def training_epoch_end(self, outputs):
+        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+        self.log('avg_train_loss', avg_loss, prog_bar=True)
+
 
     def validation_step(self, batch, batch_idx):
         ''' Process to run for validation '''
         x, y = batch
         y_out = self.forward(x)
         loss = MSE_LOSS(y_out, y)
+        # self.log('validation_loss', loss)
         return {'validation_loss': loss}
+        # return loss
 
     def validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x['validation_loss'] for x in outputs]).mean()
-        tensorboard_logs = {'validation_loss': avg_loss}
-        return {'avg_validation_loss': avg_loss, 'log': tensorboard_logs}
+        # tensorboard_logs = {'validation_loss': avg_loss}
+        # return {'avg_validation_loss': avg_loss, 'log': tensorboard_logs}
+        self.log('avg_validation_loss', avg_loss, prog_bar=True)
+        return avg_loss
 
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_out = self.forward(x)
         loss = MSE_LOSS(y_out, y)
+        # self.log('test_loss', loss)
         return {'test_loss': loss}
+        # return loss
 
     def test_epoch_end(self, outputs):
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
-        logs = {'test_loss': avg_loss}      
-        return {'avg_test_loss': avg_loss, 'log': logs, 'progress_bar': logs }
+        # logs = {'test_loss': avg_loss}      
+        self.log('avg_test_loss', avg_loss,prog_bar=True)
+        # return {'avg_test_loss': avg_loss, 'log': logs, 'progress_bar': logs }
+        return {'avg_test_loss': avg_loss}
+        # return avg_loss
 
 
 
@@ -125,6 +143,9 @@ if  __name__ == "__main__":
     Latest date - {df['dteday'].max()}
     Total number of days - {len(df) / 24}
     """)
+    # visualize data
+    # df[df['dteday'].isin(df['dteday'].unique()[0:14])].plot(x='dteday', y='cnt', figsize=(16, 4))
+    # plt.show()
 
     # one-hot encode categorical variables
     onehot_fields = ['season', 'mnth', 'hr', 'weekday', 'weathersit']
@@ -158,8 +179,8 @@ if  __name__ == "__main__":
     # NOTE: I am breaking up the data differently to better 
     # disentangle training, validation, and test
     n_data = len(df)
-    n_train_data = int(0.80*n_data)+1
-    n_validation_data = int(0.10*n_data)+1
+    n_train_data = int(0.90*n_data)+1
+    n_validation_data = int(0.05*n_data)+1
     n_test_data = n_data - (n_train_data + n_validation_data) 
     train_data = df[:n_train_data]
     validation_data = df[n_train_data:n_train_data+n_validation_data]
@@ -195,7 +216,7 @@ if  __name__ == "__main__":
     train_loader = bikeshare_dataloader(train_features, train_targets, batch_size=128)
 
     # instantiate trainer
-    trainer = Trainer(max_epochs = 50)
+    trainer = Trainer(max_epochs = MAX_EPOCHS)
 
     # train module
     trainer.fit(regmod, train_loader)

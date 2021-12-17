@@ -25,9 +25,11 @@ wheels/
 *.egg
 MANIFEST
 
-# pytorch lightning data and  logs
+# pytorch lightning data and logs
 lightning_logs/
 notebooks/bike_sharing_*.csv
+predict*.pdf
+sine_traindata.pt
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

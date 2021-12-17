@@ -3,6 +3,7 @@ scipy
 torch
 pytorch-lightning
 pandas
+tensorboard
 matplotlib
 git+git://github.com/AndrewWalker/pydubins.git
 

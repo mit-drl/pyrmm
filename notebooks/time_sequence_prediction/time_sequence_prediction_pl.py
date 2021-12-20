@@ -85,6 +85,7 @@ class Sequence(LightningModule):
         inputs, targets = batch
         outputs = self(inputs)
         loss = F.mse_loss(outputs, targets)
+        self.print("loss:", loss.item())
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -92,6 +93,7 @@ class Sequence(LightningModule):
         future = 1000
         pred = self(inputs, future=future)
         loss = F.mse_loss(pred[:, :-future], targets)
+        self.print("\nvalidation loss:", loss.item())
         y = pred.detach().numpy()
 
         # draw the result
@@ -109,7 +111,7 @@ class Sequence(LightningModule):
         draw(y[0], "r")
         draw(y[1], "g")
         draw(y[2], "b")
-        plt.savefig(f"predict{self.global_step:d}.pdf")
+        plt.savefig(f"results/predict{self.global_step:d}.pdf")
         plt.close()
 
 if __name__ == "__main__":
@@ -128,7 +130,7 @@ if __name__ == "__main__":
 
     seed_everything(0)
     trainer = Trainer(max_steps=15, precision=64)
-    model = Sequence(1, 51, 1, 0.8)
+    model = Sequence(1, 51, 1, 0.1)
     datamodule = SeqDataModule()
     trainer.fit(model, datamodule)
 

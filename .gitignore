@@ -30,6 +30,7 @@ lightning_logs/
 notebooks/bike_sharing_*.csv
 predict*.pdf
 sine_traindata.pt
+traindata.pt
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

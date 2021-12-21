@@ -28,13 +28,14 @@ class SeqDataModule(LightningDataModule):
         inputs = torch.from_numpy(self.data[3:, :-1])
         targets = torch.from_numpy(self.data[3:, 1:])
         dataset = TensorDataset(inputs, targets)
-        print(inputs.shape, targets.shape)
+        print('\nTrain DataLoader: ', inputs.shape, targets.shape)
         return DataLoader(dataset, batch_size=len(inputs))
 
     def val_dataloader(self):
         inputs = torch.from_numpy(self.data[:3, :-1])
         targets = torch.from_numpy(self.data[:3, 1:])
         dataset = TensorDataset(inputs, targets)
+        print('\nValidation DataLoader: ', inputs.shape, targets.shape)
         return DataLoader(dataset, batch_size=len(inputs))
 
 
@@ -80,20 +81,32 @@ class Sequence(LightningModule):
 
     def configure_optimizers(self):
         return optim.LBFGS(self.parameters(), lr=self.learn_rate)
+        # return optim.Adam(self.parameters(), lr=self.learn_rate)
 
     def training_step(self, batch, batch_idx):
+        print('\n------------------------------\nSTARTING TRAINING STEP\n')
         inputs, targets = batch
         outputs = self(inputs)
         loss = F.mse_loss(outputs, targets)
         self.print("loss:", loss.item())
+        self.log('train_loss', loss)
+        print('\nENDING TRAINING STEP\n------------------------------\n')
         return loss
 
+    def training_epoch_end(self, outputs):
+        print('\n------------------------------\nSTARTING TRAINING EPOCH END\n')
+        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+        self.log('avg_train_loss', avg_loss, prog_bar=True)
+        print('\nENDING TRAINING EPOCH END\n------------------------------\n')
+
     def validation_step(self, batch, batch_idx):
+        print('\n------------------------------\nSTARTING VALIDATION STEP\n')
         inputs, targets = batch
         future = 1000
         pred = self(inputs, future=future)
         loss = F.mse_loss(pred[:, :-future], targets)
         self.print("\nvalidation loss:", loss.item())
+        self.log('validation_loss', loss)
         y = pred.detach().numpy()
 
         # draw the result
@@ -113,6 +126,7 @@ class Sequence(LightningModule):
         draw(y[2], "b")
         plt.savefig(f"results/predict{self.global_step:d}.pdf")
         plt.close()
+        print('\nENDING VALIDATION STEP\n------------------------------\n')
 
 if __name__ == "__main__":
 
@@ -129,7 +143,7 @@ if __name__ == "__main__":
     torch.save(data, open(DATA_FILENAME, 'wb'))
 
     seed_everything(0)
-    trainer = Trainer(max_steps=15, precision=64)
+    trainer = Trainer(max_steps=50, precision=64)
     model = Sequence(1, 51, 1, 0.1)
     datamodule = SeqDataModule()
     trainer.fit(model, datamodule)

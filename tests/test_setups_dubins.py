@@ -84,7 +84,7 @@ def test_DubinsPPMSetup_propagator_0():
 
     # ~~~ ACT ~~~
     # propagate state
-    propagator.propagate(s0(), c0, duration, s1())
+    propagator.propagate_path(s0(), c0, duration, s1())
     
     # ~~~ ASSERT ~~~
     assert cspace.getDimension() == 1
@@ -116,7 +116,7 @@ def test_DubinsPPMSetup_propagator_1():
 
     # ~~~ ACT ~~~
     # propagate state
-    propagator.propagate(s0(), c0, duration, s1())
+    propagator.propagate_path(s0(), c0, duration, s1())
     
     # ~~~ ASSERT ~~~
     assert cspace.getDimension() == 1
@@ -148,7 +148,7 @@ def test_DubinsPPMSetup_propagator_2():
 
     # ~~~ ACT ~~~
     # propagate state
-    propagator.propagate(s0(), c0, duration, s1())
+    propagator.propagate_path(s0(), c0, duration, s1())
     
     # ~~~ ASSERT ~~~
     assert cspace.getDimension() == 1
@@ -185,7 +185,7 @@ def test_DubinsPPMSetup_propagator_3():
 
     # ~~~ ACT ~~~
     # propagate state
-    propagator.propagate(s0(), c0, duration, s1())
+    propagator.propagate_path(s0(), c0, duration, s1())
     
     # ~~~ ASSERT ~~~
     assert cspace.getDimension() == 1
@@ -223,7 +223,7 @@ def test_DubinsPPMSetup_propagator_4():
 
     # ~~~ ACT ~~~
     # propagate state
-    propagator.propagate(s0(), c0, duration, s1())
+    propagator.propagate_path(s0(), c0, duration, s1())
     
     # ~~~ ASSERT ~~~
     assert cspace.getDimension() == 1
@@ -267,7 +267,7 @@ def test_hypothesis_DubinsPPMSetup_propagator_error_check(speed, min_turn_radius
 
     # ~~~ ACT ~~~
     # propagate state
-    propagator.propagate(s0(), c0, dur, s1())
+    propagator.propagate_path(s0(), c0, dur, s1())
 
     # ~~~ ASSERT ~~~
     # numerical integration very inprecise
@@ -322,7 +322,7 @@ def test_hypothesis_DubinsPPMSetup_propagator_clipped_ctrl(speed, min_turn_radiu
 
     # ~~~ ACT ~~~
     # propagate state
-    propagator.propagate(s0(), c0, dur, s1())
+    propagator.propagate_path(s0(), c0, dur, s1())
 
     # ~~~ ASSERT ~~~
     # numerical integration very inprecise

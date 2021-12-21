@@ -123,8 +123,8 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
         self.cbounds = spaceInformation.getControlSpace().getBounds()
         super().__init__(si=spaceInformation)
 
-    def propagate(self, state, control, duration, result):
-        ''' propagate from start based on control, store in state
+    def propagate_path(self, state, control, duration, result, path, nsteps=8):
+        ''' propagate from start based on control, store final state in result, store path to result
         Args:
             state : ob.State
                 start state of propagation
@@ -134,15 +134,25 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
                 duration of propagation
             result : ob.State
                 end state of propagation, modified in place
+            path : oc.ControlPath
+                path from state to result in nsteps. initial state is state, final state is result
+            nsteps : int
+                number of discrete steps in path
+
+        Returns:
+            None
+
 
         Notes:
+            This function is similar, but disctinct from 'StatePropagator.propogate', thus its different name to no overload `propagate`. 
+            propogate does not store or return the path to get to result
             By default, propagate does not perform or is used in integration,
             even when defined through an ODESolver; see:
             https://ompl.kavrakilab.org/RigidBodyPlanningWithODESolverAndControls_8py_source.html
             https://ompl.kavrakilab.org/classompl_1_1control_1_1StatePropagator.html#a4bf54becfce458e1e8abfa4a37ae8dff
             Therefore we must implement an ODE solver ourselves.
             Currently using scipy's odeint. This creates a dependency on scipy and is likely inefficient
-            because it's integrating in python instead of C++. 
+            because it's perform the numerical integration in python instead of C++. 
             Could be improved later
         '''
 
@@ -150,8 +160,8 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
         # NOTE: only using 2-step time vector. Not sure if this degrades 
         # accuracy or just reduces the amount of data output
         s0 = [state.getX(), state.getY(), state.getYaw()]
-        t = [0.0, duration]
-        # t = np.linspace(0, duration, 101)
+        # t = [0.0, duration]
+        t = np.linspace(0.0, duration, nsteps)
 
         # clip the control to ensure it is within the control bounds
         bounded_control = np.clip([control[0]], self.cbounds.low, self.cbounds.high)
@@ -159,10 +169,14 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
         # call scipy's ode integrator
         sol = odeint(dubinsODE, s0, t, args=(bounded_control, self.speed))
 
-        # store solution in result
+        # store final state in result
         result.setX(sol[-1,0])
         result.setY(sol[-1,1])
         result.setYaw(sol[-1,2])
+
+        # store path to result
+        raise NotImplementedError
+
 
     def canPropagateBackwards(self):
         return False

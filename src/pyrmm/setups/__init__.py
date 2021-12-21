@@ -37,6 +37,10 @@ class SystemSetup:
         # ensure that a state propagator has been set
         if self.space_info.getStatePropagator() is None:
             raise AttributeError("State propagator must be set by child class!")
+
+        # ensure that state propagator has a propagator that returns a path
+        if not hasattr(self.space_info.getStatePropagator(), 'propagate_path'):
+            raise AttributeError("State propagator must implement propagate_path function that computes path to result!")
         
 
     def sampleReachableSet(self, state, distance, n_samples, policy='default'):
@@ -77,7 +81,7 @@ class SystemSetup:
                 csampler.sample(c)
 
                 # propagate sampled control
-                si.getStatePropagator().propagate(
+                si.getStatePropagator().propagate_path(
                     state = state(),
                     control = c,
                     duration = distance,

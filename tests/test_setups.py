@@ -12,6 +12,8 @@ def test_SystemSetup_init_0():
     class prop_cls(oc.StatePropagator):
         def __init__(self, spaceInformation):
             super().__init__(spaceInformation)
+        def propagate_path():
+            pass
 
 
     state_space = ob.SO2StateSpace()
@@ -47,6 +49,8 @@ def test_SystemSetup_init_raises_0():
     class prop_cls(oc.StatePropagator):
         def __init__(self, spaceInformation):
             super().__init__(spaceInformation)
+        def propagate_path():
+            pass
     si.setStatePropagator(prop_cls(si))
     SystemSetup(si)
 

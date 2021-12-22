@@ -123,7 +123,7 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
         self.cbounds = spaceInformation.getControlSpace().getBounds()
         super().__init__(si=spaceInformation)
 
-    def propagate_path(self, state, control, duration, result, path, nsteps=8):
+    def propagate_path(self, state, control, duration, path):
         ''' propagate from start based on control, store final state in result, store path to result
         Args:
             state : ob.State
@@ -132,12 +132,12 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
                 control to apply during propagation
             duration : float
                 duration of propagation
-            result : ob.State
-                end state of propagation, modified in place
             path : oc.ControlPath
                 path from state to result in nsteps. initial state is state, final state is result
-            nsteps : int
-                number of discrete steps in path
+            # result : ob.State
+            #     end state of propagation, modified in place
+            # nsteps : int
+            #     number of discrete steps in path
 
         Returns:
             None
@@ -157,10 +157,12 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
         '''
 
         # package init state and time vector
-        # NOTE: only using 2-step time vector. Not sure if this degrades 
-        # accuracy or just reduces the amount of data output
         s0 = [state.getX(), state.getY(), state.getYaw()]
-        # t = [0.0, duration]
+        
+        # create equi-spaced time vector based on number or elements
+        # in path object
+        nsteps = path.getStateCount()
+        assert nsteps >= 2
         t = np.linspace(0.0, duration, nsteps)
 
         # clip the control to ensure it is within the control bounds
@@ -169,13 +171,30 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
         # call scipy's ode integrator
         sol = odeint(dubinsODE, s0, t, args=(bounded_control, self.speed))
 
+        # store each intermediate point in the solution as pat of the path
+        pstates = path.getStates()
+        pcontrols = path.getControls()
+        ptimes = path.getControlDurations()
+        assert len(pcontrols) == len(ptimes) == nsteps-1
+        for i in range(nsteps-1):
+            pstates[i].setX(sol[i,0])
+            pstates[i].setY(sol[i,1])
+            pstates[i].setYaw(sol[i,2])
+            pcontrols[i] = control
+            ptimes[i] = t[i+1] - t[i]
+        
+        # store final state
+        pstates[-1].setX(sol[-1,0])
+        pstates[-1].setY(sol[-1,1])
+        pstates[-1].setYaw(sol[-1,2])
+
         # store final state in result
-        result.setX(sol[-1,0])
-        result.setY(sol[-1,1])
-        result.setYaw(sol[-1,2])
+        # result.setX(sol[-1,0])
+        # result.setY(sol[-1,1])
+        # result.setYaw(sol[-1,2])
 
         # store path to result
-        raise NotImplementedError
+        # raise NotImplementedError
 
 
     def canPropagateBackwards(self):

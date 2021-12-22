@@ -6,7 +6,7 @@ maps
 
 from functools import partial
 
-from ompl import base as ob
+from ompl import base as ob, control
 from ompl import control as oc
 
 class SystemSetup:
@@ -43,7 +43,7 @@ class SystemSetup:
             raise AttributeError("State propagator must implement propagate_path function that computes path to result!")
         
 
-    def sampleReachableSet(self, state, distance, n_samples, policy='default'):
+    def sampleReachableSet(self, state, distance, n_samples, policy='default', n_steps=8):
         '''Draw n samples from state space near a given state using a policy
 
         Args:
@@ -56,6 +56,8 @@ class SystemSetup:
             policy : str
                 string description of policy to use
                 defaults to undirected control sampler
+            n_steps : int
+                number of discrete steps in path to each sample
 
         Returns:
             samples : list(ob.State)
@@ -75,7 +77,19 @@ class SystemSetup:
             for i in range(n_samples):
 
                 # allocate memory for sampled state
-                samples[i] = si.allocState() 
+                # samples[i] = si.allocState()
+
+                # allocate a path object for the sample
+                # note that allocated states and controls are
+                # dummy placeholders
+                p = oc.PathControl(self.space_info)
+                for j in range(n_steps-1):
+                    p.append(state=si.allocState(), control=si.allocControl(), duration=0)
+                
+                # allocate final state
+                p.append(state=si.allocState())
+                assert p.getStateCount == n_steps
+                assert p.getControlCount == n_steps-1
 
                 # sample control input
                 csampler.sample(c)
@@ -85,8 +99,13 @@ class SystemSetup:
                     state = state(),
                     control = c,
                     duration = distance,
-                    result = samples[i]
+                    path = p
                 )
+
+                # assign sampled path to samples list
+                samples[i] = p
+
+
         else:
             raise NotImplementedError("No reachable set sampling implemented for policy {}".format(policy))
 

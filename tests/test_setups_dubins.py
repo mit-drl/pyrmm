@@ -65,6 +65,7 @@ def test_DubinsPPMSetup_propagator_0():
 
     # ~~~ ARRANGE ~~~
     ds = DubinsPPMSetup(PPM_FILE_0, 1, 1)
+    si = ds.space_info
     propagator = ds.space_info.getStatePropagator()
 
     # create initial state
@@ -80,23 +81,36 @@ def test_DubinsPPMSetup_propagator_0():
     duration = 1.0
 
     # create state object to store propagated state
-    s1 = ob.State(ob.DubinsStateSpace())
+    # s1 = ob.State(ob.DubinsStateSpace())
+
+    # create path object and alloc 2 states
+    path = oc.PathControl(si)
+    path.append(state=si.allocState(), control=si.allocControl(), duration=0)
+    path.append(state=si.allocState())
 
     # ~~~ ACT ~~~
     # propagate state
-    propagator.propagate_path(s0(), c0, duration, s1())
+    propagator.propagate_path(s0(), c0, duration, path)
     
     # ~~~ ASSERT ~~~
     assert cspace.getDimension() == 1
-    assert np.isclose(s1().getX(), 301)
-    assert np.isclose(s1().getY(), 200)
-    assert np.isclose(s1().getYaw(), 0)
+    assert path.getStateCount() == 2
+    assert path.getControlCount() == 1
+    assert np.isclose(path.getState(0).getX(), 300)
+    assert np.isclose(path.getState(0).getY(), 200)
+    assert np.isclose(path.getState(0).getYaw(), 0)
+    assert np.isclose(path.getControl(0)[0], 0.0)
+    assert np.isclose(path.getControlDuration(0), 1.0)
+    assert np.isclose(path.getState(1).getX(), 301)
+    assert np.isclose(path.getState(1).getY(), 200)
+    assert np.isclose(path.getState(1).getYaw(), 0)
 
 def test_DubinsPPMSetup_propagator_1():
     '''test that propagator arrives at expected state'''
 
     # ~~~ ARRANGE ~~~
     ds = DubinsPPMSetup(PPM_FILE_0, 10, 1)
+    si = ds.space_info
     propagator = ds.space_info.getStatePropagator()
 
     # create initial state
@@ -111,24 +125,34 @@ def test_DubinsPPMSetup_propagator_1():
     c0[0] = 0.0
     duration = 1.0
 
-    # create state object to store propagated state
-    s1 = ob.State(ob.DubinsStateSpace())
+    # create path object and alloc 2 states
+    path = oc.PathControl(si)
+    path.append(state=si.allocState(), control=si.allocControl(), duration=0)
+    path.append(state=si.allocState())
 
     # ~~~ ACT ~~~
     # propagate state
-    propagator.propagate_path(s0(), c0, duration, s1())
+    propagator.propagate_path(s0(), c0, duration, path)
     
     # ~~~ ASSERT ~~~
     assert cspace.getDimension() == 1
-    assert np.isclose(s1().getX(), 310)
-    assert np.isclose(s1().getY(), 200)
-    assert np.isclose(s1().getYaw(), 0)
+    assert path.getStateCount() == 2
+    assert path.getControlCount() == 1
+    assert np.isclose(path.getState(0).getX(), 300)
+    assert np.isclose(path.getState(0).getY(), 200)
+    assert np.isclose(path.getState(0).getYaw(), 0)
+    assert np.isclose(path.getControl(0)[0], 0.0)
+    assert np.isclose(path.getControlDuration(0), 1.0)
+    assert np.isclose(path.getState(1).getX(), 310)
+    assert np.isclose(path.getState(1).getY(), 200)
+    assert np.isclose(path.getState(1).getYaw(), 0)
 
 def test_DubinsPPMSetup_propagator_2():
     '''test that propagator arrives at expected state'''
 
     # ~~~ ARRANGE ~~~
     ds = DubinsPPMSetup(PPM_FILE_0, 10, 1)
+    si = ds.space_info
     propagator = ds.space_info.getStatePropagator()
 
     # create initial state
@@ -143,18 +167,27 @@ def test_DubinsPPMSetup_propagator_2():
     c0[0] = 0.0
     duration = 1.0
 
-    # create state object to store propagated state
-    s1 = ob.State(ob.DubinsStateSpace())
+    # create path object and alloc 2 states
+    path = oc.PathControl(si)
+    path.append(state=si.allocState(), control=si.allocControl(), duration=0)
+    path.append(state=si.allocState())
 
     # ~~~ ACT ~~~
     # propagate state
-    propagator.propagate_path(s0(), c0, duration, s1())
+    propagator.propagate_path(s0(), c0, duration, path)
     
     # ~~~ ASSERT ~~~
     assert cspace.getDimension() == 1
-    assert np.isclose(s1().getX(), 300)
-    assert np.isclose(s1().getY(), 210)
-    assert np.isclose(s1().getYaw(), np.pi/2)
+    assert path.getStateCount() == 2
+    assert path.getControlCount() == 1
+    assert np.isclose(path.getState(0).getX(), 300)
+    assert np.isclose(path.getState(0).getY(), 200)
+    assert np.isclose(path.getState(0).getYaw(), np.pi/2)
+    assert np.isclose(path.getControl(0)[0], 0.0)
+    assert np.isclose(path.getControlDuration(0), 1.0)
+    assert np.isclose(path.getState(1).getX(), 300)
+    assert np.isclose(path.getState(1).getY(), 210)
+    assert np.isclose(path.getState(1).getYaw(), np.pi/2)
 
 def test_DubinsPPMSetup_propagator_3():
     '''test that propagator arrives nears init state after a circle'''

@@ -41,7 +41,27 @@ class SystemSetup:
         # ensure that state propagator has a propagator that returns a path
         if not hasattr(self.space_info.getStatePropagator(), 'propagate_path'):
             raise AttributeError("State propagator must implement propagate_path function that computes path to result!")
+
+    def isPathValid(self, path):
+        '''check if any state on path is in collision with obstacles
         
+        Args:
+            path : oc.Path
+        
+        Returns:
+            true if all path states are valid (not colliding with obstacles)
+
+        Notes:
+            This serves a very similar (identical?) role as OMPL's MotionValidator,
+            however, there currently exists a bug that prevents access to a motion validator
+            using the python bindings.
+            See: https://github.com/ompl/ompl/issues/860
+        '''
+        for i in range(path.getStateCount()):
+            if not self.space_info.isValid(path.getState(i)):
+                return False
+        
+        return True
 
     def sampleReachableSet(self, state, distance, n_samples, policy='default', n_steps=8):
         '''Draw n samples from state space near a given state using a policy

@@ -61,7 +61,7 @@ def test_DubinsPPMSetup_dubinsODE_integration_0():
     assert np.isclose(sol[-1,1], 200)
     assert np.isclose(sol[-1,2], 0)
 
-def test_DubinsPPMSetup_propagator_0():
+def test_DubinsPPMSetup_propagate_path_0():
     '''test that propagator arrives at expected state'''
 
     # ~~~ ARRANGE ~~~
@@ -106,7 +106,7 @@ def test_DubinsPPMSetup_propagator_0():
     assert np.isclose(path.getState(1).getY(), 200)
     assert np.isclose(path.getState(1).getYaw(), 0)
 
-def test_DubinsPPMSetup_propagator_1():
+def test_DubinsPPMSetup_propagate_path_1():
     '''test that propagator arrives at expected state'''
 
     # ~~~ ARRANGE ~~~
@@ -148,7 +148,7 @@ def test_DubinsPPMSetup_propagator_1():
     assert np.isclose(path.getState(1).getY(), 200)
     assert np.isclose(path.getState(1).getYaw(), 0)
 
-def test_DubinsPPMSetup_propagator_2():
+def test_DubinsPPMSetup_propagate_path_2():
     '''test that propagator arrives at expected state'''
 
     # ~~~ ARRANGE ~~~
@@ -190,7 +190,7 @@ def test_DubinsPPMSetup_propagator_2():
     assert np.isclose(path.getState(1).getY(), 210)
     assert np.isclose(path.getState(1).getYaw(), np.pi/2)
 
-def test_DubinsPPMSetup_propagator_3():
+def test_DubinsPPMSetup_propagate_path_3():
     '''test that propagator arrives nears init state after a circle'''
 
     # ~~~ ARRANGE ~~~
@@ -249,7 +249,7 @@ def test_DubinsPPMSetup_propagator_3():
     # normYaw = s1().getYaw() % (2*np.pi)
     # assert np.isclose(normYaw, yaw0 + np.pi/2.0), 'Might need to clamp yaw to 0, 2pi'
 
-def test_DubinsPPMSetup_propagator_4():
+def test_DubinsPPMSetup_propagate_path_4():
     '''test that propagator arrives nears init state after a circle'''
 
     # ~~~ ARRANGE ~~~
@@ -322,7 +322,7 @@ def test_DubinsPPMSetup_propagator_4():
     st.floats(min_value=1e-6, max_value=1e6, allow_nan=False, allow_infinity=False),
     st.integers(min_value=2, max_value=1e3)
 )
-def test_hypothesis_DubinsPPMSetup_propagator_error_check(speed, min_turn_radius, x0, y0, yaw0, ctrl, dur, nsteps):
+def test_hypothesis_DubinsPPMSetup_propagate_path_error_check(speed, min_turn_radius, x0, y0, yaw0, ctrl, dur, nsteps):
     '''test a broad range of propagator inputs to see if they raise errors'''
     # ~~~ ARRANGE ~~~
 
@@ -373,7 +373,7 @@ def test_hypothesis_DubinsPPMSetup_propagator_error_check(speed, min_turn_radius
     st.floats(min_value=1e-3, max_value=1, allow_nan=False, allow_infinity=False),
     st.integers(min_value=2, max_value=1e2)
 )
-def test_hypothesis_DubinsPPMSetup_propagator_clipped_ctrl(speed, min_turn_radius, x0, y0, yaw0, ctrl_neg, ctrl_dev, dur_scale, nsteps):
+def test_hypothesis_DubinsPPMSetup_propagate_path_clipped_ctrl(speed, min_turn_radius, x0, y0, yaw0, ctrl_neg, ctrl_dev, dur_scale, nsteps):
     '''test a narrow range of propagator inputs with clipped control value'''
     # ~~~ ARRANGE ~~~
 
@@ -447,6 +447,287 @@ def test_hypothesis_DubinsPPMSetup_propagator_clipped_ctrl(speed, min_turn_radiu
     # assert np.isclose(s1().getX(), exp_x1)
     # assert np.isclose(s1().getY(), exp_y1)
 
+
+def test_DubinsPPMSetup_propagator_0():
+    '''test that propagator arrives at expected state'''
+
+    # ~~~ ARRANGE ~~~
+    ds = DubinsPPMSetup(PPM_FILE_0, 1, 1)
+    propagator = ds.space_info.getStatePropagator()
+
+    # create initial state
+    s0 = ob.State(ob.DubinsStateSpace())
+    s0().setX(300)
+    s0().setY(200)
+    s0().setYaw(0)
+
+    # create control input and duration
+    cspace = ds.space_info.getControlSpace()
+    c0 = cspace.allocControl()
+    c0[0] = 0.0
+    duration = 1.0
+
+    # create state object to store propagated state
+    s1 = ob.State(ob.DubinsStateSpace())
+
+    # ~~~ ACT ~~~
+    # propagate state
+    propagator.propagate(s0(), c0, duration, s1())
+    
+    # ~~~ ASSERT ~~~
+    assert cspace.getDimension() == 1
+    assert np.isclose(s1().getX(), 301)
+    assert np.isclose(s1().getY(), 200)
+    assert np.isclose(s1().getYaw(), 0)
+
+def test_DubinsPPMSetup_propagator_1():
+    '''test that propagator arrives at expected state'''
+
+    # ~~~ ARRANGE ~~~
+    ds = DubinsPPMSetup(PPM_FILE_0, 10, 1)
+    propagator = ds.space_info.getStatePropagator()
+
+    # create initial state
+    s0 = ob.State(ob.DubinsStateSpace())
+    s0().setX(300)
+    s0().setY(200)
+    s0().setYaw(0)
+
+    # create control input and duration
+    cspace = ds.space_info.getControlSpace()
+    c0 = cspace.allocControl()
+    c0[0] = 0.0
+    duration = 1.0
+
+    # create state object to store propagated state
+    s1 = ob.State(ob.DubinsStateSpace())
+
+    # ~~~ ACT ~~~
+    # propagate state
+    propagator.propagate(s0(), c0, duration, s1())
+    
+    # ~~~ ASSERT ~~~
+    assert cspace.getDimension() == 1
+    assert np.isclose(s1().getX(), 310)
+    assert np.isclose(s1().getY(), 200)
+    assert np.isclose(s1().getYaw(), 0)
+
+def test_DubinsPPMSetup_propagator_2():
+    '''test that propagator arrives at expected state'''
+
+    # ~~~ ARRANGE ~~~
+    ds = DubinsPPMSetup(PPM_FILE_0, 10, 1)
+    propagator = ds.space_info.getStatePropagator()
+
+    # create initial state
+    s0 = ob.State(ob.DubinsStateSpace())
+    s0().setX(300)
+    s0().setY(200)
+    s0().setYaw(np.pi/2.0)
+
+    # create control input and duration
+    cspace = ds.space_info.getControlSpace()
+    c0 = cspace.allocControl()
+    c0[0] = 0.0
+    duration = 1.0
+
+    # create state object to store propagated state
+    s1 = ob.State(ob.DubinsStateSpace())
+
+    # ~~~ ACT ~~~
+    # propagate state
+    propagator.propagate(s0(), c0, duration, s1())
+    
+    # ~~~ ASSERT ~~~
+    assert cspace.getDimension() == 1
+    assert np.isclose(s1().getX(), 300)
+    assert np.isclose(s1().getY(), 210)
+    assert np.isclose(s1().getYaw(), np.pi/2)
+
+def test_DubinsPPMSetup_propagator_3():
+    '''test that propagator arrives nears init state after a circle'''
+
+    # ~~~ ARRANGE ~~~
+    speed = 1.0
+    min_turn_radius = 50.0
+    x0 = 300
+    y0 = 200
+    yaw0 = 0
+    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, min_turn_radius=min_turn_radius)
+    propagator = ds.space_info.getStatePropagator()
+
+    # create initial state
+    s0 = ob.State(ob.DubinsStateSpace())
+    s0().setX(x0)
+    s0().setY(y0)
+    s0().setYaw(yaw0)
+
+    # create control input and duration
+    cspace = ds.space_info.getControlSpace()
+    c0 = cspace.allocControl()
+    duration = np.pi * min_turn_radius / (2.0 * speed)
+    c0[0] = np.pi/(2.0 * duration)   # rad/s exceeds control bounds, should constrain to speed/turn
+
+    # create state object to store propagated state
+    s1 = ob.State(ob.DubinsStateSpace())
+
+    # ~~~ ACT ~~~
+    # propagate state
+    propagator.propagate(s0(), c0, duration, s1())
+    
+    # ~~~ ASSERT ~~~
+    assert cspace.getDimension() == 1
+    assert np.isclose(s1().getX(), x0 + min_turn_radius, rtol=0.001)
+    assert np.isclose(s1().getY(), y0 + min_turn_radius, rtol=0.001)
+    normYaw = s1().getYaw() % (2*np.pi)
+    assert np.isclose(normYaw, yaw0 + np.pi/2.0), 'Might need to clamp yaw to 0, 2pi'
+
+def test_DubinsPPMSetup_propagator_4():
+    '''test that propagator arrives nears init state after a circle'''
+
+    # ~~~ ARRANGE ~~~
+    speed = 2.0
+    min_turn_radius = 10.0
+    x0 = 300
+    y0 = 200
+    yaw0 = 0
+    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, min_turn_radius=min_turn_radius)
+    propagator = ds.space_info.getStatePropagator()
+
+    # create initial state
+    s0 = ob.State(ob.DubinsStateSpace())
+    s0().setX(x0)
+    s0().setY(y0)
+    s0().setYaw(yaw0)
+
+    # create control input and duration
+    cspace = ds.space_info.getControlSpace()
+    c0 = cspace.allocControl()
+    c0[0] = -17.389273   # rad/s exceeds control bounds, should constrain to speed/turn
+    duration = 2 * np.pi * min_turn_radius / speed
+
+    # create state object to store propagated state
+    s1 = ob.State(ob.DubinsStateSpace())
+
+    # ~~~ ACT ~~~
+    # propagate state
+    propagator.propagate(s0(), c0, duration, s1())
+    
+    # ~~~ ASSERT ~~~
+    assert cspace.getDimension() == 1
+    assert np.isclose(s1().getX(), x0, rtol=0.001)
+    assert np.isclose(s1().getY(), y0, rtol=0.001)
+    # normYaw = s1().getYaw() % (2*np.pi)
+    # assert np.isclose(normYaw, yaw0), 'Might need to clamp yaw to 0, 2pi'
+    assert np.isclose(np.sin(s1().getYaw()), np.sin(yaw0))
+    assert np.isclose(np.cos(s1().getYaw()), np.cos(yaw0))
+
+@given(
+    st.floats(min_value=1e-6, max_value=1e6, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=1e-6, max_value=1e6, allow_nan=False, allow_infinity=False),
+    st.floats(allow_nan=False, allow_infinity=False),
+    st.floats(allow_nan=False, allow_infinity=False),
+    st.floats(allow_nan=False, allow_infinity=False),
+    st.floats(allow_nan=False, allow_infinity=False),
+    st.floats(min_value=1e-6, max_value=1e6, allow_nan=False, allow_infinity=False),
+)
+def test_hypothesis_DubinsPPMSetup_propagator_error_check(speed, min_turn_radius, x0, y0, yaw0, ctrl, dur):
+    '''test a broad range of propagator inputs to see if they raise errors'''
+    # ~~~ ARRANGE ~~~
+
+    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, min_turn_radius=min_turn_radius)
+    propagator = ds.space_info.getStatePropagator()
+    cbounds = ds.space_info.getControlSpace().getBounds()
+
+    # create initial state
+    s0 = ob.State(ob.DubinsStateSpace())
+    s0().setX(x0)
+    s0().setY(y0)
+    s0().setYaw(yaw0)
+
+    # create control input and duration
+    cspace = ds.space_info.getControlSpace()
+    c0 = cspace.allocControl()
+    c0[0] = ctrl
+
+    # create state object to store propagated state
+    s1 = ob.State(ob.DubinsStateSpace())
+
+    # ~~~ ACT ~~~
+    # propagate state
+    propagator.propagate(s0(), c0, dur, s1())
+
+    # ~~~ ASSERT ~~~
+    # numerical integration very inprecise
+    # use very loose assertions, mostly just checking errors arent' thrown
+    # bnd_ctrl = np.clip(ctrl, cbounds.low, cbounds.high)
+    # turn_radius = speed / bnd_ctrl
+    # eps = 1e-5
+    # assert np.less_equal(s1().getX(), x0 + dur*speed + eps)
+    # exp_yaw1 = bnd_ctrl * dur + yaw0
+    # assert np.isclose(np.sin(s1().getYaw()), np.sin(exp_yaw1), atol=0.1)
+    # assert np.isclose(np.cos(s1().getYaw()), np.cos(exp_yaw1), atol=0.1)
+
+@given(
+    st.floats(min_value=1e-2, max_value=1e2, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=1e-2, max_value=1e2, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=-1e3, max_value=1e3, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=-1e3, max_value=1e3, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=-10*np.pi, max_value=10*np.pi, allow_nan=False, allow_infinity=False),
+    st.booleans(),
+    st.floats(min_value=0, max_value=100, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=1e-3, max_value=1, allow_nan=False, allow_infinity=False),
+)
+def test_hypothesis_DubinsPPMSetup_propagator_clipped_ctrl(speed, min_turn_radius, x0, y0, yaw0, ctrl_neg, ctrl_dev, dur_scale):
+    '''test a narrow range of propagator inputs with clipped control value'''
+    # ~~~ ARRANGE ~~~
+
+    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, min_turn_radius=min_turn_radius)
+    propagator = ds.space_info.getStatePropagator()
+    cbounds = ds.space_info.getControlSpace().getBounds()
+
+    # create initial state
+    s0 = ob.State(ob.DubinsStateSpace())
+    s0().setX(x0)
+    s0().setY(y0)
+    s0().setYaw(yaw0)
+
+    # create control input to ensure it exceeds cspace bounds
+    cspace = ds.space_info.getControlSpace()
+    c0 = cspace.allocControl()
+    # rndsign = 1 if np.random.rand() > 0.5 else -1
+    # rndctrl = 100*np.random.rand()
+    ctrl_sign = -1 if ctrl_neg else 1
+    ctrl = ctrl_sign * (speed / min_turn_radius + ctrl_dev)
+    c0[0] = ctrl
+
+    # create duration to ensure it is less than 2 full revolutions
+    bnd_ctrl = np.clip(ctrl, cbounds.low[0], cbounds.high[0])
+    dur = (4*np.pi / bnd_ctrl) * dur_scale
+
+    # create state object to store propagated state
+    s1 = ob.State(ob.DubinsStateSpace())
+
+    # ~~~ ACT ~~~
+    # propagate state
+    propagator.propagate(s0(), c0, dur, s1())
+
+    # ~~~ ASSERT ~~~
+    # numerical integration very inprecise
+    # use very loose assertions, mostly just checking errors arent' thrown
+    exp_turn_radius = abs(speed / bnd_ctrl)
+    assert np.isclose(exp_turn_radius, min_turn_radius)
+    # bnd_ctrl = np.clip(ctrl, cbounds.low, cbounds.high)
+    # turn_radius = speed / bnd_ctrl
+    # eps = 1e-5
+    # assert np.less_equal(s1().getX(), x0 + dur*speed + eps)
+    exp_yaw1 = bnd_ctrl * dur + yaw0
+    assert np.isclose(np.sin(s1().getYaw()), np.sin(exp_yaw1))
+    assert np.isclose(np.cos(s1().getYaw()), np.cos(exp_yaw1))
+    exp_x1 = x0 + exp_turn_radius * ctrl_sign * (np.sin(exp_yaw1) - np.sin(yaw0))
+    exp_y1 = y0 + exp_turn_radius * ctrl_sign * (-np.cos(exp_yaw1) + np.cos(yaw0))
+    assert np.isclose(s1().getX(), exp_x1)
+    assert np.isclose(s1().getY(), exp_y1)
 
 def test_DubinsPPMSetup_sampleReachableSet_0():
     '''test that propagator arrives at expected state'''

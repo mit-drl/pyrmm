@@ -6,7 +6,7 @@ maps
 
 from functools import partial
 
-from ompl import base as ob, control
+from ompl import base as ob
 from ompl import control as oc
 
 class SystemSetup:

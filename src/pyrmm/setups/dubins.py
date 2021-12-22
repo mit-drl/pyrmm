@@ -131,6 +131,48 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
         self.__si = spaceInformation
         super().__init__(si=spaceInformation)
 
+    def propagate(self, state, control, duration, result):
+        ''' propagate from start based on control, store in state
+        Args:
+            state : ob.State
+                start state of propagation
+            control : oc.Control
+                control to apply during propagation
+            duration : float
+                duration of propagation
+            result : ob.State
+                end state of propagation, modified in place
+
+        Notes:
+            By default, propagate does not perform or is used in integration,
+            even when defined through an ODESolver; see:
+            https://ompl.kavrakilab.org/RigidBodyPlanningWithODESolverAndControls_8py_source.html
+            https://ompl.kavrakilab.org/classompl_1_1control_1_1StatePropagator.html#a4bf54becfce458e1e8abfa4a37ae8dff
+            Therefore we must implement an ODE solver ourselves.
+            Currently using scipy's odeint. This creates a dependency on scipy and is likely inefficient
+            because it's integrating in python instead of C++. 
+            Could be improved later
+        '''
+
+        # package init state and time vector
+        # NOTE: only using 2-step time vector. Not sure if this degrades 
+        # accuracy or just reduces the amount of data output
+        s0 = [state.getX(), state.getY(), state.getYaw()]
+        t = [0.0, duration]
+        # t = np.linspace(0, duration, 101)
+
+        # clip the control to ensure it is within the control bounds
+        cbounds = self.__si.getControlSpace().getBounds()
+        bounded_control = np.clip([control[0]], cbounds.low, cbounds.high)
+
+        # call scipy's ode integrator
+        sol = odeint(dubinsODE, s0, t, args=(bounded_control, self.speed))
+
+        # store solution in result
+        result.setX(sol[-1,0])
+        result.setY(sol[-1,1])
+        result.setYaw(sol[-1,2])
+
     def propagate_path(self, state, control, duration, path):
         ''' propagate from start based on control, store final state in result, store path to result
         Args:

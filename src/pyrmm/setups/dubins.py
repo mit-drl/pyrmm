@@ -4,9 +4,11 @@ Create SimpleSetup for Dubins Car
 from __future__ import division
 
 import numpy as np
+from numpy.lib.utils import source
 from scipy.integrate import odeint
-
 from functools import partial
+from copy import deepcopy
+
 from ompl import util as ou
 from ompl import base as ob
 from ompl import control as oc
@@ -120,7 +122,13 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
 
     def __init__(self, speed, spaceInformation):
         self.speed = speed
-        self.cbounds = spaceInformation.getControlSpace().getBounds()
+        # self.cbounds = spaceInformation.getControlSpace().getBounds()
+
+        # Store information about space propagator operates on
+        # NOTE: this serves the same purpose asthe  protected attribute si_ 
+        # but si_ does not seem to be accessible in python
+        # Ref: https://ompl.kavrakilab.org/classompl_1_1control_1_1StatePropagator.html
+        self.__si = spaceInformation
         super().__init__(si=spaceInformation)
 
     def propagate_path(self, state, control, duration, path):
@@ -156,17 +164,24 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
             Could be improved later
         '''
 
+        # unpack objects from space information for ease of use
+        cspace = self.__si.getControlSpace()
+        nctrldims = cspace.getDimension()
+        cbounds = cspace.getBounds()
+        nsteps = path.getStateCount()
+        assert nsteps >= 2
+        assert nctrldims == 1
+
         # package init state and time vector
         s0 = [state.getX(), state.getY(), state.getYaw()]
         
         # create equi-spaced time vector based on number or elements
         # in path object
-        nsteps = path.getStateCount()
-        assert nsteps >= 2
         t = np.linspace(0.0, duration, nsteps)
 
         # clip the control to ensure it is within the control bounds
-        bounded_control = np.clip([control[0]], self.cbounds.low, self.cbounds.high)
+        bounded_control = [np.clip(control[i], cbounds.low[i], cbounds.high[i]) for i in range(nctrldims)]
+        # bounded_control = np.clip([control[0]], self.cbounds.low, self.cbounds.high)
 
         # call scipy's ode integrator
         sol = odeint(dubinsODE, s0, t, args=(bounded_control, self.speed))
@@ -180,7 +195,10 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
             pstates[i].setX(sol[i,0])
             pstates[i].setY(sol[i,1])
             pstates[i].setYaw(sol[i,2])
-            pcontrols[i] = control
+            for j in range(nctrldims):
+                pcontrols[i][j] = bounded_control[j]
+            # pcontrols[i][0] = bounded_control[0]
+            # cspace.copyControl(destination=pcontrols[i], source=)
             ptimes[i] = t[i+1] - t[i]
         
         # store final state

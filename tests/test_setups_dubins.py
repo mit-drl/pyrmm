@@ -1,4 +1,5 @@
 import pathlib
+import faulthandler
 import numpy as np
 
 from scipy.integrate import odeint
@@ -199,6 +200,7 @@ def test_DubinsPPMSetup_propagator_3():
     y0 = 200
     yaw0 = 0
     ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, min_turn_radius=min_turn_radius)
+    si = ds.space_info
     propagator = ds.space_info.getStatePropagator()
 
     # create initial state
@@ -213,19 +215,40 @@ def test_DubinsPPMSetup_propagator_3():
     duration = np.pi * min_turn_radius / (2.0 * speed)
     c0[0] = np.pi/(2.0 * duration)   # rad/s exceeds control bounds, should constrain to speed/turn
 
-    # create state object to store propagated state
-    s1 = ob.State(ob.DubinsStateSpace())
+    # create path object and alloc a randomized number of intermediate steps
+    path = oc.PathControl(si)
+    nsteps = np.random.randint(5, 100)
+    # nsteps = 3
+    for _ in range(nsteps-1):
+        path.append(state=si.allocState(), control=si.allocControl(), duration=0)
+    path.append(state=si.allocState())
 
     # ~~~ ACT ~~~
     # propagate state
-    propagator.propagate_path(s0(), c0, duration, s1())
+    propagator.propagate_path(s0(), c0, duration, path)
     
     # ~~~ ASSERT ~~~
     assert cspace.getDimension() == 1
-    assert np.isclose(s1().getX(), x0 + min_turn_radius, rtol=0.001)
-    assert np.isclose(s1().getY(), y0 + min_turn_radius, rtol=0.001)
-    normYaw = s1().getYaw() % (2*np.pi)
+    assert path.getStateCount() == nsteps
+    assert path.getControlCount() == nsteps - 1
+    assert np.isclose(path.getState(0).getX(), 300)
+    assert np.isclose(path.getState(0).getY(), 200)
+    assert np.isclose(path.getState(0).getYaw(), 0)
+    # assert np.isclose(path.getControl(0)[0], 0.0)
+    assert np.isclose(path.getControlDuration(0), duration/(nsteps-1))
+    assert np.isclose(path.getState(nsteps-1).getX(), x0 + min_turn_radius, rtol=0.001)
+    assert np.isclose(path.getState(nsteps-1).getY(), y0 + min_turn_radius, rtol=0.001)
+    normYaw = path.getState(nsteps-1).getYaw() % (2*np.pi)
     assert np.isclose(normYaw, yaw0 + np.pi/2.0), 'Might need to clamp yaw to 0, 2pi'
+    for i in range(nsteps-1):
+        assert si.getControlSpace().equalControls(c0, path.getControl(i))
+    
+    # ~~~ ASSERT ~~~
+    # assert cspace.getDimension() == 1
+    # assert np.isclose(s1().getX(), x0 + min_turn_radius, rtol=0.001)
+    # assert np.isclose(s1().getY(), y0 + min_turn_radius, rtol=0.001)
+    # normYaw = s1().getYaw() % (2*np.pi)
+    # assert np.isclose(normYaw, yaw0 + np.pi/2.0), 'Might need to clamp yaw to 0, 2pi'
 
 def test_DubinsPPMSetup_propagator_4():
     '''test that propagator arrives nears init state after a circle'''
@@ -408,5 +431,7 @@ def test_DubinsPPMSetup_sampleReachableSet_0():
         assert np.greater_equal(s.getY(), y0 - duration*speed)
 
 if __name__ == "__main__":
-    # test_DubinsPPMSetup_propagator_4()
-    test_hypothesis_DubinsPPMSetup_propagator_clipped_ctrl()
+    faulthandler.enable()
+    test_DubinsPPMSetup_propagator_3()
+    # test_hypothesis_DubinsPPMSetup_propagator_clipped_ctrl()
+    pass

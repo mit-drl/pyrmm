@@ -88,8 +88,8 @@ class SystemSetup:
                 
                 # allocate final state
                 p.append(state=si.allocState())
-                assert p.getStateCount == n_steps
-                assert p.getControlCount == n_steps-1
+                assert p.getStateCount() == n_steps
+                assert p.getControlCount() == n_steps-1
 
                 # sample control input
                 csampler.sample(c)

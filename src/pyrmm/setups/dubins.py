@@ -159,7 +159,6 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
         # accuracy or just reduces the amount of data output
         s0 = [state.getX(), state.getY(), state.getYaw()]
         t = [0.0, duration]
-        # t = np.linspace(0, duration, 101)
 
         # clip the control to ensure it is within the control bounds
         cbounds = self.__si.getControlSpace().getBounds()
@@ -184,10 +183,6 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
                 duration of propagation
             path : oc.ControlPath
                 path from state to result in nsteps. initial state is state, final state is result
-            # result : ob.State
-            #     end state of propagation, modified in place
-            # nsteps : int
-            #     number of discrete steps in path
 
         Returns:
             None
@@ -196,11 +191,7 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
         Notes:
             This function is similar, but disctinct from 'StatePropagator.propogate', thus its different name to no overload `propagate`. 
             propogate does not store or return the path to get to result
-            By default, propagate does not perform or is used in integration,
-            even when defined through an ODESolver; see:
-            https://ompl.kavrakilab.org/RigidBodyPlanningWithODESolverAndControls_8py_source.html
-            https://ompl.kavrakilab.org/classompl_1_1control_1_1StatePropagator.html#a4bf54becfce458e1e8abfa4a37ae8dff
-            Therefore we must implement an ODE solver ourselves.
+            
             Currently using scipy's odeint. This creates a dependency on scipy and is likely inefficient
             because it's perform the numerical integration in python instead of C++. 
             Could be improved later
@@ -239,23 +230,12 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
             pstates[i].setYaw(sol[i,2])
             for j in range(nctrldims):
                 pcontrols[i][j] = bounded_control[j]
-            # pcontrols[i][0] = bounded_control[0]
-            # cspace.copyControl(destination=pcontrols[i], source=)
             ptimes[i] = t[i+1] - t[i]
         
         # store final state
         pstates[-1].setX(sol[-1,0])
         pstates[-1].setY(sol[-1,1])
         pstates[-1].setYaw(sol[-1,2])
-
-        # store final state in result
-        # result.setX(sol[-1,0])
-        # result.setY(sol[-1,1])
-        # result.setYaw(sol[-1,2])
-
-        # store path to result
-        # raise NotImplementedError
-
 
     def canPropagateBackwards(self):
         return False

@@ -76,12 +76,10 @@ class SystemSetup:
 
             for i in range(n_samples):
 
-                # allocate memory for sampled state
-                # samples[i] = si.allocState()
 
                 # allocate a path object for the sample
                 # note that allocated states and controls are
-                # dummy placeholders
+                # dummy placeholders that are overwritten in propagate_path
                 p = oc.PathControl(self.space_info)
                 for j in range(n_steps-1):
                     p.append(state=si.allocState(), control=si.allocControl(), duration=0)

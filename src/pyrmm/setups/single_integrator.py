@@ -129,7 +129,7 @@ class SingleIntegrator1DStatePropagator(oc.StatePropagator):
         bounded_control = [np.clip(control[i], cbounds.low[i], cbounds.high[i]) for i in range(nctrldims)]
 
         # call scipy's ode integrator
-        sol = odeint(ode_1d, s0, t, args=(bounded_control))
+        sol = odeint(ode_1d, s0, t, args=(bounded_control,))
 
         # store each intermediate point in the solution as pat of the path
         pstates = path.getStates()
@@ -137,13 +137,13 @@ class SingleIntegrator1DStatePropagator(oc.StatePropagator):
         ptimes = path.getControlDurations()
         assert len(pcontrols) == len(ptimes) == nsteps-1
         for i in range(nsteps-1):
-            pstates[i][0](sol[i,0])
+            pstates[i][0] = sol[i,0]
             for j in range(nctrldims):
                 pcontrols[i][j] = bounded_control[j]
             ptimes[i] = t[i+1] - t[i]
         
         # store final state
-        pstates[-1][0](sol[-1,0])
+        pstates[-1][0] = sol[-1,0]
 
     def canPropagateBackwards(self):
         return False

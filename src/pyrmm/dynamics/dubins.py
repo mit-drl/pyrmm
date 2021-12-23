@@ -6,18 +6,22 @@ Ref: https://github.com/AtsushiSakai/PythonRobotics/tree/master/PathPlanning/Dub
 """
 import numpy as np
 
-def dubinsODE(y, t, u, speed):
+def ode_dubins(y, t, u, speed):
     '''dubins vehicle ordinary differential equations
     
     Args:
-        q : ???
+        y : array-like
             state variable vector [x, y, theta]
-        t : ???
+        t : array-like
             time variable
-        u : np.array
+        u : array-like
             control vector [dtheta]
         speed : float
             constant tangential speed
+
+    Returns:
+        dydt : array-like
+            array of the time derivative of state vector
     '''
 
     dydt = 3*[None]

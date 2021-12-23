@@ -2,12 +2,11 @@ import pathlib
 import faulthandler
 import numpy as np
 
-from scipy.integrate import odeint
 from ompl import base as ob
 from ompl import control as oc
 from hypothesis import strategies as st
 from hypothesis import given
-from pyrmm.setups.dubins import DubinsPPMSetup, dubinsODE
+from pyrmm.setups.dubins import DubinsPPMSetup
 
 
 PPM_FILE_0 = str(pathlib.Path(__file__).parent.absolute().joinpath("border_640x400.ppm"))
@@ -38,27 +37,6 @@ def test_DubinsPPMSetup_state_checker_0():
     # ~~~ ASSERT ~~~
     assert s0_valid
     assert not s1_valid
-
-def test_DubinsPPMSetup_dubinsODE_integration_0():
-    '''test that the dubins ODE integrates to expected values'''
-
-    # ~~~ ARRANGE ~~~
-    # create initial conditions and time vector
-    y0 = [300, 200, 0]
-    t = [0, 10]
-
-    # specify the control (turning rate) and speed 
-    u = [0]
-    speed = 1
-
-    # ~~~ ACT ~~~
-    sol = odeint(dubinsODE, y0, t, args=(u, speed))
-
-    # ~~~ ASSERT ~~~
-    # check that final timestep is as expected
-    assert np.isclose(sol[-1,0], 310)
-    assert np.isclose(sol[-1,1], 200)
-    assert np.isclose(sol[-1,2], 0)
 
 def test_DubinsPPMSetup_propagate_path_0():
     '''test that propagator arrives at expected state'''
@@ -667,8 +645,8 @@ def test_hypothesis_DubinsPPMSetup_propagator_clipped_ctrl(speed, min_turn_radiu
     assert np.isclose(np.cos(s1().getYaw()), np.cos(exp_yaw1))
     exp_x1 = x0 + exp_turn_radius * ctrl_sign * (np.sin(exp_yaw1) - np.sin(yaw0))
     exp_y1 = y0 + exp_turn_radius * ctrl_sign * (-np.cos(exp_yaw1) + np.cos(yaw0))
-    assert np.isclose(s1().getX(), exp_x1)
-    assert np.isclose(s1().getY(), exp_y1)
+    assert np.isclose(s1().getX(), exp_x1, rtol=1e-4)
+    assert np.isclose(s1().getY(), exp_y1, rtol=1e-4)
 
 def test_DubinsPPMSetup_sampleReachableSet_0():
     '''test that propagator arrives at expected state'''

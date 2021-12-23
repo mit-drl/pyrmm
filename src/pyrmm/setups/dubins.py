@@ -14,7 +14,7 @@ from ompl import base as ob
 from ompl import control as oc
 
 from pyrmm.setups import SystemSetup
-from pyrmm.dynamics.dubins import dubinsODE
+from pyrmm.dynamics.dubins import ode_dubins
 # from pyrmm.utils.utils import partialclass
 
 class DubinsPPMSetup(SystemSetup):
@@ -146,7 +146,7 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
         bounded_control = np.clip([control[0]], cbounds.low, cbounds.high)
 
         # call scipy's ode integrator
-        sol = odeint(dubinsODE, s0, t, args=(bounded_control, self.speed))
+        sol = odeint(ode_dubins, s0, t, args=(bounded_control, self.speed))
 
         # store solution in result
         result.setX(sol[-1,0])
@@ -199,7 +199,7 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
         # bounded_control = np.clip([control[0]], self.cbounds.low, self.cbounds.high)
 
         # call scipy's ode integrator
-        sol = odeint(dubinsODE, s0, t, args=(bounded_control, self.speed))
+        sol = odeint(ode_dubins, s0, t, args=(bounded_control, self.speed))
 
         # store each intermediate point in the solution as pat of the path
         pstates = path.getStates()

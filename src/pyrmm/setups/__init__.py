@@ -130,7 +130,7 @@ class SystemSetup:
 
         return samples
 
-    def EstimateRiskMetric(self, state, trajectory, distance, branch_fact, depth, n_steps, policy='default'):
+    def estimateRiskMetric(self, state, trajectory, distance, branch_fact, depth, n_steps, policy='default'):
         '''Sampling-based, recursive risk metric estimation at specific state
         
         Args:
@@ -176,7 +176,7 @@ class SystemSetup:
         # recursively compute risk estimates at sampled states
         risk_vals = branch_fact*[None]
         for i in range(branch_fact):
-            risk_vals[i] = self.EstimateRiskMetric(
+            risk_vals[i] = self.estimateRiskMetric(
                 state=samples[i].getState(n_steps-1),
                 trajectory=samples[i],
                 distance=distance,

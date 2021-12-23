@@ -158,7 +158,7 @@ def test_SystemSeutp_isPathValid_2(dummy_r2_setup):
     dpth = st.integers(min_value=0, max_value=4),
     stps = st.integers(min_value=2, max_value=8)
 )
-def test_hypothesis_SystemSetup_EstimateRiskMetric_0(x0, y0, dur, brnch, dpth, stps):
+def test_hypothesis_SystemSetup_estimateRiskMetric_0(x0, y0, dur, brnch, dpth, stps):
     '''check that always-valid states always evaluate to 0 risk'''
     
     # ~~~ ARRANGE ~~~
@@ -169,7 +169,7 @@ def test_hypothesis_SystemSetup_EstimateRiskMetric_0(x0, y0, dur, brnch, dpth, s
     s0[0] = x0; s0[1] = y0
     
     # ~~~ ACT ~~~
-    r_s0 = ds.EstimateRiskMetric(
+    r_s0 = ds.estimateRiskMetric(
         state = s0, 
         trajectory = None, 
         distance = dur,
@@ -189,7 +189,7 @@ def test_hypothesis_SystemSetup_EstimateRiskMetric_0(x0, y0, dur, brnch, dpth, s
     dpth = st.integers(min_value=0, max_value=4),
     stps = st.integers(min_value=2, max_value=8)
 )
-def test_hypothesis_SystemSetup_EstimateRiskMetric_1(x0, y0, dur, brnch, dpth, stps):
+def test_hypothesis_SystemSetup_estimateRiskMetric_1(x0, y0, dur, brnch, dpth, stps):
     '''check that always-invalid states always evaluate to 1 risk'''
     
     # ~~~ ARRANGE ~~~
@@ -206,7 +206,7 @@ def test_hypothesis_SystemSetup_EstimateRiskMetric_1(x0, y0, dur, brnch, dpth, s
     s0[0] = x0; s0[1] = y0
     
     # ~~~ ACT ~~~
-    r_s0 = ds.EstimateRiskMetric(
+    r_s0 = ds.estimateRiskMetric(
         state = s0, 
         trajectory = None, 
         distance = dur,

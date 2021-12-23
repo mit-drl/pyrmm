@@ -130,7 +130,7 @@ class SystemSetup:
 
         return samples
 
-    def estimateRiskMetric(self, state, trajectory, distance, branch_fact, depth, n_steps, policy='default'):
+    def estimateRiskMetric(self, state, trajectory, distance, branch_fact, depth, n_steps, policy='default', samples=None):
         '''Sampling-based, recursive risk metric estimation at specific state
         
         Args:
@@ -148,6 +148,8 @@ class SystemSetup:
                 number of intermediate steps in sample paths
             policy : str
                 string description of policy to use
+            samples : list[oc.PathControl]
+                list of pre-specified to samples for deterministic calc
 
         Returns:
             risk_est : float
@@ -166,12 +168,15 @@ class SystemSetup:
             return float(z)
 
         # sample reachable states
-        samples = self.sampleReachableSet(
-            state=state, 
-            distance=distance, 
-            n_samples=branch_fact, 
-            policy=policy,
-            n_steps=n_steps)
+        if samples is None:
+            samples = self.sampleReachableSet(
+                state=state, 
+                distance=distance, 
+                n_samples=branch_fact, 
+                policy=policy,
+                n_steps=n_steps)
+        else:
+            assert len(samples) == branch_fact
 
         # recursively compute risk estimates at sampled states
         risk_vals = branch_fact*[None]

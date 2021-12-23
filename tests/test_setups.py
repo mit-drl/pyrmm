@@ -217,3 +217,49 @@ def test_hypothesis_SystemSetup_estimateRiskMetric_1(x0, y0, dur, brnch, dpth, s
 
     # ~~~ ASSERT ~~~
     assert np.isclose(r_s0, 1.0)
+
+def test_SystemSetup_estimateRiskMetric_deterministic_0():
+    '''check risk metric for a known number of invalid states'''
+
+    # ~~~ ARRANGE ~~~
+    ds = get_dummy_r2_setup()
+    si = ds.space_info
+
+    # pre-specify state and samples
+    x0 = 0.0; y0 = 0.0
+    s0 = si.allocState()
+    s1 = si.allocState()
+    s2 = si.allocState()
+    s3 = si.allocState()
+    s0[0] = x0; s0[1] = y0
+    s1[0] = x0+1; s1[1] = y0
+    s2[0] = x0-1; s2[1] = y0
+    s3[0] = x0; s3[1] = y0-1
+    p1 = oc.PathControl(si)
+    p2 = oc.PathControl(si)
+    p3 = oc.PathControl(si)
+    p1.append(s0); p1.append(s1)
+    p2.append(s0); p2.append(s2)
+    p3.append(s0); p3.append(s3)
+    samples = [p1, p2, p3]
+
+    ## set state validity checker to always return false
+    state_validity_fn=lambda spaceInformation, state: True if np.isclose(state[1], y0) else False
+    si.setStateValidityChecker(ob.StateValidityCheckerFn(partial(state_validity_fn, si)))
+
+    # ~~~ ACT ~~~
+    r_s0 = ds.estimateRiskMetric(
+        state = s0, 
+        trajectory = None, 
+        distance = 1.0,
+        branch_fact = 3,
+        depth = 1,
+        n_steps = 2,
+        samples=samples
+    )
+
+    # ~~~ ASSERT ~~~
+    assert np.isclose(r_s0, 1.0/3.0)
+
+if __name__ == "__main__":
+    test_SystemSetup_estimateRiskMetric_deterministic_0()

@@ -1,13 +1,11 @@
 '''
-Create SimpleSetup for Dubins Car
+Create SystemSetup for Dubins Car
 '''
 from __future__ import division
 
 import numpy as np
-from numpy.lib.utils import source
 from scipy.integrate import odeint
 from functools import partial
-from copy import deepcopy
 
 from ompl import util as ou
 from ompl import base as ob
@@ -15,7 +13,7 @@ from ompl import control as oc
 
 from pyrmm.setups import SystemSetup
 from pyrmm.dynamics.dubins import ode_dubins
-# from pyrmm.utils.utils import partialclass
+from pyrmm.utils.utils import is_pixel_free_space
 
 class DubinsPPMSetup(SystemSetup):
     ''' Dubins car with ppm file for obstacle configuration space
@@ -90,10 +88,7 @@ class DubinsPPMSetup(SystemSetup):
             h = int(state.getY())
 
             c = self.ppm_config_space.getPixel(h, w)
-            tr = c.red > 127
-            tg = c.green > 127
-            tb = c.green > 127
-            return tr and tg and tb
+            return is_pixel_free_space(c)
 
         else:
             return False

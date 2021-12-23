@@ -8,6 +8,13 @@ import functools
 from typing import List
 
 
+def is_pixel_free_space(p):
+    '''check if pixel is in free space of obstacles'''
+    tr = p.red > 127
+    tg = p.green > 127
+    tb = p.green > 127
+    return tr and tg and tb
+
 def partialclass(cls, *args, **kwds):
     '''Ref: https://stackoverflow.com/questions/38911146/python-equivalent-of-functools-partial-for-a-class-constructor'''
 

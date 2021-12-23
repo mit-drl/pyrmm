@@ -1,6 +1,7 @@
 import pytest
 import numpy as np
 from functools import partial
+from hypothesis import given, strategies as st
 
 from ompl import base as ob
 from ompl import control as oc
@@ -9,12 +10,15 @@ from pyrmm.setups import SystemSetup
 
 @pytest.fixture
 def dummy_r2_setup():
+    return get_dummy_r2_setup()
+
+def get_dummy_r2_setup():
     '''define a system in R2 state space with trivial functions'''
 
     class prop_cls(oc.StatePropagator):
         def __init__(self, spaceInformation):
             super().__init__(spaceInformation)
-        def propagate_path():
+        def propagate_path(self, **kwargs):
             pass
 
     # state_space = ob.SO2StateSpace()
@@ -145,3 +149,71 @@ def test_SystemSeutp_isPathValid_2(dummy_r2_setup):
         else:
             # extremely low probability that a randomly allocated state would have the invalid x
             assert is_valid
+
+@given(
+    x0 = st.floats(allow_nan=False, allow_infinity=False),
+    y0 = st.floats(allow_nan=False, allow_infinity=False),
+    dur = st.floats(min_value=1e-3, allow_nan=False, allow_infinity=False),
+    brnch = st.integers(min_value=1, max_value=4),
+    dpth = st.integers(min_value=0, max_value=4),
+    stps = st.integers(min_value=2, max_value=8)
+)
+def test_hypothesis_SystemSetup_EstimateRiskMetric_0(x0, y0, dur, brnch, dpth, stps):
+    '''check that always-valid states always evaluate to 0 risk'''
+    
+    # ~~~ ARRANGE ~~~
+    # create R2 system setup in non-fixture fashion to avoid hypothesis's non-reset of fixtures
+    ds = get_dummy_r2_setup()
+    si = ds.space_info
+    s0 = si.allocState()
+    s0[0] = x0; s0[1] = y0
+    
+    # ~~~ ACT ~~~
+    r_s0 = ds.EstimateRiskMetric(
+        state = s0, 
+        trajectory = None, 
+        distance = dur,
+        branch_fact = brnch,
+        depth = dpth,
+        n_steps = stps
+    )
+
+    # ~~~ ASSERT ~~~
+    assert np.isclose(r_s0, 0.0)
+
+@given(
+    x0 = st.floats(allow_nan=False, allow_infinity=False),
+    y0 = st.floats(allow_nan=False, allow_infinity=False),
+    dur = st.floats(min_value=1e-3, allow_nan=False, allow_infinity=False),
+    brnch = st.integers(min_value=1, max_value=4),
+    dpth = st.integers(min_value=0, max_value=4),
+    stps = st.integers(min_value=2, max_value=8)
+)
+def test_hypothesis_SystemSetup_EstimateRiskMetric_1(x0, y0, dur, brnch, dpth, stps):
+    '''check that always-invalid states always evaluate to 1 risk'''
+    
+    # ~~~ ARRANGE ~~~
+    # create R2 system setup in non-fixture fashion to avoid hypothesis's non-reset of fixtures
+    ds = get_dummy_r2_setup()
+    si = ds.space_info
+    
+    # set state validity checker to always return false
+    state_validity_fn=lambda spaceInformation, state: False
+    si.setStateValidityChecker(ob.StateValidityCheckerFn(partial(state_validity_fn, si)))
+
+    # generate the initial state
+    s0 = si.allocState()
+    s0[0] = x0; s0[1] = y0
+    
+    # ~~~ ACT ~~~
+    r_s0 = ds.EstimateRiskMetric(
+        state = s0, 
+        trajectory = None, 
+        distance = dur,
+        branch_fact = brnch,
+        depth = dpth,
+        n_steps = stps
+    )
+
+    # ~~~ ASSERT ~~~
+    assert np.isclose(r_s0, 1.0)

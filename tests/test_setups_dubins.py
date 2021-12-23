@@ -292,14 +292,14 @@ def test_DubinsPPMSetup_propagate_path_4():
         assert si.getControlSpace().equalControls(path.getControl(i), bnd_ctrl)
 
 @given(
-    st.floats(min_value=1e-6, max_value=1e6, allow_nan=False, allow_infinity=False),
-    st.floats(min_value=1e-6, max_value=1e6, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=1e-3, max_value=1e3, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=1e-3, max_value=1e3, allow_nan=False, allow_infinity=False),
     st.floats(allow_nan=False, allow_infinity=False),
     st.floats(allow_nan=False, allow_infinity=False),
     st.floats(allow_nan=False, allow_infinity=False),
     st.floats(allow_nan=False, allow_infinity=False),
-    st.floats(min_value=1e-6, max_value=1e6, allow_nan=False, allow_infinity=False),
-    st.integers(min_value=2, max_value=1e3)
+    st.floats(min_value=1e-3, max_value=1e3, allow_nan=False, allow_infinity=False),
+    st.integers(min_value=2, max_value=1e2)
 )
 def test_hypothesis_DubinsPPMSetup_propagate_path_error_check(speed, min_turn_radius, x0, y0, yaw0, ctrl, dur, nsteps):
     '''test a broad range of propagator inputs to see if they raise errors'''
@@ -368,7 +368,7 @@ def test_hypothesis_DubinsPPMSetup_propagate_path_clipped_ctrl(speed, min_turn_r
 
     # create duration to ensure it is less than 2 full revolutions
     bnd_ctrl = np.clip(ctrl, cbounds.low[0], cbounds.high[0])
-    dur = (4*np.pi / bnd_ctrl) * dur_scale
+    dur = abs(4*np.pi / bnd_ctrl) * dur_scale
 
     # create path object and alloc a randomized number of intermediate steps
     path = oc.PathControl(si)
@@ -394,8 +394,8 @@ def test_hypothesis_DubinsPPMSetup_propagate_path_clipped_ctrl(speed, min_turn_r
     exp_yaw1 = bnd_ctrl * dur + yaw0
     exp_x1 = x0 + exp_turn_radius * ctrl_sign * (np.sin(exp_yaw1) - np.sin(yaw0))
     exp_y1 = y0 + exp_turn_radius * ctrl_sign * (-np.cos(exp_yaw1) + np.cos(yaw0))
-    assert np.isclose(path.getState(nsteps-1).getX(), exp_x1, rtol=1e-5)
-    assert np.isclose(path.getState(nsteps-1).getY(), exp_y1, rtol=1e-5)
+    assert np.isclose(path.getState(nsteps-1).getX(), exp_x1, rtol=1e-4)
+    assert np.isclose(path.getState(nsteps-1).getY(), exp_y1, rtol=1e-4)
     assert np.isclose(np.sin(path.getState(nsteps-1).getYaw()), np.sin(exp_yaw1))
     assert np.isclose(np.cos(path.getState(nsteps-1).getYaw()), np.cos(exp_yaw1))
     bnd_ctrl_obj = cspace.allocControl()
@@ -648,7 +648,7 @@ def test_hypothesis_DubinsPPMSetup_propagator_clipped_ctrl(speed, min_turn_radiu
 
     # create duration to ensure it is less than 2 full revolutions
     bnd_ctrl = np.clip(ctrl, cbounds.low[0], cbounds.high[0])
-    dur = (4*np.pi / bnd_ctrl) * dur_scale
+    dur = abs(4*np.pi / bnd_ctrl) * dur_scale
 
     # create state object to store propagated state
     s1 = ob.State(ob.DubinsStateSpace())
@@ -692,7 +692,7 @@ def test_DubinsPPMSetup_sampleReachableSet_0():
 
     # ~~~ ACT ~~~
     # sample controls
-    samples = ds.sampleReachableSet(s0, duration, n_samples, n_steps=n_steps)
+    samples = ds.sampleReachableSet(s0(), duration, n_samples, n_steps=n_steps)
     
     # ~~~ ASSERT ~~~
     assert len(samples) == n_samples

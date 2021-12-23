@@ -204,6 +204,7 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
         nsteps = path.getStateCount()
         assert nsteps >= 2
         assert nctrldims == 1
+        assert duration > 0 and not np.isclose(duration, 0.0)
 
         # package init state and time vector
         s0 = [state.getX(), state.getY(), state.getYaw()]

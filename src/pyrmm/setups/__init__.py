@@ -3,7 +3,7 @@ collection of modules used to create OMPL SimpleSetup objects
 for different systems that can be used to compute risk metric
 maps
 '''
-
+import numpy as np
 from functools import partial
 
 from ompl import base as ob
@@ -15,11 +15,13 @@ class SystemSetup:
     Refs:
         https://ompl.kavrakilab.org/api_overview.html
     '''
-    def __init__(self, space_information):
+    def __init__(self, space_information, risk_fn=np.mean):
         ''' create SimpleSetup object
         Args:
             space_information : ob.SpaceInformation OR oc.SpaceInformation
                 state and control space info for which risk metrics are to be evaluated
+            risk_fn : callable
+                function for evaluating risk metrics (e.g. expected risk, CVaR)
             # state_validity_fn : callable
             #     decides whether a given state from a specific StateSpace is valid
             # propagator_cls : class
@@ -27,8 +29,9 @@ class SystemSetup:
 
         '''
 
-        # make space_information a member attribute
+        # make space_information and risk metric func member attributes
         self.space_info = space_information
+        self.risk_fn = risk_fn
 
         # ensure that a state validity checker has been set
         if self.space_info.getStateValidityChecker() is None:
@@ -67,7 +70,7 @@ class SystemSetup:
         '''Draw n samples from state space near a given state using a policy
 
         Args:
-            state : ob.State
+            state : ob.State internal
                 state for which nearby samples are to be drawn
             distance : float
                 state-space-specific distance to sample within
@@ -96,7 +99,6 @@ class SystemSetup:
 
             for i in range(n_samples):
 
-
                 # allocate a path object for the sample
                 # note that allocated states and controls are
                 # dummy placeholders that are overwritten in propagate_path
@@ -114,7 +116,7 @@ class SystemSetup:
 
                 # propagate sampled control
                 si.getStatePropagator().propagate_path(
-                    state = state(),
+                    state = state,
                     control = c,
                     duration = distance,
                     path = p
@@ -123,9 +125,67 @@ class SystemSetup:
                 # assign sampled path to samples list
                 samples[i] = p
 
-
         else:
             raise NotImplementedError("No reachable set sampling implemented for policy {}".format(policy))
 
         return samples
+
+    def EstimateRiskMetric(self, state, trajectory, distance, branch_fact, depth, n_steps, policy='default'):
+        '''Sampling-based, recursive risk metric estimation at specific state
+        
+        Args:
+            state : ob.State
+                state at which to evaluate risk metric
+            trajectory : oc.PathControl
+                trajectory arriving at state 
+            distance : double
+                state-space-specific distance to sample within
+            branch_fact : int
+                number of samples to draw
+            depth : int
+                number of recursive steps to estimate risk
+            n_steps : int
+                number of intermediate steps in sample paths
+            policy : str
+                string description of policy to use
+
+        Returns:
+            risk_est : float
+                coherent risk metric estimate at state
+        '''
+
+        # check if state is in collision
+        z = not self.space_info.isValid(state)
+
+        # if state is not in collision, check trajectory for collision (if it exists)
+        if (not z) and (trajectory is not None):
+            z = not self.isPathValid(trajectory)
+
+        if z or depth <= 0:
+            # recursion base: state is failure or a leaf of tree
+            return float(z)
+
+        # sample reachable states
+        samples = self.sampleReachableSet(
+            state=state, 
+            distance=distance, 
+            n_samples=branch_fact, 
+            policy=policy,
+            n_steps=n_steps)
+
+        # recursively compute risk estimates at sampled states
+        risk_vals = branch_fact*[None]
+        for i in range(branch_fact):
+            risk_vals[i] = self.EstimateRiskMetric(
+                state=samples[i].getState(n_steps-1),
+                trajectory=samples[i],
+                distance=distance,
+                branch_fact=branch_fact,
+                depth=depth-1,
+                n_steps=n_steps,
+                policy=policy
+            )
+
+        # Evaluate the risk metric
+        return self.risk_fn(risk_vals)
         

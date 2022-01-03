@@ -1,4 +1,14 @@
 import faulthandler
+
+# import pickle
+# import dill
+# pickle.Pickler = dill.Pickler
+
+# import dill as pickle
+from joblib import Parallel, delayed
+import multiprocess
+from functools import partial
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -9,7 +19,7 @@ PPM_FILE = 'border_640x400.ppm'
 SPEED = 10.0
 MIN_TURN_RADIUS = 50.0
 
-N_SAMPLES = 500
+N_SAMPLES = 50
 
 DURATION = 2.0
 # N_BRANCHS = [4, 8]
@@ -21,6 +31,8 @@ DEPTHS = [6]
 N_STEPS = 2
 
 CMAP = 'coolwarm'
+
+RUN_PARALLEL = True
 
 
 if __name__ == "__main__":
@@ -47,45 +59,63 @@ if __name__ == "__main__":
     fig = plt.figure(1)
     ax = fig.add_subplot(111)
 
-    for brch in N_BRANCHS:
-        for dpth in DEPTHS:
+    t0 = time.time()
+    if RUN_PARALLEL:
+        num_cores = multiprocess.cpu_count()
 
-            rmetrics = N_SAMPLES * [None]
-            for i in range(N_SAMPLES):
+        # multiprocess implementation
+        # partial_estimateRiskMetric = partial(dubss.estimateRiskMetric, 
+        #     trajectory=None,
+        #     distance=DURATION,
+        #     branch_fact=N_BRANCHS[0],
+        #     depth=DEPTHS[0],
+        #     n_steps=N_STEPS
+        # )
+        # with multiprocess.Pool(num_cores) as pool:
+        #     rmetrics = pool.map(partial_estimateRiskMetric, ssamples)
 
-                # evaluate risk metrics
-                rmetrics[i] = dubss.estimateRiskMetric(
-                    state=ssamples[i],
-                    trajectory=None,
-                    distance=DURATION,
-                    branch_fact=brch,
-                    depth=dpth,
-                    n_steps=N_STEPS
-                )
+        # joblib implementation
+        rmetrics = Parallel(n_jobs=num_cores)(
+            delayed(dubss.estimateRiskMetric)(
+                state=s,
+                trajectory=None,
+                distance=DURATION,
+                branch_fact=N_BRANCHS[0],
+                depth=DEPTHS[0],
+                n_steps=N_STEPS
+            ) for s in ssamples
+        )
+    else:
+        rmetrics = N_SAMPLES * [None]
+        for i in range(N_SAMPLES):
 
-            # plot results
-            lbl = "{}-branches, {}-depth".format(brch, dpth)
-            xvals = [s.getX() for s in ssamples]
-            yvals = [s.getY() for s in ssamples]
-            uvals = [np.cos(s.getYaw()) for s in ssamples]
-            vvals = [np.sin(s.getYaw()) for s in ssamples]
-            # ax.quiver(xvals, yvals, uvals, vvals, rmetrics, cmap=CMAP, ec='k', lw=0.5)
-            ax.quiver(xvals, yvals, uvals, vvals, rmetrics, cmap=CMAP)
-            # ax.plot(xsamples, rmetrics, '*', label=lbl)
+            # evaluate risk metrics
+            rmetrics[i] = dubss.estimateRiskMetric(
+                state=ssamples[i],
+                trajectory=None,
+                distance=DURATION,
+                branch_fact=N_BRANCHS[0],
+                depth=DEPTHS[0],
+                n_steps=N_STEPS
+            )
+    print("elapsed time ", time.time() - t0)
+
+    # plot results
+    # lbl = "{}-branches, {}-depth".format(brch, dpth)
+    xvals = [s.getX() for s in ssamples]
+    yvals = [s.getY() for s in ssamples]
+    uvals = [np.cos(s.getYaw()) for s in ssamples]
+    vvals = [np.sin(s.getYaw()) for s in ssamples]
+    ax.quiver(xvals, yvals, uvals, vvals, rmetrics, cmap=CMAP)
 
     # Draw in true risk metrics and obstacles
-    # ax.axhline(y=1.0, label='Random Policy True Risk', ls='-', c='r')
-    # ax.axhline(y=0.0, label='Optimal Policy True Risk', ls='-', c='b')
     ax.axvline(x=0, label='Obstacle'.format(0.5), lw=4.0, c='k')
     ax.axvline(x=640, label='Obstacle'.format(0.5), lw=4.0, c='k')
     ax.axhline(y=0, label='Obstacle'.format(0.5), lw=4.0, c='k')
     ax.axhline(y=400, label='Obstacle'.format(0.5), lw=4.0, c='k')
-    # ax.axvline(x=1.0, label='Obstacle'.format(0.5), lw=4.0, c='k')
-    # handles, labels = ax.get_legend_handles_labels()
-    # lgd = ax.legend(handles, labels, loc='center left', bbox_to_anchor=(1.05,0.5))
     ax.set_title(
-        "Estimated Risk Metrics for Dubins Vehicle in Constrained Box\n"+
-        "w/ uniform control sampling of duration={},\n".format(DURATION) +
+        "Estimated Risk Metrics for Dubins Vehicle (speed={}, turn rad={})\n".format(SPEED, MIN_TURN_RADIUS) +
+        "in Constrained Box w/ uniform control sampling of duration={},\n".format(DURATION) +
         "tree depth={}, and branching factor={}".format(DEPTHS[0], N_BRANCHS[0]) 
     )
     ax.set_xlim([0,640])
@@ -93,6 +123,5 @@ if __name__ == "__main__":
     ax.set_xlabel("x-position")
     ax.set_ylabel("y-position")
     fig.colorbar(cm.ScalarMappable(None, CMAP), ax=ax, label='failure probability')
-    # fig.savefig('dubins_risk_estimation', bbox_extra_artists=(lgd,), bbox_inches='tight')
     fig.savefig('dubins_risk_estimation', bbox_inches='tight')
-    # plt.show()
+    plt.show()

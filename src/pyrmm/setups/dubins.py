@@ -32,10 +32,14 @@ class DubinsPPMSetup(SystemSetup):
         assert speed > 0
         assert min_turn_radius > 0
 
+        # save init args for re-creation of object
+        self.ppm_file = ppm_file
+        self.speed = speed
+        self.min_turn_radius = min_turn_radius
+
         # generate configuration space from ppm file
-        ppm_file = ppm_file
         self.ppm_config_space = ou.PPM()
-        self.ppm_config_space.loadFile(ppm_file)
+        self.ppm_config_space.loadFile(self.ppm_file)
 
         # create state space and set bounds
         # state_space = ob.DubinsStateSpace(turningRadius=turning_radius)
@@ -49,7 +53,7 @@ class DubinsPPMSetup(SystemSetup):
 
         # create control space and set bounds
         control_space = oc.RealVectorControlSpace(stateSpace=state_space, dim=1)
-        dtheta = speed/min_turn_radius
+        dtheta = self.speed/self.min_turn_radius
         cbounds = ob.RealVectorBounds(1)
         cbounds.setLow(-dtheta)
         cbounds.setHigh(dtheta)
@@ -68,6 +72,14 @@ class DubinsPPMSetup(SystemSetup):
 
         # call parent init to create simple setup
         super().__init__(space_information=space_info)
+
+    def __reduce__(self):
+        ''' Function to enable re-creation of unpickable object
+
+        Note: See comments about potential risks here
+        https://stackoverflow.com/a/50308545/4055705
+        '''
+        return (DubinsPPMSetup, (self.ppm_file, self.speed, self.min_turn_radius))
 
     def isStateValid(self, spaceInformation, state):
         ''' check ppm image colors for obstacle collision

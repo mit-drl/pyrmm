@@ -16,7 +16,7 @@ SAVE_DIR = 'data'
 parser = argparse.ArgumentParser()
 parser.add_argument('--speed', type=float, default=10.0, help='[m/s] speed of dubins vehicle')
 parser.add_argument('--min-turn-radius', type=float, default=50.0, help='[m] minimum turning radius of dubins vehicle')
-parser.add_argument('--obstacle-file', type=str, default='data/border_640x400.ppm', help='path to ppm file representing obstacles')
+parser.add_argument('--obstacle-file', type=str, default='tests/border_640x400.ppm', help='path to ppm file representing obstacles')
 parser.add_argument('--policy', type=str, default='uniform_random', help='description of policy used for control propagation')
 parser.add_argument('--duration', type=float, default=2.0, help='[s] duration of policy propagation at each depth')
 parser.add_argument('--tree-depth', type=int, default=4, help='number of depth layers in propagation tree')

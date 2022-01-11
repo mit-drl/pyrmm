@@ -8,5 +8,7 @@ matplotlib
 multiprocess
 joblib
 dill
-git+git://github.com/AndrewWalker/pydubins.git
+gitpython
+git+https://github.com/AndrewWalker/pydubins.git
+# git+github:AndrewWalker/pydubins.git
 

@@ -1,7 +1,17 @@
+# Ref: https://mit-ll-responsible-ai.github.io/hydra-zen/tutorials.html
+
+import hydra
+from hydra.core.config_store import ConfigStore
 from hydra_zen import make_config, instantiate
 
 Config = make_config('player1', 'player2')
 
+# Register our config with Hydra's config store
+cs = ConfigStore.instance()
+cs.store(name="hydrazen_sandbox0_configs", node=Config)
+
+# Tell Hydra which config to use for our task function
+@hydra.main(config_path=None, config_name="hydrazen_sandbox0_configs")
 def task_function(cfg: Config):
     obj = instantiate(cfg)
 
@@ -16,3 +26,7 @@ def task_function(cfg: Config):
         f.write("Player 2: {}\n".format(p2))
 
     return p1, p2
+
+# Executing this script will run the task function
+if __name__ == "__main__":
+    task_function()

@@ -1,0 +1,70 @@
+import argparse
+import hashlib
+import git
+from datetime import datetime
+from pathlib import Path
+
+HASH_LEN = 5
+DESCRIPTOR = 'dubins'
+
+# Setup argument parser
+parser = argparse.ArgumentParser()
+parser.add_argument('--speed', type=float, default=10.0, help='[m/s] speed of dubins vehicle')
+parser.add_argument('--min-turn-radius', type=float, default=50.0, help='[m] minimum turning radius of dubins vehicle')
+parser.add_argument('--obstacle-file', type=str, default='border_640x400.ppm', help='path to ppm file representing obstacles')
+parser.add_argument('--policy', type=str, default='uniform_random', help='description of policy used for control propagation')
+parser.add_argument('--duration', type=float, default=2.0, help='[s] duration of policy propagation at each depth')
+parser.add_argument('--tree-depth', type=int, default=4, help='number of depth layers in propagation tree')
+parser.add_argument('--tree-branching', type=int, default=16, help='number of branches per depth in control propagation tree')
+parser.add_argument('--n-steps', type=int, default=2, help='number of intermediate steps in each control segment for collision checking')
+parser.add_argument('--n-samples', type=int, default=1024, help='number of top-level samples to draw for data generation')
+
+def get_file_prefix(inargs):
+    '''create the save filename using timestamps and hashes
+    
+    Returns:
+        fname : str
+            filename is formatted with the datetime when the file was called,
+            the git hash of the repo
+            string desriptor of the datatype
+            the sha1 hash of this files contents (may change between repo commits)
+            the sha1 hash of the input args
+            YYYYMMDD_HHMMSS_DESC_REPO_FILE_ARGS
+    '''
+
+    # get datetime for file naming
+    dt_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+    # print(dt_str)
+
+    # get git repo hash for file naming
+    repo = git.Repo(search_parent_directories=True)
+    repo_hash = repo.head.object.hexsha
+
+    # hash file contents
+    with open (Path(__file__).resolve(), 'r') as thisfile:
+        file_str=thisfile.readlines()
+    file_str = ''.join([i for i in file_str])
+    file_hash = hashlib.sha1()
+    file_hash.update(file_str.encode())
+    # print(file_hash.hexdigest()[:HASH_LEN])
+    
+    # hash input arguments
+    args_hash = hashlib.sha1()
+    args_hash.update(str(inargs).encode())
+    # print(args_hash.hexdigest()[:HASH_LEN])
+
+    return (
+        dt_str + '_' +
+        DESCRIPTOR + '_' +
+        repo_hash[:HASH_LEN] + '_' + 
+        file_hash.hexdigest()[:HASH_LEN] + '_' + 
+        args_hash.hexdigest()[:HASH_LEN])
+
+
+if __name__ == "__main__":
+
+    # get input args
+    args = parser.parse_args()
+
+    savefile_prfx = get_file_prefix(args)
+    print(savefile_prfx)

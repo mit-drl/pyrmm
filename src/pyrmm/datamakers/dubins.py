@@ -6,6 +6,8 @@ from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
 
+from pyrmm.setups.dubins import DubinsPPMSetup
+
 HASH_LEN = 5
 DESCRIPTOR = 'dubins'
 SAVE_DIR = 'data'
@@ -14,7 +16,7 @@ SAVE_DIR = 'data'
 parser = argparse.ArgumentParser()
 parser.add_argument('--speed', type=float, default=10.0, help='[m/s] speed of dubins vehicle')
 parser.add_argument('--min-turn-radius', type=float, default=50.0, help='[m] minimum turning radius of dubins vehicle')
-parser.add_argument('--obstacle-file', type=str, default='border_640x400.ppm', help='path to ppm file representing obstacles')
+parser.add_argument('--obstacle-file', type=str, default='data/border_640x400.ppm', help='path to ppm file representing obstacles')
 parser.add_argument('--policy', type=str, default='uniform_random', help='description of policy used for control propagation')
 parser.add_argument('--duration', type=float, default=2.0, help='[s] duration of policy propagation at each depth')
 parser.add_argument('--tree-depth', type=int, default=4, help='number of depth layers in propagation tree')
@@ -38,12 +40,11 @@ def get_savefile(inargs):
     '''
 
     configs = OrderedDict()
-    # configs = dict()
-
+    
+    # get source file and repo paths
     src_fpath = str(Path(__file__).resolve())
     repo = git.Repo(search_parent_directories=True)
     repo_dir = repo.git_dir[:-len('.git')]
-    # configs['src_file']= src_fpath.removeprefix(repo.git_dir.removesuffix('.git'))
     configs['src_file']= src_fpath[len(repo_dir):]
 
     # get datetime for file naming
@@ -68,10 +69,6 @@ def get_savefile(inargs):
     args_hash.update(str(inargs).encode())
     configs['args_hash'] = args_hash.hexdigest()
 
-    # add args to configs
-    # configs = {**configs, **vars(args)}
-    # configs.update(vars(args))
-
     # create filename
     save_fname = (
         dt_str + '_' +
@@ -88,7 +85,7 @@ def get_savefile(inargs):
             yaml.dump({k:v}, config_file)
         yaml.dump(vars(args), config_file)
 
-    return save_fname
+    return save_fname, repo_dir
 
 
 if __name__ == "__main__":
@@ -96,5 +93,22 @@ if __name__ == "__main__":
     # get input args
     args = parser.parse_args()
 
-    savefile_prfx = get_savefile(args)
-    print(savefile_prfx)
+    # create data save files
+    savefile_prfx, repo_dir = get_savefile(args)
+    
+    # create dubins setup
+    obstacle_fpath = str(Path().joinpath(repo_dir, args.obstacle_file))
+    dubss = DubinsPPMSetup(
+        ppm_file=obstacle_fpath,
+        speed=args.speed,
+        min_turn_radius=args.min_turn_radius
+    )
+
+    # sample states to evaluate risk metrics
+    sampler = dubss.space_info.allocValidStateSampler()
+    ssamples = args.n_samples * [None] 
+    for i in range(args.n_samples):
+
+        # assign state
+        ssamples[i] = dubss.space_info.allocState()
+        sampler.sample(ssamples[i])

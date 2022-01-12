@@ -2,6 +2,7 @@
 import hydra
 from hydra.core.config_store import ConfigStore
 from hydra_zen import builds, make_config, instantiate
+from hydra_zen import ZenField as zf
 from game_library import Character, inventory
 
 _CONFIG_NAME = "sandbox_app"
@@ -13,7 +14,7 @@ starter_gear = InventoryConf(gold=10, weapon='stick', costume='tunic')
 CharacterConf = builds(Character, populate_full_signature=True, inventory=starter_gear)
 
 # Top-level config
-Config = make_config(player=CharacterConf)
+Config = make_config(player=CharacterConf, dummy_int=zf(int,2))
 
 # Store the top level config for command line interface
 cs = ConfigStore.instance()
@@ -26,6 +27,7 @@ def task_function(cfg: Config):
     obj = instantiate(cfg)
 
     player = obj.player # defined in the top-level make_config
+    print(obj.dummy_int)
 
     with open("player_log.txt", "w") as f:
         f.write("Game session log:\n")

@@ -66,7 +66,7 @@ class SystemSetup:
         
         return True
 
-    def sampleReachableSet(self, state, distance, n_samples, policy='default', n_steps=8):
+    def sampleReachableSet(self, state, distance, n_samples, policy='uniform_random', n_steps=8):
         '''Draw n samples from state space near a given state using a policy
 
         Args:
@@ -87,7 +87,7 @@ class SystemSetup:
                 list of sampled states
         '''
 
-        if policy == 'default':
+        if policy == 'uniform_random':
 
             # access space information
             si = self.space_info
@@ -130,7 +130,7 @@ class SystemSetup:
 
         return samples
 
-    def estimateRiskMetric(self, state, trajectory, distance, branch_fact, depth, n_steps, policy='default', samples=None):
+    def estimateRiskMetric(self, state, trajectory, distance, branch_fact, depth, n_steps, policy='uniform_random', samples=None):
         '''Sampling-based, recursive risk metric estimation at specific state
         
         Args:

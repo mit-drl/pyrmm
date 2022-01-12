@@ -1,5 +1,6 @@
 # generated data
 data/*.yml
+outputs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

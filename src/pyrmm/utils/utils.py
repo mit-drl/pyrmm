@@ -5,7 +5,61 @@ Examples: collision checkers, tree and node definitions
 '''
 
 import functools
-from typing import List
+import hashlib
+import git
+from typing import Type, List
+from pathlib import PosixPath
+
+def get_repo_path():
+    '''get full path to repo head'''
+    repo = git.Repo(search_parent_directories=True)
+    repo_path = repo.git_dir[:-len('.git')]
+    return repo_path
+
+def format_save_filename(src_file: Type[PosixPath], hash_len: int):
+    '''create the save filename using timestamps and hashes
+
+    Args:
+        fpath : PosixPath
+            pathlib Path to source file to format for output data
+        hash_len : int
+            length of hash to use in filename
+    
+    Returns:
+        save_fname : str
+            directory name of source file (i.e. datagen to distinguish from trained models)
+            string desriptor of the datatype (name of source file)
+            the git hash of the repo state
+            the sha1 hash of this files contents (may change between repo commits)
+            SRCFILE_REPOHASH_FILEHASH
+    '''
+
+    
+    # get source file and repo paths
+
+    src_fpath = str(src_file.resolve())
+    src_dname = str(src_file.parts[-2])
+    src_fname = str(src_file.stem)
+
+    # get git repo hash for file naming
+    repo = git.Repo(search_parent_directories=True)
+    repo_hash = repo.head.object.hexsha
+
+    # hash file contents
+    with open (src_fpath, 'r') as thisfile:
+        file_str=thisfile.readlines()
+    file_str = ''.join([i for i in file_str])
+    file_hash = hashlib.sha1()
+    file_hash.update(file_str.encode())
+
+    # create filename
+    save_fname = (
+        src_dname + '_' +
+        src_fname + '_' +
+        repo_hash[:hash_len] + '_' + 
+        file_hash.hexdigest()[:hash_len])
+
+    return save_fname
 
 
 def is_pixel_free_space(p):

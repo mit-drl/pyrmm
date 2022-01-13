@@ -1,7 +1,5 @@
 import hydra
 import torch
-import hashlib
-import git
 import copyreg
 import multiprocess
 import time
@@ -14,54 +12,18 @@ from hydra_zen import ZenField as zf
 from ompl import base as ob
 
 from pyrmm.setups.dubins import DubinsPPMSetup
+from pyrmm.utils.utils import format_save_filename, get_repo_path
 
 _HASH_LEN = 5
 _CONFIG_NAME = "dubins_datamaker_app"
 _MONITOR_RATE = 10
 
-def get_file_info():
-    '''create the save filename using timestamps and hashes
-    
-    Returns:
-        save_fname : str
-            directory name of source file (i.e. datagen to distinguish from trained models)
-            string desriptor of the datatype (name of source file)
-            the git hash of the repo state
-            the sha1 hash of this files contents (may change between repo commits)
-            SRCFILE_REPOHASH_FILEHASH
-        repo_path : str
-            full path to repo head
-    '''
+##############################################
+################# UTILITIES ##################
+##############################################
 
-    
-    # get source file and repo paths
-
-    src_fpath = str(Path(__file__).resolve())
-    repo = git.Repo(search_parent_directories=True)
-    repo_path = repo.git_dir[:-len('.git')]
-    src_dname = str(Path(__file__).parts[-2])
-    src_fname = str(Path(__file__).stem)
-
-    # get git repo hash for file naming
-    repo_hash = repo.head.object.hexsha
-
-    # hash file contents
-    with open (src_fpath, 'r') as thisfile:
-        file_str=thisfile.readlines()
-    file_str = ''.join([i for i in file_str])
-    file_hash = hashlib.sha1()
-    file_hash.update(file_str.encode())
-
-    # create filename
-    save_fname = (
-        src_dname + '_' +
-        src_fname + '_' +
-        repo_hash[:_HASH_LEN] + '_' + 
-        file_hash.hexdigest()[:_HASH_LEN])
-
-    return save_fname, repo_path
-
-_SAVE_FNAME, _REPO_PATH = get_file_info()
+_SAVE_FNAME = format_save_filename(Path(__file__), _HASH_LEN)
+_REPO_PATH = get_repo_path()
 
 _DUMMY_SE2SPACE = ob.SE2StateSpace()
 
@@ -122,6 +84,7 @@ ConfigStore.instance().store(_CONFIG_NAME,Config)
 ##############################################
 ############### TASK FUNCTIONS ###############
 ##############################################
+
 @hydra.main(config_path=None, config_name=_CONFIG_NAME)
 def task_function(cfg: Config):
     '''Instantiate Dubins setup and generate risk metric data'''

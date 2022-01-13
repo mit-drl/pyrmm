@@ -4,6 +4,7 @@ import hashlib
 import git
 import copyreg
 import multiprocess
+import time
 from functools import partial
 from pathlib import Path
 from hydra.core.config_store import ConfigStore
@@ -16,12 +17,14 @@ from pyrmm.setups.dubins import DubinsPPMSetup
 
 _HASH_LEN = 5
 _CONFIG_NAME = "dubins_datamaker_app"
+_MONITOR_RATE = 10
 
 def get_file_info():
     '''create the save filename using timestamps and hashes
     
     Returns:
         save_fname : str
+            directory name of source file (i.e. datagen to distinguish from trained models)
             string desriptor of the datatype (name of source file)
             the git hash of the repo state
             the sha1 hash of this files contents (may change between repo commits)
@@ -32,9 +35,11 @@ def get_file_info():
 
     
     # get source file and repo paths
+
     src_fpath = str(Path(__file__).resolve())
     repo = git.Repo(search_parent_directories=True)
     repo_path = repo.git_dir[:-len('.git')]
+    src_dname = str(Path(__file__).parts[-2])
     src_fname = str(Path(__file__).stem)
 
     # get git repo hash for file naming
@@ -49,6 +54,7 @@ def get_file_info():
 
     # create filename
     save_fname = (
+        src_dname + '_' +
         src_fname + '_' +
         repo_hash[:_HASH_LEN] + '_' + 
         file_hash.hexdigest()[:_HASH_LEN])
@@ -143,8 +149,18 @@ def task_function(cfg: Config):
         n_steps=obj.n_steps,
         policy=obj.policy
     )
-    with multiprocess.Pool(num_cores) as pool:
-        rmetrics = pool.map(partial_estimateRiskMetric, ssamples)
+
+    # use iterative map for process tracking
+    t_start = time.time()
+    rmetrics = multiprocess.Pool(num_cores).imap(partial_estimateRiskMetric, ssamples)
+
+    # track multiprocess progress
+    for i,_ in enumerate(ssamples):
+        rmetrics.next()
+        if i%_MONITOR_RATE ==  0:
+            print("{} of {} completed after {:.2f} seconds".format(i, len(ssamples), time.time()-t_start))
+
+    print("total time: {:.2f}".format(time.time()-t_start))
 
     # save data for pytorch training
     data = [i for i in zip(ssamples, rmetrics)]

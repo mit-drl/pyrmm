@@ -1,5 +1,6 @@
 import pickle
 import copyreg
+from pathlib import Path
 from ompl import base as ob
 from ompl import util as ou
 
@@ -48,7 +49,7 @@ ppm = PickleablePPM()
 assert pickle.dumps(ppm)
 
 # ensure that you can copy and reproduce an exact PPM object
-ppm.loadFile('floor.ppm')
+ppm.loadFile(str(Path(__file__).parent.resolve().joinpath('floor.ppm')))
 ppm_copy = pickle.loads(pickle.dumps(ppm))
 assert ppm.getWidth() == ppm_copy.getWidth()
 assert ppm.getHeight() == ppm_copy.getHeight()

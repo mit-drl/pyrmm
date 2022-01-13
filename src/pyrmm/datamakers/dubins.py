@@ -84,7 +84,9 @@ def _unpickle_SE2StateInternal(x, y, yaw):
     state.setYaw(yaw)
     return state
 
-copyreg.pickle(_DUMMY_SE2SPACE.SE2StateInternal, _pickle_SE2StateInternal, _unpickle_SE2StateInternal)
+def update_pickler():
+    '''updates pickler to enable pickling and unpickling of ompl objects'''
+    copyreg.pickle(_DUMMY_SE2SPACE.SE2StateInternal, _pickle_SE2StateInternal, _unpickle_SE2StateInternal)
 
 
 ##############################################
@@ -156,6 +158,7 @@ def task_function(cfg: Config):
         sampler.sample(ssamples[i])
 
     # multiprocess implementation of parallel risk metric estimation
+    update_pickler()
     partial_estimateRiskMetric = partial(
         obj.setup.estimateRiskMetric, 
         trajectory=None,

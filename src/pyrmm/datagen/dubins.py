@@ -72,13 +72,15 @@ def task_function(cfg: Config):
     obj = instantiate(cfg)
 
     # sample states to evaluate risk metrics
-    sampler = getattr(obj, U.SYSTEM_SETUP).space_info.allocValidStateSampler()
+    # sampler = getattr(obj, U.SYSTEM_SETUP).space_info.allocValidStateSampler()
+    sampler = getattr(obj, U.SYSTEM_SETUP).space_info.allocStateSampler()
     ssamples = getattr(obj, U.N_SAMPLES) * [None] 
     for i in range(getattr(obj, U.N_SAMPLES)):
 
         # assign state
         ssamples[i] = getattr(obj, U.SYSTEM_SETUP).space_info.allocState()
-        sampler.sample(ssamples[i])
+        # sampler.sample(ssamples[i])
+        sampler.sampleUniform(ssamples[i])
 
     # multiprocess implementation of parallel risk metric estimation
     U.update_pickler_se2stateinternal()

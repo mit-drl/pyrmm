@@ -23,9 +23,7 @@ class RiskMetricDataModule(LightningDataModule):
         '''
         super().__init__()
 
-        # convert path strings in to absolute PosixPaths'./outputs/2022-01-13/15-23-10',
-        # './outputs/2022-01-14/10-02-24',
-        # './outputs/2022-01-14/10-09-51'
+        # convert path strings in to absolute PosixPaths
         dpaths = [Path(dp).expanduser().resolve() for dp in datapaths]
 
         # ensure that all data is consistent on critical configs
@@ -112,7 +110,7 @@ class RiskMetricDataModule(LightningDataModule):
         ax.set_xlabel("x-position")
         ax.set_ylabel("y-position")
         fig.colorbar(cm.ScalarMappable(None, cmap), ax=ax, label='failure probability')
-        fig.savefig('dubins_risk_estimation', bbox_inches='tight')
+        # fig.savefig('dubins_risk_estimation', bbox_inches='tight')
         plt.show()
 
 ##############################################
@@ -127,9 +125,12 @@ class RiskMetricDataModule(LightningDataModule):
 
 if __name__ == "__main__":
     rmm_data = RiskMetricDataModule([
-        'outputs/2022-01-14/11-25-51/datagen_dubins_f8951_ebfd4.pt',
-        'outputs/2022-01-14/11-46-12/datagen_dubins_e6ecd_ebfd4.pt',
-        'outputs/2022-01-14/11-53-42/datagen_dubins_e6ecd_ebfd4.pt',
+        'outputs/2022-01-14/12-27-37/datagen_dubins_eb6a4_c8494.pt',
+        'outputs/2022-01-14/12-29-55/datagen_dubins_eb6a4_c8494.pt',
+        'outputs/2022-01-14/12-31-55/datagen_dubins_eb6a4_c8494.pt'
+        # 'outputs/2022-01-14/11-25-51/datagen_dubins_f8951_ebfd4.pt',
+        # 'outputs/2022-01-14/11-46-12/datagen_dubins_e6ecd_ebfd4.pt',
+        # 'outputs/2022-01-14/11-53-42/datagen_dubins_e6ecd_ebfd4.pt',
         # 'outputs/2022-01-14/10-36-03/datagen_dubins_739e6_ffce1.pt',
         # 'outputs/2022-01-14/10-42-04/datagen_dubins_739e6_ffce1.pt',
         # 'outputs/2022-01-14/10-47-03/datagen_dubins_739e6_ffce1.pt',

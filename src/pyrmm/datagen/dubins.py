@@ -9,10 +9,8 @@ from hydra.core.config_store import ConfigStore
 from hydra_zen import make_config, instantiate, make_custom_builds_fn
 from hydra_zen import ZenField as zf
 
-from ompl import base as ob
-
+import pyrmm.utils.utils as U
 from pyrmm.setups.dubins import DubinsPPMSetup
-from pyrmm.utils.utils import format_save_filename, get_repo_path
 
 _HASH_LEN = 5
 _CONFIG_NAME = "dubins_datamaker_app"
@@ -22,28 +20,8 @@ _MONITOR_RATE = 10
 ################# UTILITIES ##################
 ##############################################
 
-_SAVE_FNAME = format_save_filename(Path(__file__), _HASH_LEN)
-_REPO_PATH = get_repo_path()
-
-_DUMMY_SE2SPACE = ob.SE2StateSpace()
-
-def _pickle_SE2StateInternal(state):
-    x = state.getX()
-    y = state.getY()
-    yaw = state.getYaw()
-    return _unpickle_SE2StateInternal, (x, y, yaw)
-
-def _unpickle_SE2StateInternal(x, y, yaw):
-    state = _DUMMY_SE2SPACE.allocState()
-    state.setX(x)
-    state.setY(y)
-    state.setYaw(yaw)
-    return state
-
-def update_pickler():
-    '''updates pickler to enable pickling and unpickling of ompl objects'''
-    copyreg.pickle(_DUMMY_SE2SPACE.SE2StateInternal, _pickle_SE2StateInternal, _unpickle_SE2StateInternal)
-
+_SAVE_FNAME = U.format_save_filename(Path(__file__), _HASH_LEN)
+_REPO_PATH = U.get_repo_path()
 
 ##############################################
 ############# HYDARA-ZEN CONFIGS #############
@@ -70,15 +48,17 @@ _DEFAULT_N_STEPS = 2
 _DEFAULT_POLICY = 'uniform_random'
 
 # Top-level configuration and store for command line interface
-Config = make_config(
-    setup=DubinsPPMSetupConfig,
-    n_samples=zf(int, _DEFAULT_N_SAMPLES),
-    duration=zf(float, _DEFAULT_DURATION),
-    n_branches=zf(int, _DEFAULT_N_BRANCHES),
-    tree_depth=zf(int,_DEFAULT_TREE_DEPTH),
-    n_steps=zf(int,_DEFAULT_N_STEPS),
-    policy=zf(str,_DEFAULT_POLICY)
-)
+make_config_input = {
+    U.SYSTEM_SETUP: DubinsPPMSetupConfig,
+    U.N_SAMPLES: zf(int, _DEFAULT_N_SAMPLES),
+    U.DURATION: zf(float, _DEFAULT_DURATION),
+    U.N_BRANCHES: zf(int, _DEFAULT_N_BRANCHES),
+    U.TREE_DEPTH: zf(int,_DEFAULT_TREE_DEPTH),
+    U.N_STEPS: zf(int,_DEFAULT_N_STEPS),
+    U.POLICY: zf(str,_DEFAULT_POLICY),
+    U.N_CORES: zf(int, multiprocess.cpu_count())
+}
+Config = make_config(**make_config_input)
 ConfigStore.instance().store(_CONFIG_NAME,Config)
 
 ##############################################
@@ -90,32 +70,31 @@ def task_function(cfg: Config):
     '''Instantiate Dubins setup and generate risk metric data'''
 
     obj = instantiate(cfg)
-    num_cores = multiprocess.cpu_count()
 
     # sample states to evaluate risk metrics
-    sampler = obj.setup.space_info.allocValidStateSampler()
-    ssamples = obj.n_samples * [None] 
-    for i in range(obj.n_samples):
+    sampler = getattr(obj, U.SYSTEM_SETUP).space_info.allocValidStateSampler()
+    ssamples = getattr(obj, U.N_SAMPLES) * [None] 
+    for i in range(getattr(obj, U.N_SAMPLES)):
 
         # assign state
-        ssamples[i] = obj.setup.space_info.allocState()
+        ssamples[i] = getattr(obj, U.SYSTEM_SETUP).space_info.allocState()
         sampler.sample(ssamples[i])
 
     # multiprocess implementation of parallel risk metric estimation
-    update_pickler()
+    U.update_pickler_se2stateinternal()
     partial_estimateRiskMetric = partial(
-        obj.setup.estimateRiskMetric, 
+        getattr(obj, U.SYSTEM_SETUP).estimateRiskMetric, 
         trajectory=None,
-        distance=obj.duration,
-        branch_fact=obj.n_branches,
-        depth=obj.tree_depth,
-        n_steps=obj.n_steps,
-        policy=obj.policy
+        distance=getattr(obj, U.DURATION),
+        branch_fact=getattr(obj, U.N_BRANCHES),
+        depth=getattr(obj, U.TREE_DEPTH),
+        n_steps=getattr(obj, U.N_STEPS),
+        policy=getattr(obj, U.POLICY)
     )
 
     # use iterative map for process tracking
     t_start = time.time()
-    rmetrics = multiprocess.Pool(num_cores).imap(partial_estimateRiskMetric, ssamples)
+    rmetrics = multiprocess.Pool(getattr(obj, U.N_CORES)).imap(partial_estimateRiskMetric, ssamples)
 
     # track multiprocess progress
     for i,_ in enumerate(ssamples):

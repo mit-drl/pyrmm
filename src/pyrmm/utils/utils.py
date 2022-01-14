@@ -7,8 +7,21 @@ Examples: collision checkers, tree and node definitions
 import functools
 import hashlib
 import git
+import copyreg
+import ompl.base
 from typing import Type, List
 from pathlib import PosixPath
+
+# Standardized naming variables
+SYSTEM_SETUP = 'system_setup'
+N_SAMPLES = 'n_samples'
+DURATION = 'duration'
+N_BRANCHES = 'n_branches'
+TREE_DEPTH = 'tree_depth'
+N_STEPS = 'n_steps'
+POLICY = 'policy'
+N_CORES = 'n_cores'
+
 
 def get_repo_path():
     '''get full path to repo head'''
@@ -61,6 +74,26 @@ def format_save_filename(src_file: Type[PosixPath], hash_len: int):
 
     return save_fname
 
+_DUMMY_SE2SPACE = ompl.base.SE2StateSpace()
+
+def _pickle_SE2StateInternal(state):
+    '''pickle OMPL SE2StateInternal object'''
+    x = state.getX()
+    y = state.getY()
+    yaw = state.getYaw()
+    return _unpickle_SE2StateInternal, (x, y, yaw)
+
+def _unpickle_SE2StateInternal(x, y, yaw):
+    '''unpickle OMPL SE2StateInternal object'''
+    state = _DUMMY_SE2SPACE.allocState()
+    state.setX(x)
+    state.setY(y)
+    state.setYaw(yaw)
+    return state
+
+def update_pickler_se2stateinternal():
+    '''updates pickler to enable pickling and unpickling of ompl objects'''
+    copyreg.pickle(_DUMMY_SE2SPACE.SE2StateInternal, _pickle_SE2StateInternal, _unpickle_SE2StateInternal)
 
 def is_pixel_free_space(p):
     '''check if pixel is in free space of obstacles'''

@@ -94,13 +94,18 @@ def task_function(cfg: Config):
 
     # use iterative map for process tracking
     t_start = time.time()
-    rmetrics = multiprocess.Pool(getattr(obj, U.N_CORES)).imap(partial_estimateRiskMetric, ssamples)
+    pool = multiprocess.Pool(getattr(obj, U.N_CORES))
+    rmetrics_iter = pool.imap(partial_estimateRiskMetric, ssamples)
 
     # track multiprocess progress
+    rmetrics = []
     for i,_ in enumerate(ssamples):
-        rmetrics.next()
+        rmetrics.append(rmetrics_iter.next())
         if i%_MONITOR_RATE ==  0:
             print("{} of {} completed after {:.2f} seconds".format(i, len(ssamples), time.time()-t_start))
+
+    pool.close()
+    pool.join()
 
     print("total time: {:.2f}".format(time.time()-t_start))
 

@@ -1,4 +1,5 @@
 import yaml
+import torch
 import numpy as np
 from pathlib import Path
 from typing import List
@@ -20,11 +21,19 @@ class RiskMetricDataModule(LightningDataModule):
         '''
         super().__init__()
 
-        # convert path strings in to absolute PosixPaths
+        # convert path strings in to absolute PosixPaths'./outputs/2022-01-13/15-23-10',
+        # './outputs/2022-01-14/10-02-24',
+        # './outputs/2022-01-14/10-09-51'
         dpaths = [Path(dp).expanduser().resolve() for dp in datapaths]
 
         # ensure that all data is consistent on critical configs
         RiskMetricDataModule.verify_hydrazen_rmm_data(dpaths)
+
+        # load data objects
+        dobjs = len(dpaths) * [None]
+        for i, dp in enumerate(dpaths):
+            dobjs[i] = torch.load(dp)
+            print(dobjs[i])
 
     @staticmethod
     def verify_hydrazen_rmm_data(datapaths: List):
@@ -35,7 +44,7 @@ class RiskMetricDataModule(LightningDataModule):
         '''
 
         for i, dp in enumerate(datapaths):
-            cfg_path = dp.joinpath('.hydra','config.yaml')
+            cfg_path = dp.parent.joinpath('.hydra','config.yaml')
             with open(cfg_path, 'r') as cfg_file:
                 cfg = yaml.full_load(cfg_file)
             
@@ -75,9 +84,9 @@ class RiskMetricDataModule(LightningDataModule):
 
 if __name__ == "__main__":
     rmm_data = RiskMetricDataModule([
-        'outputs/2022-01-14/10-36-03',
-        'outputs/2022-01-14/10-42-04',
-        'outputs/2022-01-14/10-47-03',
+        'outputs/2022-01-14/10-36-03/datagen_dubins_739e6_ffce1.pt',
+        'outputs/2022-01-14/10-42-04/datagen_dubins_739e6_ffce1.pt',
+        'outputs/2022-01-14/10-47-03/datagen_dubins_739e6_ffce1.pt',
         # './outputs/2022-01-13/15-23-10',
         # './outputs/2022-01-14/10-02-24',
         # './outputs/2022-01-14/10-09-51'

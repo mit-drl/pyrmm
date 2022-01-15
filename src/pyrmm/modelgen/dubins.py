@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from pathlib import Path
 from typing import List
+from torch.utils.data import TensorDataset, DataLoader, random_split
 from pytorch_lightning import LightningDataModule
 
 import pyrmm.utils.utils as U
@@ -14,14 +15,22 @@ import pyrmm.utils.utils as U
 ################# MODEL DEF ##################
 ##############################################
 
+def se2_to_numpy(se2):
+    '''convert OMPL SE2StateInternal object to torch tensor'''
+    return np.array([se2.getX(), se2.getY(), se2.getYaw()])
+
 class RiskMetricDataModule(LightningDataModule):
-    def __init__(self, datapaths: List):
+    def __init__(self, datapaths: List, val_percent: float):
         '''loads data from torch save files
         Args:
             datapaths : list[str]
                 list of path strings to hydrazen outputs to be loaded
+            val_percent : float
+                percent of data to be used 
         '''
         super().__init__()
+
+        assert val_percent >= 0 and val_percent <= 1
 
         # convert path strings in to absolute PosixPaths
         dpaths = [Path(dp).expanduser().resolve() for dp in datapaths]
@@ -33,8 +42,29 @@ class RiskMetricDataModule(LightningDataModule):
         data = []
         for i, dp in enumerate(dpaths):
             data.extend(torch.load(dp))
+        n_data = len(data)
+        n_val = int(n_data*val_percent)
+        n_train = n_data - n_val
 
-        RiskMetricDataModule.plot_dubins_data(data, dpaths[0])
+        # convert SE2StateInternal objects and risk metrics to tensors
+        ssamples, rmetrics = tuple(zip(*data))
+        ssamples_np = np.concatenate([se2_to_numpy(s).reshape(1,3) for s in ssamples], axis=0)
+        ssamples_pt = torch.from_numpy(ssamples_np)
+        rmetrics_pt = torch.tensor(rmetrics)
+        
+        # format into dataset
+        full_dataset = TensorDataset(ssamples_pt, rmetrics_pt)
+
+        # randomly split training and validation dataset
+        self.train_dataset, self.val_dataset =  random_split(full_dataset, [n_train, n_val])
+
+        # RiskMetricDataModule.plot_dubins_data(data, dpaths[0])
+
+    def train_dataloader(self):
+        return DataLoader(self.train_dataset, batch_size=len(self.train_dataset))
+
+    def val_dataloader(self):
+        return DataLoader(self.val_dataset, batch_size=len(self.val_dataset))
 
     @staticmethod
     def verify_hydrazen_rmm_data(datapaths: List):
@@ -127,7 +157,8 @@ if __name__ == "__main__":
     rmm_data = RiskMetricDataModule([
         'outputs/2022-01-14/12-27-37/datagen_dubins_eb6a4_c8494.pt',
         'outputs/2022-01-14/12-29-55/datagen_dubins_eb6a4_c8494.pt',
-        'outputs/2022-01-14/12-31-55/datagen_dubins_eb6a4_c8494.pt'
+        'outputs/2022-01-14/12-31-55/datagen_dubins_eb6a4_c8494.pt',
+        'outputs/2022-01-14/12-38-06/datagen_dubins_eb6a4_c8494.pt'
         # 'outputs/2022-01-14/11-25-51/datagen_dubins_f8951_ebfd4.pt',
         # 'outputs/2022-01-14/11-46-12/datagen_dubins_e6ecd_ebfd4.pt',
         # 'outputs/2022-01-14/11-53-42/datagen_dubins_e6ecd_ebfd4.pt',
@@ -137,4 +168,4 @@ if __name__ == "__main__":
         # './outputs/2022-01-13/15-23-10',
         # './outputs/2022-01-14/10-02-24',
         # './outputs/2022-01-14/10-09-51'
-    ])
+    ], 0.15)

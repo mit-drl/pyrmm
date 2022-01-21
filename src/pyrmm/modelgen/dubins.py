@@ -1,5 +1,6 @@
 import yaml
 import torch
+import hydra
 import numpy as np
 import matplotlib.pyplot as plt
 import torch.nn as nn
@@ -8,12 +9,16 @@ import torch.nn.functional as F
 from matplotlib import cm
 from pathlib import Path
 from typing import List
+from hydra.core.config_store import ConfigStore
 from torch.utils.data import TensorDataset, DataLoader, random_split
 from pytorch_lightning import LightningDataModule, LightningModule, Trainer, seed_everything
+from hydra_zen import builds, make_custom_builds_fn, make_config, instantiate
 from hydra_zen.typing import Partial
 from sklearn.preprocessing import MaxAbsScaler
 
 import pyrmm.utils.utils as U
+
+_CONFIG_NAME = "dubins_border_640x400"
 
 
 ##############################################
@@ -25,17 +30,22 @@ def se2_to_numpy(se2):
     return np.array([se2.getX(), se2.getY(), se2.getYaw()])
 
 class RiskMetricDataModule(LightningDataModule):
-    def __init__(self, datapaths: List, val_percent: float):
+    def __init__(self, datapaths: List, val_percent: float, batch_size: int):
         '''loads data from torch save files
         Args:
             datapaths : list[str]
                 list of path strings to hydrazen outputs to be loaded
             val_percent : float
                 percent of data to be used 
+            batch_size : int
+                size of training batches
         '''
         super().__init__()
 
         assert val_percent >= 0 and val_percent <= 1
+        assert batch_size > 0
+
+        self.batch_size = batch_size
 
         # convert path strings in to absolute PosixPaths
         dpaths = [Path(dp).expanduser().resolve() for dp in datapaths]
@@ -77,7 +87,7 @@ class RiskMetricDataModule(LightningDataModule):
         # RiskMetricDataModule.plot_dubins_data(data, dpaths[0])
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=len(self.train_dataset))
+        return DataLoader(self.train_dataset, batch_size=self.batch_size)
 
     def val_dataloader(self):
         return DataLoader(self.val_dataset, batch_size=len(self.val_dataset))
@@ -195,11 +205,61 @@ class RiskMetricModule(LightningModule):
         self.print("\nvalidation loss:", loss.item())
         self.log('validation_loss', loss)
 
+def single_layer_nn(num_neurons: int) -> nn.Module:
+    """y = sum(V sigmoid(X W + b))"""
+    return nn.Sequential(
+        nn.Linear(3, num_neurons),
+        nn.Sigmoid(),
+        nn.Linear(num_neurons, 1, bias=False),
+    )
 
 
 ##############################################
 ############# HYDARA-ZEN CONFIGS #############
 ##############################################
+
+pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
+
+repo_dir = U.get_repo_path()
+default_datapaths = [
+    'outputs/2022-01-14/12-27-37/datagen_dubins_eb6a4_c8494.pt',
+    'outputs/2022-01-14/12-29-55/datagen_dubins_eb6a4_c8494.pt',
+    'outputs/2022-01-14/12-31-55/datagen_dubins_eb6a4_c8494.pt',
+    'outputs/2022-01-14/12-38-06/datagen_dubins_eb6a4_c8494.pt',
+    'outputs/2022-01-14/18-03-31/datagen_dubins_861c2_c8494.pt', 
+] 
+default_datapaths = [str(Path(repo_dir).joinpath(dp)) for dp in default_datapaths]
+DataConf = builds(RiskMetricDataModule, datapaths=default_datapaths, val_percent=0.15, batch_size=64)
+
+ModelConf = builds(single_layer_nn, num_neurons=16)
+
+OptimConf = pbuilds(optim.Adam)
+# OptimConf = pbuilds(optim.LBFGS)
+
+PLModuleConf = builds(RiskMetricModule, model=ModelConf, optimizer=OptimConf)
+
+TrainerConf = builds(Trainer, max_epochs=512, precision=64, progress_bar_refresh_rate=0, zen_partial=False)
+
+ExperimentConfig = make_config(
+    data_module=DataConf,
+    pl_module=PLModuleConf,
+    trainer=TrainerConf,
+    seed=1,
+)
+
+# Store the top level config for command line interface
+cs = ConfigStore.instance()
+cs.store(_CONFIG_NAME, node=ExperimentConfig)
+
+@hydra.main(config_path=None, config_name=_CONFIG_NAME)
+def task_function(cfg: ExperimentConfig):
+    seed_everything(cfg.seed)
+
+    # instantiate the experiment objects
+    obj = instantiate(cfg)
+
+    # train the model
+    obj.trainer.fit(obj.pl_module, obj.data_module)
 
 
 
@@ -208,35 +268,31 @@ class RiskMetricModule(LightningModule):
 ##############################################
 
 if __name__ == "__main__":
+    task_function()
 
-    seed_everything(0)
+    # seed_everything(0)
 
-    # create model architecture
-    n_hidden = 64
-    model = nn.Sequential(
-        nn.Linear(in_features=3, out_features=n_hidden),
-        nn.Sigmoid(),
-        nn.Linear(in_features=n_hidden, out_features=1, bias=False),
-    )
+    # # create model architecture
+    # model = single_layer_nn(64)
 
-    # create lightning module
-    model_module = RiskMetricModule(
-        model=model,
-        optimizer=optim.Adam 
-    )
+    # # create lightning module
+    # model_module = RiskMetricModule(
+    #     model=model,
+    #     optimizer=optim.Adam 
+    # )
 
-    # create data module
-    data_module = RiskMetricDataModule(
-        [
-            'outputs/2022-01-14/12-27-37/datagen_dubins_eb6a4_c8494.pt',
-            'outputs/2022-01-14/12-29-55/datagen_dubins_eb6a4_c8494.pt',
-            'outputs/2022-01-14/12-31-55/datagen_dubins_eb6a4_c8494.pt',
-            'outputs/2022-01-14/12-38-06/datagen_dubins_eb6a4_c8494.pt',
-            'outputs/2022-01-14/18-03-31/datagen_dubins_861c2_c8494.pt', 
-        ], 
-        val_percent=0.15
-    )
+    # # create data module
+    # data_module = RiskMetricDataModule(
+    #     [
+    #         'outputs/2022-01-14/12-27-37/datagen_dubins_eb6a4_c8494.pt',
+    #         'outputs/2022-01-14/12-29-55/datagen_dubins_eb6a4_c8494.pt',
+    #         'outputs/2022-01-14/12-31-55/datagen_dubins_eb6a4_c8494.pt',
+    #         'outputs/2022-01-14/12-38-06/datagen_dubins_eb6a4_c8494.pt',
+    #         'outputs/2022-01-14/18-03-31/datagen_dubins_861c2_c8494.pt', 
+    #     ], 
+    #     val_percent=0.15
+    # )
 
-    # create trainer
-    trainer = Trainer(max_steps=512, precision=64)
-    trainer.fit(model_module, data_module)
+    # # create trainer
+    # trainer = Trainer(max_steps=512, precision=64)
+    # trainer.fit(model_module, data_module)

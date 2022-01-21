@@ -180,7 +180,20 @@ class RiskMetricModule(LightningModule):
         inputs, targets = batch
         outputs = self.model(inputs)
         loss = F.mse_loss(outputs, targets)
+        self.log('train_loss', loss)
         return loss
+
+    def training_epoch_end(self, outputs):
+        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+        self.log('avg_train_loss', avg_loss, prog_bar=True)
+
+    def validation_step(self, batch, batch_idx):
+        print('\n------------------------------\nSTARTING VALIDATION STEP\n')
+        inputs, targets = batch
+        pred = self.model(inputs)
+        loss = F.mse_loss(pred, targets)
+        self.print("\nvalidation loss:", loss.item())
+        self.log('validation_loss', loss)
 
 
 
@@ -225,5 +238,5 @@ if __name__ == "__main__":
     )
 
     # create trainer
-    trainer = Trainer(max_steps=50, precision=64)
+    trainer = Trainer(max_steps=512, precision=64)
     trainer.fit(model_module, data_module)

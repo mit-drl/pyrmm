@@ -2,11 +2,16 @@ import yaml
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
 from matplotlib import cm
 from pathlib import Path
 from typing import List
 from torch.utils.data import TensorDataset, DataLoader, random_split
-from pytorch_lightning import LightningDataModule
+from pytorch_lightning import LightningDataModule, LightningModule, Trainer, seed_everything
+from hydra_zen.typing import Partial
+from sklearn.preprocessing import MaxAbsScaler
 
 import pyrmm.utils.utils as U
 
@@ -46,17 +51,28 @@ class RiskMetricDataModule(LightningDataModule):
         n_val = int(n_data*val_percent)
         n_train = n_data - n_val
 
-        # convert SE2StateInternal objects and risk metrics to tensors
+        # convert SE2StateInternal objects into numpy arrays
         ssamples, rmetrics = tuple(zip(*data))
         ssamples_np = np.concatenate([se2_to_numpy(s).reshape(1,3) for s in ssamples], axis=0)
-        ssamples_pt = torch.from_numpy(ssamples_np)
-        rmetrics_pt = torch.tensor(rmetrics)
+        rmetrics_np = np.asarray(rmetrics)
+
+        # Create input and output data regularizers
+        # Ref: https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html#what-is-a-datamodule
+        self.input_scaler = MaxAbsScaler()
+        self.input_scaler.fit(ssamples_np)
+        # self.output_scaler = MinMaxScaler()
+        # self.output_scaler.fit(rmetrics_np)
+
+        # scale and convert to tensor
+        ssamples_scaled_pt = torch.from_numpy(self.input_scaler.transform(ssamples_np))
+        # rmetrics_scaled_pt = torch.tensor(self.output_scaler.fit(rmetrics_np))
+        rmetrics_pt = torch.tensor(rmetrics_np)
         
         # format into dataset
-        full_dataset = TensorDataset(ssamples_pt, rmetrics_pt)
+        full_dataset = TensorDataset(ssamples_scaled_pt, rmetrics_pt)
 
         # randomly split training and validation dataset
-        self.train_dataset, self.val_dataset =  random_split(full_dataset, [n_train, n_val])
+        self.train_dataset, self.val_dataset = random_split(full_dataset, [n_train, n_val])
 
         # RiskMetricDataModule.plot_dubins_data(data, dpaths[0])
 
@@ -143,6 +159,31 @@ class RiskMetricDataModule(LightningDataModule):
         # fig.savefig('dubins_risk_estimation', bbox_inches='tight')
         plt.show()
 
+
+class RiskMetricModule(LightningModule):
+    def __init__(
+        self,
+        model: nn.Module,
+        optimizer: Partial[optim.Adam]
+    ):
+        super().__init__()
+        self.model = model
+        self.optimizer = optimizer
+
+    def forward(self, inputs):
+        return self.model(inputs)
+    
+    def configure_optimizers(self):
+        return self.optimizer(self.parameters())
+
+    def training_step(self, batch, batch_idx):
+        inputs, targets = batch
+        outputs = self.model(inputs)
+        loss = F.mse_loss(outputs, targets)
+        return loss
+
+
+
 ##############################################
 ############# HYDARA-ZEN CONFIGS #############
 ##############################################
@@ -154,18 +195,35 @@ class RiskMetricDataModule(LightningDataModule):
 ##############################################
 
 if __name__ == "__main__":
-    rmm_data = RiskMetricDataModule([
-        'outputs/2022-01-14/12-27-37/datagen_dubins_eb6a4_c8494.pt',
-        'outputs/2022-01-14/12-29-55/datagen_dubins_eb6a4_c8494.pt',
-        'outputs/2022-01-14/12-31-55/datagen_dubins_eb6a4_c8494.pt',
-        'outputs/2022-01-14/12-38-06/datagen_dubins_eb6a4_c8494.pt'
-        # 'outputs/2022-01-14/11-25-51/datagen_dubins_f8951_ebfd4.pt',
-        # 'outputs/2022-01-14/11-46-12/datagen_dubins_e6ecd_ebfd4.pt',
-        # 'outputs/2022-01-14/11-53-42/datagen_dubins_e6ecd_ebfd4.pt',
-        # 'outputs/2022-01-14/10-36-03/datagen_dubins_739e6_ffce1.pt',
-        # 'outputs/2022-01-14/10-42-04/datagen_dubins_739e6_ffce1.pt',
-        # 'outputs/2022-01-14/10-47-03/datagen_dubins_739e6_ffce1.pt',
-        # './outputs/2022-01-13/15-23-10',
-        # './outputs/2022-01-14/10-02-24',
-        # './outputs/2022-01-14/10-09-51'
-    ], 0.15)
+
+    seed_everything(0)
+
+    # create model architecture
+    n_hidden = 64
+    model = nn.Sequential(
+        nn.Linear(in_features=3, out_features=n_hidden),
+        nn.Sigmoid(),
+        nn.Linear(in_features=n_hidden, out_features=1, bias=False),
+    )
+
+    # create lightning module
+    model_module = RiskMetricModule(
+        model=model,
+        optimizer=optim.Adam 
+    )
+
+    # create data module
+    data_module = RiskMetricDataModule(
+        [
+            'outputs/2022-01-14/12-27-37/datagen_dubins_eb6a4_c8494.pt',
+            'outputs/2022-01-14/12-29-55/datagen_dubins_eb6a4_c8494.pt',
+            'outputs/2022-01-14/12-31-55/datagen_dubins_eb6a4_c8494.pt',
+            'outputs/2022-01-14/12-38-06/datagen_dubins_eb6a4_c8494.pt',
+            'outputs/2022-01-14/18-03-31/datagen_dubins_861c2_c8494.pt', 
+        ], 
+        val_percent=0.15
+    )
+
+    # create trainer
+    trainer = Trainer(max_steps=50, precision=64)
+    trainer.fit(model_module, data_module)

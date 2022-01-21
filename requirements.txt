@@ -2,6 +2,7 @@ numpy
 scipy
 torch
 pytorch-lightning
+scikit-learn
 pandas
 tensorboard
 matplotlib

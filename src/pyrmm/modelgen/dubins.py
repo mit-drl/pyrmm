@@ -11,10 +11,10 @@ from pathlib import Path
 from typing import List
 from hydra.core.config_store import ConfigStore
 from torch.utils.data import TensorDataset, DataLoader, random_split
-from pytorch_lightning import LightningDataModule, LightningModule, Trainer, seed_everything
+from pytorch_lightning import LightningDataModule, LightningModule, Trainer, seed_everything, Callback
 from hydra_zen import builds, make_custom_builds_fn, make_config, instantiate
 from hydra_zen.typing import Partial
-from sklearn.preprocessing import MaxAbsScaler
+from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler
 
 import pyrmm.utils.utils as U
 
@@ -68,7 +68,8 @@ class RiskMetricDataModule(LightningDataModule):
 
         # Create input and output data regularizers
         # Ref: https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html#what-is-a-datamodule
-        self.input_scaler = MaxAbsScaler()
+        # self.input_scaler = MaxAbsScaler()
+        self.input_scaler = MinMaxScaler()
         self.input_scaler.fit(ssamples_np)
         # self.output_scaler = MinMaxScaler()
         # self.output_scaler.fit(rmetrics_np)
@@ -87,10 +88,10 @@ class RiskMetricDataModule(LightningDataModule):
         # RiskMetricDataModule.plot_dubins_data(data, dpaths[0])
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size)
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=len(self.val_dataset))
+        return DataLoader(self.val_dataset, batch_size=len(self.val_dataset), shuffle=True)
 
     @staticmethod
     def verify_hydrazen_rmm_data(datapaths: List):
@@ -174,11 +175,14 @@ class RiskMetricModule(LightningModule):
     def __init__(
         self,
         model: nn.Module,
-        optimizer: Partial[optim.Adam]
+        optimizer: Partial[optim.Adam],
+        huber_loss_delta: float
     ):
         super().__init__()
         self.model = model
         self.optimizer = optimizer
+        self.huber_loss_delta = huber_loss_delta
+        self.example_input_array = torch.rand(32,3,dtype=torch.double)
 
     def forward(self, inputs):
         return self.model(inputs)
@@ -188,8 +192,10 @@ class RiskMetricModule(LightningModule):
 
     def training_step(self, batch, batch_idx):
         inputs, targets = batch
+        # print('\nDEBUG: inputs shape: {}, targets shape {}\n'.format(inputs.shape, targets.shape))
         outputs = self.model(inputs)
-        loss = F.mse_loss(outputs, targets)
+        # loss = F.mse_loss(outputs, targets)
+        loss = F.huber_loss(outputs, targets, delta=self.huber_loss_delta)
         self.log('train_loss', loss)
         return loss
 
@@ -201,7 +207,8 @@ class RiskMetricModule(LightningModule):
         print('\n------------------------------\nSTARTING VALIDATION STEP\n')
         inputs, targets = batch
         pred = self.model(inputs)
-        loss = F.mse_loss(pred, targets)
+        # loss = F.mse_loss(pred, targets)
+        loss = F.huber_loss(pred, targets, delta=self.huber_loss_delta)
         self.print("\nvalidation loss:", loss.item())
         self.log('validation_loss', loss)
 
@@ -214,6 +221,38 @@ def single_layer_nn(num_neurons: int) -> nn.Module:
     )
 
 
+class InputMonitor(Callback):
+    '''Ref: https://www.pytorchlightning.ai/blog/3-simple-tricks-that-will-change-the-way-you-debug-pytorch'''
+
+    def on_train_batch_start(self, trainer, pl_module, batch, batch_idx, dataloader_idx):
+        if (batch_idx + 1) % trainer.log_every_n_steps == 0:
+            x, y = batch
+            logger = trainer.logger
+            logger.experiment.add_histogram("input", x, global_step=trainer.global_step)
+            logger.experiment.add_histogram("target", y, global_step=trainer.global_step)
+
+
+class CheckBatchGradient(Callback):
+    '''Ref: https://www.pytorchlightning.ai/blog/3-simple-tricks-that-will-change-the-way-you-debug-pytorch'''
+    
+    def on_train_start(self, trainer, model):
+        n = 0
+
+        example_input = model.example_input_array.to(model.device)
+        example_input.requires_grad = True
+
+        model.zero_grad()
+        output = model(example_input)
+        output[n].abs().sum().backward()
+        
+        zero_grad_inds = list(range(example_input.size(0)))
+        zero_grad_inds.pop(n)
+        
+        if example_input.grad[zero_grad_inds].abs().sum().item() > 0:
+            raise RuntimeError("Your model mixes data across the batch dimension!")
+
+
+
 ##############################################
 ############# HYDARA-ZEN CONFIGS #############
 ##############################################
@@ -222,11 +261,12 @@ pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
 repo_dir = U.get_repo_path()
 default_datapaths = [
-    'outputs/2022-01-14/12-27-37/datagen_dubins_eb6a4_c8494.pt',
-    'outputs/2022-01-14/12-29-55/datagen_dubins_eb6a4_c8494.pt',
-    'outputs/2022-01-14/12-31-55/datagen_dubins_eb6a4_c8494.pt',
-    'outputs/2022-01-14/12-38-06/datagen_dubins_eb6a4_c8494.pt',
-    'outputs/2022-01-14/18-03-31/datagen_dubins_861c2_c8494.pt', 
+    # 'outputs/2022-01-14/12-27-37/datagen_dubins_eb6a4_c8494.pt',
+    # 'outputs/2022-01-14/12-29-55/datagen_dubins_eb6a4_c8494.pt',
+    # 'outputs/2022-01-14/12-31-55/datagen_dubins_eb6a4_c8494.pt',
+    # 'outputs/2022-01-14/12-38-06/datagen_dubins_eb6a4_c8494.pt',
+    # 'outputs/2022-01-14/18-03-31/datagen_dubins_861c2_c8494.pt', 
+    'outputs/2022-01-21/13-05-28/datagen_dubins_536c8_c8494.pt',
 ] 
 default_datapaths = [str(Path(repo_dir).joinpath(dp)) for dp in default_datapaths]
 DataConf = builds(RiskMetricDataModule, datapaths=default_datapaths, val_percent=0.15, batch_size=64)
@@ -236,9 +276,13 @@ ModelConf = builds(single_layer_nn, num_neurons=16)
 OptimConf = pbuilds(optim.Adam)
 # OptimConf = pbuilds(optim.LBFGS)
 
-PLModuleConf = builds(RiskMetricModule, model=ModelConf, optimizer=OptimConf)
+PLModuleConf = builds(RiskMetricModule, model=ModelConf, optimizer=OptimConf, huber_loss_delta=0.25)
 
-TrainerConf = builds(Trainer, max_epochs=512, precision=64, progress_bar_refresh_rate=0, zen_partial=False)
+TrainerConf = pbuilds(Trainer, 
+    max_epochs=512, 
+    precision=64, 
+    reload_dataloaders_every_epoch=True, 
+    progress_bar_refresh_rate=0)
 
 ExperimentConfig = make_config(
     data_module=DataConf,
@@ -258,8 +302,12 @@ def task_function(cfg: ExperimentConfig):
     # instantiate the experiment objects
     obj = instantiate(cfg)
 
+    # finish instantiating the trainer
+    trainer = obj.trainer(callbacks=[InputMonitor(), CheckBatchGradient()])
+    # trainer = obj.trainer(callbacks=[InputMonitor()])
+
     # train the model
-    obj.trainer.fit(obj.pl_module, obj.data_module)
+    trainer.fit(obj.pl_module, obj.data_module)
 
 
 

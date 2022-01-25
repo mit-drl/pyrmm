@@ -85,7 +85,7 @@ class RiskMetricDataModule(LightningDataModule):
         # randomly split training and validation dataset
         self.train_dataset, self.val_dataset = random_split(full_dataset, [n_train, n_val])
 
-        # RiskMetricDataModule.plot_dubins_data(data, dpaths[0])
+        RiskMetricDataModule.plot_dubins_data(data, dpaths[0])
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
@@ -267,6 +267,7 @@ default_datapaths = [
     # 'outputs/2022-01-14/12-38-06/datagen_dubins_eb6a4_c8494.pt',
     # 'outputs/2022-01-14/18-03-31/datagen_dubins_861c2_c8494.pt', 
     'outputs/2022-01-21/13-05-28/datagen_dubins_536c8_c8494.pt',
+    # 'outputs/2022-01-21/17-19-21/datagen_dubins_b8e85_c8494.pt'
 ] 
 default_datapaths = [str(Path(repo_dir).joinpath(dp)) for dp in default_datapaths]
 DataConf = builds(RiskMetricDataModule, datapaths=default_datapaths, val_percent=0.15, batch_size=64)

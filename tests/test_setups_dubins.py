@@ -684,9 +684,57 @@ def test_DubinsPPMSetup_sampleReachableSet_0():
         assert np.less_equal(pth.getState(n_steps-1).getY(), y0 + duration*speed)
         assert np.greater_equal(pth.getState(n_steps-1).getY(), y0 - duration*speed)
 
+def test_DubinsPPMSetup_estimateRiskMetric_zero_risk_region_0():
+    '''check that, when sampled away from obstacles, always produces zero risk'''
+
+    # ~~~ ARRANGE ~~~
+    speed = 10.0
+    min_turn_radius = 50.0
+    n_samples = 25
+    duration = 2.0
+    branch_fact = 32
+    tree_depth = 2
+    n_steps = 2
+    x0 = 320
+    y0 = 200
+    yaw0 = 0
+    near_dist = 150
+
+    # create system setup
+    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, min_turn_radius=min_turn_radius)
+
+    # create sampling point
+    s_near = ds.space_info.allocState()
+    s_near.setX(x0)
+    s_near.setY(y0)
+    s_near.setYaw(yaw0)
+
+    # create sampler
+    sampler = ds.space_info.allocStateSampler()
+    ssamples = n_samples * [None] 
+    rmetrics = n_samples * [None]
+
+    # ~~~ ACT ~~~
+    # sample states in zero-risk region and compute risk metrics
+
+    for i in range(n_samples):
+
+        # assign state and sample
+        ssamples[i] = ds.space_info.allocState()
+        sampler.sampleUniformNear(ssamples[i], s_near, near_dist)
+
+        # compute risk metric
+        rmetrics[i] = ds.estimateRiskMetric(ssamples[i], None, duration, branch_fact, tree_depth, n_steps)
+
+        # print("Debug: risk metric={} at state ({},{},{})".format(rmetrics[i], ssamples[i].getX(), ssamples[i].getY(), ssamples[i].getYaw()))
+
+        assert np.isclose(rmetrics[i], 0.0), "non-zero risk metric of {} for state ({},{},{})".format(rmetrics[i], ssamples[i].getX(), ssamples[i].getY(), ssamples[i].getYaw())
+
 if __name__ == "__main__":
     faulthandler.enable()
     # test_DubinsPPMSetup_propagator_3()
     # test_hypothesis_DubinsPPMSetup_propagator_clipped_ctrl()
-    test_DubinsPPMSetup_sampleReachableSet_0()
+    # test_DubinsPPMSetup_sampleReachableSet_0()
+    test_DubinsPPMSetup_state_checker_0()
+    test_DubinsPPMSetup_estimateRiskMetric_zero_risk_region_0()
     pass

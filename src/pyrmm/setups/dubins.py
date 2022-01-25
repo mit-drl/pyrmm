@@ -92,7 +92,10 @@ class DubinsPPMSetup(SystemSetup):
         Returns:
             True if state in bound and not in collision with obstacles
         '''
-        if spaceInformation.satisfiesBounds(state):
+        # if spaceInformation.satisfiesBounds(state):
+
+        # check if state satisfies translational bounds (ignore rotational group)
+        if self.space_info.getStateSpace().getSubspace(0).satisfiesBounds(state[0]):
 
             # if in state space bounds, check collision based
             # on ppm pixel color
@@ -104,6 +107,10 @@ class DubinsPPMSetup(SystemSetup):
 
         else:
             return False
+
+    # def satisfiesRealVectorBounds(self, state):
+    #     ''' check if state is within real-vector bounds, ignore rotational group '''
+
 
 
 class DubinsPPMStatePropagator(oc.StatePropagator):

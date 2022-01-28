@@ -194,8 +194,8 @@ class RiskMetricModule(LightningModule):
         inputs, targets = batch
         # print('\nDEBUG: inputs shape: {}, targets shape {}\n'.format(inputs.shape, targets.shape))
         outputs = self.model(inputs)
-        # loss = F.mse_loss(outputs, targets)
-        loss = F.huber_loss(outputs, targets, delta=self.huber_loss_delta)
+        loss = F.mse_loss(outputs, targets)
+        # loss = F.huber_loss(outputs, targets, delta=self.huber_loss_delta)
         self.log('train_loss', loss)
         return loss
 
@@ -207,8 +207,8 @@ class RiskMetricModule(LightningModule):
         print('\n------------------------------\nSTARTING VALIDATION STEP\n')
         inputs, targets = batch
         pred = self.model(inputs)
-        # loss = F.mse_loss(pred, targets)
-        loss = F.huber_loss(pred, targets, delta=self.huber_loss_delta)
+        loss = F.mse_loss(pred, targets)
+        # loss = F.huber_loss(pred, targets, delta=self.huber_loss_delta)
         self.print("\nvalidation loss:", loss.item())
         self.log('validation_loss', loss)
 
@@ -268,7 +268,9 @@ default_datapaths = [
     # 'outputs/2022-01-14/18-03-31/datagen_dubins_861c2_c8494.pt', 
     # 'outputs/2022-01-21/13-05-28/datagen_dubins_536c8_c8494.pt',
     # 'outputs/2022-01-21/17-19-21/datagen_dubins_b8e85_c8494.pt',
-    'outputs/2022-01-25/15-41-18/datagen_dubins_0aa84_c8494.pt',
+    # 'outputs/2022-01-25/15-41-18/datagen_dubins_0aa84_c8494.pt',
+    # 'outputs/2022-01-25/16-54-11/datagen_dubins_8299c_c8494.pt',
+    'outputs/2022-01-27/15-55-09/datagen_dubins_8299c_4cd8c.pt'
 ] 
 default_datapaths = [str(Path(repo_dir).joinpath(dp)) for dp in default_datapaths]
 DataConf = builds(RiskMetricDataModule, datapaths=default_datapaths, val_percent=0.15, batch_size=64)

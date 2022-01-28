@@ -111,6 +111,34 @@ class DubinsPPMSetup(SystemSetup):
     # def satisfiesRealVectorBounds(self, state):
     #     ''' check if state is within real-vector bounds, ignore rotational group '''
 
+    def dummyRiskMetric(self, state, trajectory, distance, branch_fact, depth, n_steps, policy='uniform_random', samples=None):
+        '''A stand-in for the actual risk metric estimator used for model training testing purposes
+        
+        Args:
+            state : ob.State
+                state at which to evaluate risk metric
+            trajectory : oc.PathControl
+                trajectory arriving at state 
+            distance : double
+                state-space-specific distance to sample within
+            branch_fact : int
+                number of samples to draw
+            depth : int
+                number of recursive steps to estimate risk
+            n_steps : int
+                number of intermediate steps in sample paths
+            policy : str
+                string description of policy to use
+            samples : list[oc.PathControl]
+                list of pre-specified to samples for deterministic calc
+
+        Returns:
+            risk_est : float
+                coherent risk metric estimate at state
+        '''
+
+        return state.getX()/self.space_info.getStateSpace().getBounds().high[0]
+
 
 
 class DubinsPPMStatePropagator(oc.StatePropagator):

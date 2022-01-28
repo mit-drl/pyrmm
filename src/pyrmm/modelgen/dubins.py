@@ -85,7 +85,11 @@ class RiskMetricDataModule(LightningDataModule):
         # randomly split training and validation dataset
         self.train_dataset, self.val_dataset = random_split(full_dataset, [n_train, n_val])
 
-        RiskMetricDataModule.plot_dubins_data(data, dpaths[0])
+        # store for later visualization use
+        self.raw_data = data
+        self.raw_data_paths = dpaths
+
+        # RiskMetricDataModule.plot_dubins_data(data, dpaths[0])
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
@@ -130,45 +134,44 @@ class RiskMetricDataModule(LightningDataModule):
                 assert cfg[U.POLICY] == policy
                 assert cfg[U.N_BRANCHES] == brnch
             
-    @staticmethod
-    def plot_dubins_data(data, datapath, cmap='coolwarm'):
+def plot_dubins_data(data, datapath, cmap='coolwarm'):
 
-        cfg_path = datapath.parent.joinpath('.hydra','config.yaml')
-        with open(cfg_path, 'r') as cfg_file:
-            cfg = yaml.full_load(cfg_file)
+    cfg_path = datapath.parent.joinpath('.hydra','config.yaml')
+    with open(cfg_path, 'r') as cfg_file:
+        cfg = yaml.full_load(cfg_file)
 
-        assert cfg[U.SYSTEM_SETUP]['ppm_file'].split('/')[-1] == 'border_640x400.ppm' 
+    assert cfg[U.SYSTEM_SETUP]['ppm_file'].split('/')[-1] == 'border_640x400.ppm' 
 
-        # unzip tuples of ssamples and rmetrics
-        ssamples, rmetrics = tuple(zip(*data))
+    # unzip tuples of ssamples and rmetrics
+    ssamples, rmetrics = tuple(zip(*data))
 
-        # plot results
-        fig = plt.figure(1)
-        ax = fig.add_subplot(111)
-        # lbl = "{}-branches, {}-depth".format(brch, dpth)
-        xvals = [s.getX() for s in ssamples]
-        yvals = [s.getY() for s in ssamples]
-        uvals = [np.cos(s.getYaw()) for s in ssamples]
-        vvals = [np.sin(s.getYaw()) for s in ssamples]
-        ax.quiver(xvals, yvals, uvals, vvals, rmetrics, cmap=cmap)
+    # plot results
+    fig = plt.figure(1)
+    ax = fig.add_subplot(111)
+    # lbl = "{}-branches, {}-depth".format(brch, dpth)
+    xvals = [s.getX() for s in ssamples]
+    yvals = [s.getY() for s in ssamples]
+    uvals = [np.cos(s.getYaw()) for s in ssamples]
+    vvals = [np.sin(s.getYaw()) for s in ssamples]
+    ax.quiver(xvals, yvals, uvals, vvals, rmetrics, cmap=cmap)
 
-        # Draw in true risk metrics and obstacles
-        ax.axvline(x=0, label='Obstacle'.format(0.5), lw=4.0, c='k')
-        ax.axvline(x=640, label='Obstacle'.format(0.5), lw=4.0, c='k')
-        ax.axhline(y=0, label='Obstacle'.format(0.5), lw=4.0, c='k')
-        ax.axhline(y=400, label='Obstacle'.format(0.5), lw=4.0, c='k')
-        ax.set_title(
-            "Estimated Risk Metrics for Dubins Vehicle (speed={}, turn rad={})\n".format(cfg[U.SYSTEM_SETUP]['speed'], cfg[U.SYSTEM_SETUP]['min_turn_radius']) +
-            "in Constrained Box w/ uniform control sampling of duration={},\n".format(cfg[U.DURATION]) +
-            "tree depth={}, and branching factor={}".format(cfg[U.TREE_DEPTH], cfg[U.N_BRANCHES]) 
-        )
-        ax.set_xlim([0,640])
-        ax.set_ylim([0,400])
-        ax.set_xlabel("x-position")
-        ax.set_ylabel("y-position")
-        fig.colorbar(cm.ScalarMappable(None, cmap), ax=ax, label='failure probability')
-        # fig.savefig('dubins_risk_estimation', bbox_inches='tight')
-        plt.show()
+    # Draw in true risk metrics and obstacles
+    ax.axvline(x=0, label='Obstacle'.format(0.5), lw=4.0, c='k')
+    ax.axvline(x=640, label='Obstacle'.format(0.5), lw=4.0, c='k')
+    ax.axhline(y=0, label='Obstacle'.format(0.5), lw=4.0, c='k')
+    ax.axhline(y=400, label='Obstacle'.format(0.5), lw=4.0, c='k')
+    ax.set_title(
+        "Estimated Risk Metrics for Dubins Vehicle (speed={}, turn rad={})\n".format(cfg[U.SYSTEM_SETUP]['speed'], cfg[U.SYSTEM_SETUP]['min_turn_radius']) +
+        "in Constrained Box w/ uniform control sampling of duration={},\n".format(cfg[U.DURATION]) +
+        "tree depth={}, and branching factor={}".format(cfg[U.TREE_DEPTH], cfg[U.N_BRANCHES]) 
+    )
+    ax.set_xlim([0,640])
+    ax.set_ylim([0,400])
+    ax.set_xlabel("x-position")
+    ax.set_ylabel("y-position")
+    fig.colorbar(cm.ScalarMappable(None, cmap), ax=ax, label='failure probability')
+    # fig.savefig('dubins_risk_estimation', bbox_inches='tight')
+    plt.show()
 
 
 class RiskMetricModule(LightningModule):
@@ -261,13 +264,6 @@ pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
 repo_dir = U.get_repo_path()
 default_datapaths = [
-    # 'outputs/2022-01-14/12-27-37/datagen_dubins_eb6a4_c8494.pt',
-    # 'outputs/2022-01-14/12-29-55/datagen_dubins_eb6a4_c8494.pt',
-    # 'outputs/2022-01-14/12-31-55/datagen_dubins_eb6a4_c8494.pt',
-    # 'outputs/2022-01-14/12-38-06/datagen_dubins_eb6a4_c8494.pt',
-    # 'outputs/2022-01-14/18-03-31/datagen_dubins_861c2_c8494.pt', 
-    # 'outputs/2022-01-21/13-05-28/datagen_dubins_536c8_c8494.pt',
-    # 'outputs/2022-01-21/17-19-21/datagen_dubins_b8e85_c8494.pt',
     # 'outputs/2022-01-25/15-41-18/datagen_dubins_0aa84_c8494.pt',
     # 'outputs/2022-01-25/16-54-11/datagen_dubins_8299c_c8494.pt',
     'outputs/2022-01-27/15-55-09/datagen_dubins_8299c_4cd8c.pt'
@@ -275,7 +271,7 @@ default_datapaths = [
 default_datapaths = [str(Path(repo_dir).joinpath(dp)) for dp in default_datapaths]
 DataConf = builds(RiskMetricDataModule, datapaths=default_datapaths, val_percent=0.15, batch_size=64)
 
-ModelConf = builds(single_layer_nn, num_neurons=16)
+ModelConf = builds(single_layer_nn, num_neurons=32)
 
 OptimConf = pbuilds(optim.Adam)
 # OptimConf = pbuilds(optim.LBFGS)
@@ -283,7 +279,7 @@ OptimConf = pbuilds(optim.Adam)
 PLModuleConf = builds(RiskMetricModule, model=ModelConf, optimizer=OptimConf, huber_loss_delta=0.25)
 
 TrainerConf = pbuilds(Trainer, 
-    max_epochs=512, 
+    max_epochs=32, 
     precision=64, 
     reload_dataloaders_every_epoch=True, 
     progress_bar_refresh_rate=0)
@@ -306,6 +302,9 @@ def task_function(cfg: ExperimentConfig):
     # instantiate the experiment objects
     obj = instantiate(cfg)
 
+    # visualize training data
+    plot_dubins_data(obj.data_module.raw_data, obj.data_module.raw_data_paths[0])
+
     # finish instantiating the trainer
     trainer = obj.trainer(callbacks=[InputMonitor(), CheckBatchGradient()])
     # trainer = obj.trainer(callbacks=[InputMonitor()])
@@ -313,6 +312,20 @@ def task_function(cfg: ExperimentConfig):
     # train the model
     trainer.fit(obj.pl_module, obj.data_module)
 
+    # randomly sample test data for visualization
+    # convert SE2StateInternal objects into numpy arrays
+    obj.pl_module.eval()
+    test_indices = np.random.choice(range(len(obj.data_module.raw_data)), 1000)
+    test_ssamples, test_rmetrics = tuple(zip(*obj.data_module.raw_data))
+    test_ssamples = np.array(test_ssamples)[test_indices]
+    test_rmetrics = np.array(test_rmetrics)[test_indices]
+    test_ssamples_np = np.concatenate([se2_to_numpy(s).reshape(1,3) for s in test_ssamples], axis=0)
+    test_rmetrics_np = np.asarray(test_rmetrics)
+    test_ssamples_scaled_pt = torch.from_numpy(obj.data_module.input_scaler.transform(test_ssamples_np))
+    test_rmetrics_pt = torch.tensor(test_rmetrics_np)
+    test_pred_pt = obj.pl_module(test_ssamples_scaled_pt)
+    test_data = zip(test_ssamples, test_pred_pt.detach().numpy())
+    plot_dubins_data(test_data, obj.data_module.raw_data_paths[0])
 
 
 ##############################################

@@ -85,7 +85,7 @@ def task_function(cfg: Config):
     # multiprocess implementation of parallel risk metric estimation
     U.update_pickler_se2stateinternal()
     partial_estimateRiskMetric = partial(
-        getattr(obj, U.SYSTEM_SETUP).dummyRiskMetric, 
+        getattr(obj, U.SYSTEM_SETUP).estimateRiskMetric, 
         trajectory=None,
         distance=getattr(obj, U.DURATION),
         branch_fact=getattr(obj, U.N_BRANCHES),

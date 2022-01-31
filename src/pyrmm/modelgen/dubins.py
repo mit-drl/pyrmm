@@ -76,6 +76,7 @@ class RiskMetricDataModule(LightningDataModule):
 
         # scale and convert to tensor
         ssamples_scaled_pt = torch.from_numpy(self.input_scaler.transform(ssamples_np))
+        # ssamples_scaled_pt = torch.from_numpy(ssamples_np)
         # rmetrics_scaled_pt = torch.tensor(self.output_scaler.fit(rmetrics_np))
         rmetrics_pt = torch.tensor(rmetrics_np)
         
@@ -179,12 +180,10 @@ class RiskMetricModule(LightningModule):
         self,
         model: nn.Module,
         optimizer: Partial[optim.Adam],
-        huber_loss_delta: float
     ):
         super().__init__()
         self.model = model
         self.optimizer = optimizer
-        self.huber_loss_delta = huber_loss_delta
         self.example_input_array = torch.rand(32,3,dtype=torch.double)
 
     def forward(self, inputs):
@@ -198,7 +197,6 @@ class RiskMetricModule(LightningModule):
         # print('\nDEBUG: inputs shape: {}, targets shape {}\n'.format(inputs.shape, targets.shape))
         outputs = self.model(inputs)
         loss = F.mse_loss(outputs, targets)
-        # loss = F.huber_loss(outputs, targets, delta=self.huber_loss_delta)
         self.log('train_loss', loss)
         return loss
 
@@ -211,8 +209,8 @@ class RiskMetricModule(LightningModule):
         inputs, targets = batch
         pred = self.model(inputs)
         loss = F.mse_loss(pred, targets)
-        # loss = F.huber_loss(pred, targets, delta=self.huber_loss_delta)
         self.print("\nvalidation loss:", loss.item())
+        self.print("Model weights: {}, bias: {}".format(self.model[0].weight, self.model[0].bias))
         self.log('validation_loss', loss)
 
 def single_layer_nn(num_neurons: int) -> nn.Module:
@@ -221,6 +219,11 @@ def single_layer_nn(num_neurons: int) -> nn.Module:
         nn.Linear(3, num_neurons),
         nn.Sigmoid(),
         nn.Linear(num_neurons, 1, bias=False),
+    )
+
+def linear_nn():
+    return nn.Sequential(
+        nn.Linear(3,1)
     )
 
 
@@ -266,17 +269,19 @@ repo_dir = U.get_repo_path()
 default_datapaths = [
     # 'outputs/2022-01-25/15-41-18/datagen_dubins_0aa84_c8494.pt',
     # 'outputs/2022-01-25/16-54-11/datagen_dubins_8299c_c8494.pt',
-    'outputs/2022-01-27/15-55-09/datagen_dubins_8299c_4cd8c.pt'
+    'outputs/2022-01-27/15-55-09/datagen_dubins_8299c_4cd8c.pt'   # dummy data with x-risk
+    # 'outputs/2022-01-28/14-02-34/datagen_dubins_24239_f01d3.pt'   # dummy data with y-risk
 ] 
 default_datapaths = [str(Path(repo_dir).joinpath(dp)) for dp in default_datapaths]
 DataConf = builds(RiskMetricDataModule, datapaths=default_datapaths, val_percent=0.15, batch_size=64)
 
-ModelConf = builds(single_layer_nn, num_neurons=32)
+# ModelConf = builds(single_layer_nn, num_neurons=32)
+ModelConf = builds(linear_nn)
 
 OptimConf = pbuilds(optim.Adam)
 # OptimConf = pbuilds(optim.LBFGS)
 
-PLModuleConf = builds(RiskMetricModule, model=ModelConf, optimizer=OptimConf, huber_loss_delta=0.25)
+PLModuleConf = builds(RiskMetricModule, model=ModelConf, optimizer=OptimConf)
 
 TrainerConf = pbuilds(Trainer, 
     max_epochs=32, 
@@ -303,7 +308,7 @@ def task_function(cfg: ExperimentConfig):
     obj = instantiate(cfg)
 
     # visualize training data
-    plot_dubins_data(obj.data_module.raw_data, obj.data_module.raw_data_paths[0])
+    # plot_dubins_data(obj.data_module.raw_data, obj.data_module.raw_data_paths[0])
 
     # finish instantiating the trainer
     trainer = obj.trainer(callbacks=[InputMonitor(), CheckBatchGradient()])
@@ -315,7 +320,41 @@ def task_function(cfg: ExperimentConfig):
     # randomly sample test data for visualization
     # convert SE2StateInternal objects into numpy arrays
     obj.pl_module.eval()
-    test_indices = np.random.choice(range(len(obj.data_module.raw_data)), 1000)
+    print('\n\nTEST EVALS\n\n')
+    test_inpt_np = np.array([
+        [0,0,0], 
+        [320, 0, 0], 
+        [640, 0, 0], 
+        [0, 200, 0],
+        [0, 400, 0],
+        [320, 200, 0],
+        [320, 400, 0],
+        [640, 200, 0],
+        [640, 400, 0],
+        [0,0,-np.pi], 
+        [320, 0, -np.pi], 
+        [640, 0, -np.pi], 
+        [0, 200, -np.pi],
+        [0, 400, -np.pi],
+        [320, 200, -np.pi],
+        [320, 400, -np.pi],
+        [640, 200, -np.pi],
+        [640, 400, -np.pi],
+        [0,0,np.pi], 
+        [320, 0, np.pi], 
+        [640, 0, np.pi], 
+        [0, 200, np.pi],
+        [0, 400, np.pi],
+        [320, 200, np.pi],
+        [320, 400, np.pi],
+        [640, 200, np.pi],
+        [640, 400, np.pi],
+        ])
+    t0_scaled_pt = torch.from_numpy(obj.data_module.input_scaler.transform(test_inpt_np))
+    t0_pred_pt = obj.pl_module(t0_scaled_pt)
+    for i, t in enumerate(test_inpt_np):
+        print("orig state: {}\nscaled state: {}\nrisk pred: {}\n=================\n".format(t, t0_scaled_pt.numpy()[i], t0_pred_pt.detach().numpy()[i]))
+    test_indices = np.random.choice(range(len(obj.data_module.raw_data)), 10000)
     test_ssamples, test_rmetrics = tuple(zip(*obj.data_module.raw_data))
     test_ssamples = np.array(test_ssamples)[test_indices]
     test_rmetrics = np.array(test_rmetrics)[test_indices]
@@ -324,6 +363,7 @@ def task_function(cfg: ExperimentConfig):
     test_ssamples_scaled_pt = torch.from_numpy(obj.data_module.input_scaler.transform(test_ssamples_np))
     test_rmetrics_pt = torch.tensor(test_rmetrics_np)
     test_pred_pt = obj.pl_module(test_ssamples_scaled_pt)
+    print('predicted data range: {} - {}'.format(torch.min(test_pred_pt), torch.max(test_pred_pt)))
     test_data = zip(test_ssamples, test_pred_pt.detach().numpy())
     plot_dubins_data(test_data, obj.data_module.raw_data_paths[0])
 

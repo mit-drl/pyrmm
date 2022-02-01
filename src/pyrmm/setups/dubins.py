@@ -137,7 +137,7 @@ class DubinsPPMSetup(SystemSetup):
                 coherent risk metric estimate at state
         '''
 
-        return state.getY()/self.space_info.getStateSpace().getBounds().high[1]
+        return state.getX()/self.space_info.getStateSpace().getBounds().high[0]
 
 
 

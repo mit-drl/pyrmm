@@ -64,7 +64,9 @@ class RiskMetricDataModule(LightningDataModule):
         # convert SE2StateInternal objects into numpy arrays
         ssamples, rmetrics = tuple(zip(*data))
         ssamples_np = np.concatenate([se2_to_numpy(s).reshape(1,3) for s in ssamples], axis=0)
-        rmetrics_np = np.asarray(rmetrics)
+        rmetrics_np = np.asarray(rmetrics).reshape(-1,1)
+        assert ssamples_np.shape[0] == rmetrics_np.shape[0]
+        assert len(rmetrics_np.shape) == len(ssamples_np.shape)
 
         # Create input and output data regularizers
         # Ref: https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html#what-is-a-datamodule

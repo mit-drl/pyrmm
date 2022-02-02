@@ -51,10 +51,10 @@ def plot_dubins_data(data, datapath, cmap='coolwarm'):
     ax.quiver(xvals, yvals, uvals, vvals, rmetrics, cmap=cmap)
 
     # Draw in true risk metrics and obstacles
-    ax.axvline(x=0, label='Obstacle'.format(0.5), lw=4.0, c='k')
-    ax.axvline(x=640, label='Obstacle'.format(0.5), lw=4.0, c='k')
-    ax.axhline(y=0, label='Obstacle'.format(0.5), lw=4.0, c='k')
-    ax.axhline(y=400, label='Obstacle'.format(0.5), lw=4.0, c='k')
+    ax.axvline(x=25, label='Obstacle'.format(0.5), lw=1.0, ls='--', c='k')
+    ax.axvline(x=615, label='Obstacle'.format(0.5), lw=1.0, ls='--', c='k')
+    ax.axhline(y=25, label='Obstacle'.format(0.5), lw=1.0, ls='--', c='k')
+    ax.axhline(y=375, label='Obstacle'.format(0.5), lw=1.0, ls='--', c='k')
     ax.set_title(
         "Estimated Risk Metrics for Dubins Vehicle (speed={}, turn rad={})\n".format(cfg[U.SYSTEM_SETUP]['speed'], cfg[U.SYSTEM_SETUP]['min_turn_radius']) +
         "in Constrained Box w/ uniform control sampling of duration={},\n".format(cfg[U.DURATION]) +
@@ -69,7 +69,7 @@ def plot_dubins_data(data, datapath, cmap='coolwarm'):
     plt.show()
 
 class RiskMetricDataModule(LightningDataModule):
-    def __init__(self, datapaths: List, val_percent: float, batch_size: int):
+    def __init__(self, datapaths: List, val_percent: float, batch_size: int, num_workers: int):
         '''loads data from torch save files
         Args:
             datapaths : list[str]
@@ -78,6 +78,8 @@ class RiskMetricDataModule(LightningDataModule):
                 percent of data to be used 
             batch_size : int
                 size of training batches
+            num_workers : int
+                number of workers to use for dataloader
         '''
         super().__init__()
 
@@ -85,6 +87,7 @@ class RiskMetricDataModule(LightningDataModule):
         assert batch_size > 0
 
         self.batch_size = batch_size
+        self.num_workers = num_workers
 
         # convert path strings in to absolute PosixPaths
         dpaths = [Path(dp).expanduser().resolve() for dp in datapaths]
@@ -129,10 +132,10 @@ class RiskMetricDataModule(LightningDataModule):
         self.raw_data_paths = dpaths
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
+        return DataLoader(self.train_dataset, num_workers=self.num_workers, batch_size=self.batch_size, shuffle=True)
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=len(self.val_dataset), shuffle=True)
+        return DataLoader(self.val_dataset, num_workers=self.num_workers, batch_size=len(self.val_dataset), shuffle=True)
 
     @staticmethod
     def verify_hydrazen_rmm_data(datapaths: List):
@@ -267,11 +270,13 @@ default_datapaths = [
     'outputs/2022-01-25/16-54-11/datagen_dubins_8299c_c8494.pt',
 ] 
 default_datapaths = [str(Path(repo_dir).joinpath(dp)) for dp in default_datapaths]
-DataConf = builds(RiskMetricDataModule, datapaths=default_datapaths, val_percent=0.15, batch_size=64)
+DataConf = builds(RiskMetricDataModule, datapaths=default_datapaths, val_percent=0.15, batch_size=64, num_workers=4)
 
 ModelConf = builds(single_layer_nn, num_neurons=64)
 
 OptimConf = pbuilds(optim.Adam)
+# # OptimConf = pbuilds(optim.LBFGS)
+# OptimConf = pbuilds(optim.SGD, lr=0.01, momentum=0.9)
 
 PLModuleConf = builds(RiskMetricModule, model=ModelConf, optimizer=OptimConf)
 
@@ -295,6 +300,9 @@ cs.store(_CONFIG_NAME, node=ExperimentConfig)
 @hydra.main(config_path=None, config_name=_CONFIG_NAME)
 def task_function(cfg: ExperimentConfig):
     seed_everything(cfg.seed)
+
+    # update pickler to enable multi-processing of OMPL objects
+    U.update_pickler_se2stateinternal()
 
     # instantiate the experiment objects
     obj = instantiate(cfg)

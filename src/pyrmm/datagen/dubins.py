@@ -15,7 +15,7 @@ from pyrmm.setups.dubins import DubinsPPMSetup
 
 _HASH_LEN = 5
 _CONFIG_NAME = "dubins_datamaker_app"
-_MONITOR_RATE = 10
+_MONITOR_RATE = 100
 
 ##############################################
 ################# UTILITIES ##################
@@ -98,6 +98,9 @@ def task_function(cfg: Config):
         # get ray casts for sampled state
         observations[i] = [getattr(obj, U.SYSTEM_SETUP).cast_ray(states[i], theta, obj.lidar.resolution) for theta in obj.lidar.angles] 
 
+        if i%_MONITOR_RATE ==  0:
+            print("State sampling and ray casting: completed {} of {}".format(i, len(states)))
+
     # multiprocess implementation of parallel risk metric estimation
     U.update_pickler_se2stateinternal()
     partial_estimateRiskMetric = partial(
@@ -120,7 +123,7 @@ def task_function(cfg: Config):
     for i,_ in enumerate(states):
         risk_metrics.append(rmetrics_iter.next())
         if i%_MONITOR_RATE ==  0:
-            print("{} of {} completed after {:.2f} seconds".format(i, len(states), time.time()-t_start))
+            print("Risk metric evaluation: completed {} of {} after {:.2f}".format(i, len(states), time.time()-t_start))
 
     pool.close()
     pool.join()

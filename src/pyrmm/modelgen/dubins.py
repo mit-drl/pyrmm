@@ -19,7 +19,7 @@ from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler
 import pyrmm.utils.utils as U
 
 _CONFIG_NAME = "dubins_border_640x400"
-
+_NUM_MODEL_INPUTS = 8
 
 ##############################################
 ################# MODEL DEF ##################
@@ -29,7 +29,7 @@ def se2_to_numpy(se2):
     '''convert OMPL SE2StateInternal object to torch tensor'''
     return np.array([se2.getX(), se2.getY(), se2.getYaw()])
 
-def plot_dubins_data(data, datapath, cmap='coolwarm'):
+def plot_dubins_data(data, datapath, desc, cmap='coolwarm'):
 
     cfg_path = datapath.parent.joinpath('.hydra','config.yaml')
     with open(cfg_path, 'r') as cfg_file:
@@ -38,7 +38,7 @@ def plot_dubins_data(data, datapath, cmap='coolwarm'):
     assert cfg[U.SYSTEM_SETUP]['ppm_file'].split('/')[-1] == 'border_640x400.ppm' 
 
     # unzip tuples of ssamples and rmetrics
-    ssamples, rmetrics = tuple(zip(*data))
+    ssamples, rmetrics, lidars = tuple(zip(*data))
 
     # plot results
     fig = plt.figure(1)
@@ -56,7 +56,7 @@ def plot_dubins_data(data, datapath, cmap='coolwarm'):
     ax.axhline(y=25, label='Obstacle'.format(0.5), lw=1.0, ls='--', c='k')
     ax.axhline(y=375, label='Obstacle'.format(0.5), lw=1.0, ls='--', c='k')
     ax.set_title(
-        "Estimated Risk Metrics for Dubins Vehicle (speed={}, turn rad={})\n".format(cfg[U.SYSTEM_SETUP]['speed'], cfg[U.SYSTEM_SETUP]['min_turn_radius']) +
+        "{}: Estimated Risk Metrics for Dubins Vehicle (speed={}, turn rad={})\n".format(desc, cfg[U.SYSTEM_SETUP]['speed'], cfg[U.SYSTEM_SETUP]['min_turn_radius']) +
         "in Constrained Box w/ uniform control sampling of duration={},\n".format(cfg[U.DURATION]) +
         "tree depth={}, and branching factor={}".format(cfg[U.TREE_DEPTH], cfg[U.N_BRANCHES]) 
     )
@@ -104,25 +104,30 @@ class RiskMetricDataModule(LightningDataModule):
         n_train = n_data - n_val
 
         # convert SE2StateInternal objects into numpy arrays
-        ssamples, rmetrics = tuple(zip(*data))
+        ssamples, rmetrics, lidars = tuple(zip(*data))
         ssamples_np = np.concatenate([se2_to_numpy(s).reshape(1,3) for s in ssamples], axis=0)
         rmetrics_np = np.asarray(rmetrics).reshape(-1,1)
-        assert ssamples_np.shape[0] == rmetrics_np.shape[0]
-        assert len(rmetrics_np.shape) == len(ssamples_np.shape)
+        lidars_np = np.asarray(lidars)
+        assert ssamples_np.shape[0] == rmetrics_np.shape[0] == lidars_np.shape[0]
+        assert len(rmetrics_np.shape) == len(ssamples_np.shape) == len(lidars_np.shape)
 
         # Create input and output data regularizers
         # Ref: https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html#what-is-a-datamodule
-        self.input_scaler = MinMaxScaler()
-        self.input_scaler.fit(ssamples_np)
+        self.state_scaler = MinMaxScaler()
+        self.state_scaler.fit(ssamples_np)
+        self.observation_scaler = MinMaxScaler()
+        self.observation_scaler.fit(lidars_np)
         # self.output_scaler = MinMaxScaler()
         # self.output_scaler.fit(rmetrics_np)
 
         # scale and convert to tensor
-        ssamples_scaled_pt = torch.from_numpy(self.input_scaler.transform(ssamples_np))
+        ssamples_scaled_pt = torch.from_numpy(self.state_scaler.transform(ssamples_np))
+        lidars_scaled_pt = torch.from_numpy(self.observation_scaler.transform(lidars_np))
         rmetrics_pt = torch.from_numpy(rmetrics_np)
         
         # format into dataset
-        full_dataset = TensorDataset(ssamples_scaled_pt, rmetrics_pt)
+        # full_dataset = TensorDataset(ssamples_scaled_pt, rmetrics_pt)
+        full_dataset = TensorDataset(lidars_scaled_pt, rmetrics_pt)
 
         # randomly split training and validation dataset
         self.train_dataset, self.val_dataset = random_split(full_dataset, [n_train, n_val])
@@ -184,7 +189,7 @@ class RiskMetricModule(LightningModule):
         super().__init__()
         self.model = model
         self.optimizer = optimizer
-        self.example_input_array = torch.rand(32,3,dtype=torch.double)
+        self.example_input_array = torch.rand(32,_NUM_MODEL_INPUTS,dtype=torch.double)
 
     def forward(self, inputs):
         return self.model(inputs)
@@ -212,10 +217,10 @@ class RiskMetricModule(LightningModule):
         self.print("\nvalidation loss:", loss.item())
         self.log('validation_loss', loss)
 
-def single_layer_nn(num_neurons: int) -> nn.Module:
+def single_layer_nn(num_inputs: int, num_neurons: int) -> nn.Module:
     """y = sum(V sigmoid(X W + b))"""
     return nn.Sequential(
-        nn.Linear(3, num_neurons),
+        nn.Linear(num_inputs, num_neurons),
         nn.Sigmoid(),
         nn.Linear(num_neurons, 1, bias=False),
     )
@@ -266,17 +271,16 @@ pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
 repo_dir = U.get_repo_path()
 default_datapaths = [
-    'outputs/2022-01-25/15-41-18/datagen_dubins_0aa84_c8494.pt',
-    'outputs/2022-01-25/16-54-11/datagen_dubins_8299c_c8494.pt',
+    # 'outputs/2022-01-25/15-41-18/datagen_dubins_0aa84_c8494.pt',
+    # 'outputs/2022-01-25/16-54-11/datagen_dubins_8299c_c8494.pt',
+    'outputs/2022-02-02/13-42-25/datagen_dubins_56d76_03af3.pt'
 ] 
 default_datapaths = [str(Path(repo_dir).joinpath(dp)) for dp in default_datapaths]
 DataConf = builds(RiskMetricDataModule, datapaths=default_datapaths, val_percent=0.15, batch_size=64, num_workers=4)
 
-ModelConf = builds(single_layer_nn, num_neurons=64)
+ModelConf = builds(single_layer_nn, num_inputs=_NUM_MODEL_INPUTS, num_neurons=64)
 
 OptimConf = pbuilds(optim.Adam)
-# # OptimConf = pbuilds(optim.LBFGS)
-# OptimConf = pbuilds(optim.SGD, lr=0.01, momentum=0.9)
 
 PLModuleConf = builds(RiskMetricModule, model=ModelConf, optimizer=OptimConf)
 
@@ -308,7 +312,7 @@ def task_function(cfg: ExperimentConfig):
     obj = instantiate(cfg)
 
     # visualize training data
-    plot_dubins_data(obj.data_module.raw_data, obj.data_module.raw_data_paths[0])
+    plot_dubins_data(obj.data_module.raw_data, obj.data_module.raw_data_paths[0], "Truth")
 
     # finish instantiating the trainer
     trainer = obj.trainer(callbacks=[InputMonitor(), CheckBatchGradient()])
@@ -320,52 +324,55 @@ def task_function(cfg: ExperimentConfig):
     # randomly sample test data for visualization
     # convert SE2StateInternal objects into numpy arrays
     obj.pl_module.eval()
-    print('\n\nTEST EVALS\n\n')
-    test_inpt_np = np.array([
-        [0,0,0], 
-        [320, 0, 0], 
-        [640, 0, 0], 
-        [0, 200, 0],
-        [0, 400, 0],
-        [320, 200, 0],
-        [320, 400, 0],
-        [640, 200, 0],
-        [640, 400, 0],
-        [0,0,-np.pi], 
-        [320, 0, -np.pi], 
-        [640, 0, -np.pi], 
-        [0, 200, -np.pi],
-        [0, 400, -np.pi],
-        [320, 200, -np.pi],
-        [320, 400, -np.pi],
-        [640, 200, -np.pi],
-        [640, 400, -np.pi],
-        [0,0,np.pi], 
-        [320, 0, np.pi], 
-        [640, 0, np.pi], 
-        [0, 200, np.pi],
-        [0, 400, np.pi],
-        [320, 200, np.pi],
-        [320, 400, np.pi],
-        [640, 200, np.pi],
-        [640, 400, np.pi],
-        ])
-    t0_scaled_pt = torch.from_numpy(obj.data_module.input_scaler.transform(test_inpt_np))
-    t0_pred_pt = obj.pl_module(t0_scaled_pt)
-    for i, t in enumerate(test_inpt_np):
-        print("orig state: {}\nscaled state: {}\nrisk pred: {}\n=================\n".format(t, t0_scaled_pt.numpy()[i], t0_pred_pt.detach().numpy()[i]))
+    # print('\n\nTEST EVALS\n\n')
+    # test_inpt_np = np.array([
+    #     [0,0,0], 
+    #     [320, 0, 0], 
+    #     [640, 0, 0], 
+    #     [0, 200, 0],
+    #     [0, 400, 0],
+    #     [320, 200, 0],
+    #     [320, 400, 0],
+    #     [640, 200, 0],
+    #     [640, 400, 0],
+    #     [0,0,-np.pi], 
+    #     [320, 0, -np.pi], 
+    #     [640, 0, -np.pi], 
+    #     [0, 200, -np.pi],
+    #     [0, 400, -np.pi],
+    #     [320, 200, -np.pi],
+    #     [320, 400, -np.pi],
+    #     [640, 200, -np.pi],
+    #     [640, 400, -np.pi],
+    #     [0,0,np.pi], 
+    #     [320, 0, np.pi], 
+    #     [640, 0, np.pi], 
+    #     [0, 200, np.pi],
+    #     [0, 400, np.pi],
+    #     [320, 200, np.pi],
+    #     [320, 400, np.pi],
+    #     [640, 200, np.pi],
+    #     [640, 400, np.pi],
+    #     ])
+    # t0_scaled_pt = torch.from_numpy(obj.data_module.input_scaler.transform(test_inpt_np))
+    # t0_pred_pt = obj.pl_module(t0_scaled_pt)
+    # for i, t in enumerate(test_inpt_np):
+    #     print("orig state: {}\nscaled state: {}\nrisk pred: {}\n=================\n".format(t, t0_scaled_pt.numpy()[i], t0_pred_pt.detach().numpy()[i]))
     test_indices = np.random.choice(range(len(obj.data_module.raw_data)), 10000)
-    test_ssamples, test_rmetrics = tuple(zip(*obj.data_module.raw_data))
+    test_ssamples, test_rmetrics, test_lidars = tuple(zip(*obj.data_module.raw_data))
     test_ssamples = np.array(test_ssamples)[test_indices]
     test_rmetrics = np.array(test_rmetrics)[test_indices]
+    test_lidars = np.array(test_lidars)[test_indices]
     test_ssamples_np = np.concatenate([se2_to_numpy(s).reshape(1,3) for s in test_ssamples], axis=0)
     test_rmetrics_np = np.asarray(test_rmetrics)
-    test_ssamples_scaled_pt = torch.from_numpy(obj.data_module.input_scaler.transform(test_ssamples_np))
+    test_lidars_np = np.asarray(test_lidars)
+    # test_ssamples_scaled_pt = torch.from_numpy(obj.data_module.input_scaler.transform(test_ssamples_np))
+    test_lidars_scaled_pt = torch.from_numpy(obj.data_module.observation_scaler.transform(test_lidars_np))
     test_rmetrics_pt = torch.tensor(test_rmetrics_np)
-    test_pred_pt = obj.pl_module(test_ssamples_scaled_pt)
+    test_pred_pt = obj.pl_module(test_lidars_scaled_pt)
     print('predicted data range: {} - {}'.format(torch.min(test_pred_pt), torch.max(test_pred_pt)))
-    test_data = zip(test_ssamples, test_pred_pt.detach().numpy())
-    plot_dubins_data(test_data, obj.data_module.raw_data_paths[0])
+    test_data = zip(test_ssamples, test_pred_pt.detach().numpy(), test_lidars)
+    plot_dubins_data(test_data, obj.data_module.raw_data_paths[0], 'Inferred')
 
 
 ##############################################

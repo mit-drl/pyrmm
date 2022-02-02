@@ -3,6 +3,7 @@ import torch
 import copyreg
 import multiprocess
 import time
+import numpy as np
 from functools import partial
 from pathlib import Path
 from hydra.core.config_store import ConfigStore
@@ -23,6 +24,12 @@ _MONITOR_RATE = 10
 _SAVE_FNAME = U.format_save_filename(Path(__file__), _HASH_LEN)
 _REPO_PATH = U.get_repo_path()
 
+class Lidar():
+    def __init__(self, num_rays: int, resolution: float):
+        self.num_rays = num_rays
+        self.resolution = resolution
+        self.angles = np.linspace(0, 2*np.pi, num=num_rays, endpoint=False)
+
 ##############################################
 ############# HYDARA-ZEN CONFIGS #############
 ##############################################
@@ -38,6 +45,11 @@ DubinsPPMSetupConfig = pbuilds(DubinsPPMSetup,
     speed=_DEFAULT_SPEED,
     min_turn_radius=_DEFAULT_MIN_TURN_RADIUS
 )
+
+# Lidar config
+_DEFUALT_LIDAR_NUM_RAYS = 8
+_DEFAULT_LIDAR_RESOLUTION = 1.0
+LidarConfig = pbuilds(Lidar, num_rays=_DEFUALT_LIDAR_NUM_RAYS, resolution=_DEFAULT_LIDAR_RESOLUTION)
 
 # Default sampler and risk estimator configs
 _DEFAULT_N_SAMPLES = 1024
@@ -56,7 +68,8 @@ make_config_input = {
     U.TREE_DEPTH: zf(int,_DEFAULT_TREE_DEPTH),
     U.N_STEPS: zf(int,_DEFAULT_N_STEPS),
     U.POLICY: zf(str,_DEFAULT_POLICY),
-    U.N_CORES: zf(int, multiprocess.cpu_count())
+    U.N_CORES: zf(int, multiprocess.cpu_count()),
+    'lidar': LidarConfig
 }
 Config = make_config(**make_config_input)
 ConfigStore.instance().store(_CONFIG_NAME,Config)
@@ -72,15 +85,18 @@ def task_function(cfg: Config):
     obj = instantiate(cfg)
 
     # sample states to evaluate risk metrics
-    # sampler = getattr(obj, U.SYSTEM_SETUP).space_info.allocValidStateSampler()
     sampler = getattr(obj, U.SYSTEM_SETUP).space_info.allocStateSampler()
-    ssamples = getattr(obj, U.N_SAMPLES) * [None] 
+    states = getattr(obj, U.N_SAMPLES) * [None] 
+    states = getattr(obj, U.N_SAMPLES) * [None] 
+    observations = getattr(obj, U.N_SAMPLES) * [None] 
     for i in range(getattr(obj, U.N_SAMPLES)):
 
         # assign state
-        ssamples[i] = getattr(obj, U.SYSTEM_SETUP).space_info.allocState()
-        # sampler.sample(ssamples[i])
-        sampler.sampleUniform(ssamples[i])
+        states[i] = getattr(obj, U.SYSTEM_SETUP).space_info.allocState()
+        sampler.sampleUniform(states[i])
+
+        # get ray casts for sampled state
+        observations[i] = [getattr(obj, U.SYSTEM_SETUP).cast_ray(states[i], theta, obj.lidar.resolution) for theta in obj.lidar.angles] 
 
     # multiprocess implementation of parallel risk metric estimation
     U.update_pickler_se2stateinternal()
@@ -97,14 +113,14 @@ def task_function(cfg: Config):
     # use iterative map for process tracking
     t_start = time.time()
     pool = multiprocess.Pool(getattr(obj, U.N_CORES))
-    rmetrics_iter = pool.imap(partial_estimateRiskMetric, ssamples)
+    rmetrics_iter = pool.imap(partial_estimateRiskMetric, states)
 
     # track multiprocess progress
-    rmetrics = []
-    for i,_ in enumerate(ssamples):
-        rmetrics.append(rmetrics_iter.next())
+    risk_metrics = []
+    for i,_ in enumerate(states):
+        risk_metrics.append(rmetrics_iter.next())
         if i%_MONITOR_RATE ==  0:
-            print("{} of {} completed after {:.2f} seconds".format(i, len(ssamples), time.time()-t_start))
+            print("{} of {} completed after {:.2f} seconds".format(i, len(states), time.time()-t_start))
 
     pool.close()
     pool.join()
@@ -112,7 +128,7 @@ def task_function(cfg: Config):
     print("total time: {:.2f}".format(time.time()-t_start))
 
     # save data for pytorch training
-    data = [i for i in zip(ssamples, rmetrics)]
+    data = [i for i in zip(states, risk_metrics, observations)]
     torch.save(data, open(_SAVE_FNAME+".pt", "wb"))
 
 if __name__ == "__main__":

@@ -108,8 +108,37 @@ class DubinsPPMSetup(SystemSetup):
         else:
             return False
 
-    # def satisfiesRealVectorBounds(self, state):
-    #     ''' check if state is within real-vector bounds, ignore rotational group '''
+    def cast_ray(self, state, theta, resolution):
+        '''cast a ray from current state until it intersects an invalid state, return length
+        This is like a simulated lidar
+
+        Args:
+            theta : float
+                angle of ray relative to state yaw in radians, postive counter-clockwise
+            resolution : float
+                step length of ray for validity checking (i.e. obstacle collision)
+        '''
+        assert resolution > 0
+        # initialize a state for the casted ray
+        # TODO: test that changes to cloned state don't affect orignal state
+        cast_state = self.space_info.cloneState(state)
+        ray_heading = state.getYaw() + theta
+        cast_state.setYaw(ray_heading)
+
+        # initialize the distance of the casted ray
+        ray_length = 0.0
+        cast_x = state.getX()
+        cast_y = state.getY()
+
+        # propagate ray until it hits an invalid state
+        while self.space_info.isValid(cast_state):
+            cast_x += resolution * np.cos(ray_heading)
+            cast_y += resolution * np.sin(ray_heading)
+            cast_state.setX(cast_x)
+            cast_state.setY(cast_y)
+            ray_length += resolution
+
+        return ray_length
 
     def dummyRiskMetric(self, state, trajectory, distance, branch_fact, depth, n_steps, policy='uniform_random', samples=None):
         '''A stand-in for the actual risk metric estimator used for model training testing purposes

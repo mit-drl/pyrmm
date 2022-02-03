@@ -8,9 +8,14 @@ import functools
 import hashlib
 import git
 import copyreg
+import yaml
+import torch
 import ompl.base
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import cm
 from typing import Type, List
-from pathlib import PosixPath
+from pathlib import Path, PosixPath
 
 # Standardized naming variables
 SYSTEM_SETUP = 'system_setup'
@@ -28,6 +33,49 @@ def get_repo_path():
     repo = git.Repo(search_parent_directories=True)
     repo_path = repo.git_dir[:-len('.git')]
     return repo_path
+
+def plot_dubins_data(datapath, desc, data=None, cmap='coolwarm'):
+
+    # get hydra configuration file used for data gen
+    cfg_path = datapath.parent.joinpath('.hydra','config.yaml')
+    with open(cfg_path, 'r') as cfg_file:
+        cfg = yaml.full_load(cfg_file)
+
+    # load the generated data
+    if data is None:
+        data = torch.load(Path(datapath).expanduser().resolve())
+
+    # load the ppm image used during data generation
+    repo_dir = get_repo_path()
+    imagepath = Path(repo_dir).joinpath(cfg[SYSTEM_SETUP]['ppm_file']['rel_file_path'])
+    image = plt.imread(imagepath)
+
+    # unzip tuples of ssamples and rmetrics
+    ssamples, rmetrics, lidars = tuple(zip(*data))
+
+    # plot results
+    fig = plt.figure(1)
+    ax = fig.add_subplot(111)
+    ax.imshow(image)
+    # lbl = "{}-branches, {}-depth".format(brch, dpth)
+    xvals = [s.getX() for s in ssamples]
+    yvals = [s.getY() for s in ssamples]
+    uvals = [np.cos(s.getYaw()) for s in ssamples]
+    vvals = [np.sin(s.getYaw()) for s in ssamples]
+    ax.quiver(xvals, yvals, uvals, vvals, rmetrics, cmap=cmap)
+
+    ax.set_title(
+        "{}: Estimated Risk Metrics for Dubins Vehicle (speed={}, turn rad={})\n".format(desc, cfg[SYSTEM_SETUP]['speed'], cfg[SYSTEM_SETUP]['min_turn_radius']) +
+        "in Constrained Box w/ uniform control sampling of duration={},\n".format(cfg[DURATION]) +
+        "tree depth={}, and branching factor={}".format(cfg[TREE_DEPTH], cfg[N_BRANCHES]) 
+    )
+    ax.set_xlim([0,image.shape[1]])
+    ax.set_ylim([0,image.shape[0]])
+    ax.set_xlabel("x-position")
+    ax.set_ylabel("y-position")
+    fig.colorbar(cm.ScalarMappable(None, cmap), ax=ax, label='failure probability')
+    # fig.savefig('dubins_risk_estimation', bbox_inches='tight')
+    plt.show()
 
 def format_save_filename(src_file: Type[PosixPath], hash_len: int):
     '''create the save filename using timestamps and hashes

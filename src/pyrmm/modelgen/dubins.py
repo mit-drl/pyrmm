@@ -2,11 +2,9 @@ import yaml
 import torch
 import hydra
 import numpy as np
-import matplotlib.pyplot as plt
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from matplotlib import cm
 from pathlib import Path
 from typing import List
 from hydra.core.config_store import ConfigStore
@@ -28,45 +26,6 @@ _NUM_MODEL_INPUTS = 8
 def se2_to_numpy(se2):
     '''convert OMPL SE2StateInternal object to torch tensor'''
     return np.array([se2.getX(), se2.getY(), se2.getYaw()])
-
-def plot_dubins_data(data, datapath, desc, cmap='coolwarm'):
-
-    cfg_path = datapath.parent.joinpath('.hydra','config.yaml')
-    with open(cfg_path, 'r') as cfg_file:
-        cfg = yaml.full_load(cfg_file)
-
-    assert cfg[U.SYSTEM_SETUP]['ppm_file'].split('/')[-1] == 'border_640x400.ppm' 
-
-    # unzip tuples of ssamples and rmetrics
-    ssamples, rmetrics, lidars = tuple(zip(*data))
-
-    # plot results
-    fig = plt.figure(1)
-    ax = fig.add_subplot(111)
-    # lbl = "{}-branches, {}-depth".format(brch, dpth)
-    xvals = [s.getX() for s in ssamples]
-    yvals = [s.getY() for s in ssamples]
-    uvals = [np.cos(s.getYaw()) for s in ssamples]
-    vvals = [np.sin(s.getYaw()) for s in ssamples]
-    ax.quiver(xvals, yvals, uvals, vvals, rmetrics, cmap=cmap)
-
-    # Draw in true risk metrics and obstacles
-    ax.axvline(x=25, label='Obstacle'.format(0.5), lw=1.0, ls='--', c='k')
-    ax.axvline(x=615, label='Obstacle'.format(0.5), lw=1.0, ls='--', c='k')
-    ax.axhline(y=25, label='Obstacle'.format(0.5), lw=1.0, ls='--', c='k')
-    ax.axhline(y=375, label='Obstacle'.format(0.5), lw=1.0, ls='--', c='k')
-    ax.set_title(
-        "{}: Estimated Risk Metrics for Dubins Vehicle (speed={}, turn rad={})\n".format(desc, cfg[U.SYSTEM_SETUP]['speed'], cfg[U.SYSTEM_SETUP]['min_turn_radius']) +
-        "in Constrained Box w/ uniform control sampling of duration={},\n".format(cfg[U.DURATION]) +
-        "tree depth={}, and branching factor={}".format(cfg[U.TREE_DEPTH], cfg[U.N_BRANCHES]) 
-    )
-    ax.set_xlim([0,640])
-    ax.set_ylim([0,400])
-    ax.set_xlabel("x-position")
-    ax.set_ylabel("y-position")
-    fig.colorbar(cm.ScalarMappable(None, cmap), ax=ax, label='failure probability')
-    # fig.savefig('dubins_risk_estimation', bbox_inches='tight')
-    plt.show()
 
 class RiskMetricDataModule(LightningDataModule):
     def __init__(self, datapaths: List, val_percent: float, batch_size: int, num_workers: int):
@@ -207,6 +166,7 @@ class RiskMetricModule(LightningModule):
 
     def training_epoch_end(self, outputs):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+        self.print("Completed epoch {} of {}".format(self.current_epoch, self.trainer.max_epochs))
         self.log('avg_train_loss', avg_loss, prog_bar=True)
 
     def validation_step(self, batch, batch_idx):
@@ -261,6 +221,12 @@ class CheckBatchGradient(Callback):
         if example_input.grad[zero_grad_inds].abs().sum().item() > 0:
             raise RuntimeError("Your model mixes data across the batch dimension!")
 
+def get_data_paths(pathlist):
+    '''get absolute paths for list of repo-relative paths '''
+    repo_dir = U.get_repo_path()
+    if not isinstance(pathlist, list):
+        pathlist = [pathlist]
+    return [str(Path(repo_dir).joinpath(dp)) for dp in pathlist]
 
 
 ##############################################
@@ -269,15 +235,15 @@ class CheckBatchGradient(Callback):
 
 pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
-repo_dir = U.get_repo_path()
 default_datapaths = [
     # 'outputs/2022-01-25/15-41-18/datagen_dubins_0aa84_c8494.pt',
     # 'outputs/2022-01-25/16-54-11/datagen_dubins_8299c_c8494.pt',
     'outputs/2022-02-02/13-42-25/datagen_dubins_56d76_03af3.pt',
     'outputs/2022-02-02/14-21-04/datagen_dubins_56d76_03af3.pt'
-] 
-default_datapaths = [str(Path(repo_dir).joinpath(dp)) for dp in default_datapaths]
-DataConf = builds(RiskMetricDataModule, datapaths=default_datapaths, val_percent=0.15, batch_size=64, num_workers=4)
+]
+DataPathConf = builds(get_data_paths, pathlist=default_datapaths)
+
+DataConf = builds(RiskMetricDataModule, datapaths=DataPathConf, val_percent=0.15, batch_size=64, num_workers=4)
 
 ModelConf = builds(single_layer_nn, num_inputs=_NUM_MODEL_INPUTS, num_neurons=64)
 
@@ -313,7 +279,7 @@ def task_function(cfg: ExperimentConfig):
     obj = instantiate(cfg)
 
     # visualize training data
-    plot_dubins_data(obj.data_module.raw_data, obj.data_module.raw_data_paths[0], "Truth")
+    U.plot_dubins_data(obj.data_module.raw_data_paths[0], desc="Truth", data=obj.data_module.raw_data)
 
     # finish instantiating the trainer
     trainer = obj.trainer(callbacks=[InputMonitor(), CheckBatchGradient()])
@@ -373,7 +339,7 @@ def task_function(cfg: ExperimentConfig):
     test_pred_pt = obj.pl_module(test_lidars_scaled_pt)
     print('predicted data range: {} - {}'.format(torch.min(test_pred_pt), torch.max(test_pred_pt)))
     test_data = zip(test_ssamples, test_pred_pt.detach().numpy(), test_lidars)
-    plot_dubins_data(test_data, obj.data_module.raw_data_paths[0], 'Inferred')
+    U.plot_dubins_data(obj.data_module.raw_data_paths[0], desc='Inferred', data=test_data)
 
 
 ##############################################

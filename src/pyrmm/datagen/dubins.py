@@ -32,7 +32,7 @@ class Lidar():
 
 def get_abs_path_str(rel_file_path):
     '''get absolute path of path relative to repo head'''
-    return str(Path(_REPO_PATH).joinpath(_DEFAULT_PPM_FILE))
+    return str(Path(_REPO_PATH).joinpath(rel_file_path))
 
 ##############################################
 ############# HYDARA-ZEN CONFIGS #############

@@ -30,6 +30,10 @@ class Lidar():
         self.resolution = resolution
         self.angles = np.linspace(0, 2*np.pi, num=num_rays, endpoint=False)
 
+def get_abs_path_str(rel_file_path):
+    '''get absolute path of path relative to repo head'''
+    return str(Path(_REPO_PATH).joinpath(_DEFAULT_PPM_FILE))
+
 ##############################################
 ############# HYDARA-ZEN CONFIGS #############
 ##############################################
@@ -37,11 +41,13 @@ class Lidar():
 pbuilds = make_custom_builds_fn(populate_full_signature=True)
 
 # DubinsPPMSetup Config
+_DEFAULT_PPM_FILE = "tests/border_640x400.ppm"
+PPMFileConfig = pbuilds(get_abs_path_str, rel_file_path=_DEFAULT_PPM_FILE)
+
 _DEFAULT_SPEED = 10.0
 _DEFAULT_MIN_TURN_RADIUS = 50.0
-_DEFAULT_PPM_FILE = "tests/border_640x400.ppm"
 DubinsPPMSetupConfig = pbuilds(DubinsPPMSetup,
-    ppm_file = str(Path(_REPO_PATH).joinpath(_DEFAULT_PPM_FILE)),
+    ppm_file = PPMFileConfig,
     speed=_DEFAULT_SPEED,
     min_turn_radius=_DEFAULT_MIN_TURN_RADIUS
 )
@@ -54,8 +60,8 @@ LidarConfig = pbuilds(Lidar, num_rays=_DEFUALT_LIDAR_NUM_RAYS, resolution=_DEFAU
 # Default sampler and risk estimator configs
 _DEFAULT_N_SAMPLES = 1024
 _DEFAULT_DURATION = 2.0
-_DEFAULT_N_BRANCHES = 16
-_DEFAULT_TREE_DEPTH = 4
+_DEFAULT_N_BRANCHES = 32
+_DEFAULT_TREE_DEPTH = 2
 _DEFAULT_N_STEPS = 2
 _DEFAULT_POLICY = 'uniform_random'
 

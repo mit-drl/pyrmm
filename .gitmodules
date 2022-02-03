@@ -1,0 +1,3 @@
+[submodule "mazegenerator"]
+	path = mazegenerator
+	url = git@github.com:razimantv/mazegenerator.git

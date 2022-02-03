@@ -273,7 +273,8 @@ repo_dir = U.get_repo_path()
 default_datapaths = [
     # 'outputs/2022-01-25/15-41-18/datagen_dubins_0aa84_c8494.pt',
     # 'outputs/2022-01-25/16-54-11/datagen_dubins_8299c_c8494.pt',
-    'outputs/2022-02-02/13-42-25/datagen_dubins_56d76_03af3.pt'
+    'outputs/2022-02-02/13-42-25/datagen_dubins_56d76_03af3.pt',
+    'outputs/2022-02-02/14-21-04/datagen_dubins_56d76_03af3.pt'
 ] 
 default_datapaths = [str(Path(repo_dir).joinpath(dp)) for dp in default_datapaths]
 DataConf = builds(RiskMetricDataModule, datapaths=default_datapaths, val_percent=0.15, batch_size=64, num_workers=4)
@@ -285,7 +286,7 @@ OptimConf = pbuilds(optim.Adam)
 PLModuleConf = builds(RiskMetricModule, model=ModelConf, optimizer=OptimConf)
 
 TrainerConf = pbuilds(Trainer, 
-    max_epochs=512, 
+    max_epochs=2028, 
     precision=64, 
     reload_dataloaders_every_epoch=True, 
     progress_bar_refresh_rate=0)

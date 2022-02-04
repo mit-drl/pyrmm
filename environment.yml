@@ -1,6 +1,12 @@
 name: pyrmm
+channels:
+  - conda-forge
 dependencies:
   - python=3.8
+  - pyvips      # necessary as conda install to avoid further library setups from pip install
+  - libvips
+  - libffi
+  - cffi
   - ipython     # convenience
   - pytest      # package testing
   - hypothesis  # package testing

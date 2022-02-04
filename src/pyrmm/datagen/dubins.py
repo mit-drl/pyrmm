@@ -64,6 +64,7 @@ _DEFAULT_N_BRANCHES = 32
 _DEFAULT_TREE_DEPTH = 2
 _DEFAULT_N_STEPS = 2
 _DEFAULT_POLICY = 'uniform_random'
+_DEFAULT_MAXTASKS = 50
 
 # Top-level configuration and store for command line interface
 make_config_input = {
@@ -75,6 +76,7 @@ make_config_input = {
     U.N_STEPS: zf(int,_DEFAULT_N_STEPS),
     U.POLICY: zf(str,_DEFAULT_POLICY),
     U.N_CORES: zf(int, multiprocess.cpu_count()),
+    'maxtasks': zf(int,_DEFAULT_MAXTASKS),
     'lidar': LidarConfig
 }
 Config = make_config(**make_config_input)
@@ -87,6 +89,8 @@ ConfigStore.instance().store(_CONFIG_NAME,Config)
 @hydra.main(config_path=None, config_name=_CONFIG_NAME)
 def task_function(cfg: Config):
     '''Instantiate Dubins setup and generate risk metric data'''
+
+    pool = multiprocess.Pool(getattr(cfg, U.N_CORES), maxtasksperchild=cfg.maxtasks)
 
     obj = instantiate(cfg)
 
@@ -121,7 +125,6 @@ def task_function(cfg: Config):
 
     # use iterative map for process tracking
     t_start = time.time()
-    pool = multiprocess.Pool(getattr(obj, U.N_CORES))
     rmetrics_iter = pool.imap(partial_estimateRiskMetric, states)
 
     # track multiprocess progress

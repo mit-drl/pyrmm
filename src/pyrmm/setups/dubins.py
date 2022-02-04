@@ -131,6 +131,8 @@ class DubinsPPMSetup(SystemSetup):
         cast_y = state.getY()
 
         # propagate ray until it hits an invalid state
+        # TODO: add a max range so this won't be an infinite loop
+        # if isValid is somehow always True
         while self.space_info.isValid(cast_state):
             cast_x += resolution * np.cos(ray_heading)
             cast_y += resolution * np.sin(ray_heading)

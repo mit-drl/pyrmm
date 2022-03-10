@@ -4,6 +4,7 @@ Create SystemSetup for Dubins Car
 from __future__ import division
 
 import numpy as np
+import skimage
 from scipy.integrate import odeint
 from functools import partial
 
@@ -107,6 +108,40 @@ class DubinsPPMSetup(SystemSetup):
 
         else:
             return False
+
+    def isPathValid(self, path):
+        '''check if path intersects obstacles in ppm image using bresenham lines
+        
+        Args:
+            path : oc.Path
+        
+        Returns:
+            true if all path states and interpolated bresenham lines are valid (not colliding with obstacles)
+
+        Notes:
+            This overrides SystemSetup function that just looks at discrete states, not interpolated paths
+        '''
+        for i in range(path.getStateCount()-1):
+
+            # Check first state for collision
+            s1 = path.getState(i)
+            if not self.space_info.isValid(s1):
+                return False
+
+            # get bresenham line to the next state
+            s2 = path.getState(i+1)
+            x1 = int(s1.getX())
+            y1 = int(s1.getY())
+            x2 = int(s2.getX())
+            y2 = int(s2.getY())
+            xx, yy = skimage.draw.line(x1, y1, x2, y2)
+
+            # check each pixel in line
+            for x, y in zip(xx,yy):
+                if not is_pixel_free_space(self.ppm_config_space.getPixel(y.item(), x.item())):
+                    return False
+        
+        return True
 
     def cast_ray(self, state, theta, resolution):
         '''cast a ray from current state until it intersects an invalid state, return length

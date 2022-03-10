@@ -9,17 +9,18 @@ from hypothesis import given
 from pyrmm.setups.dubins import DubinsPPMSetup
 
 
-PPM_FILE_0 = str(pathlib.Path(__file__).parent.absolute().joinpath("border_640x400.ppm"))
+PPM_BORDER_FILE = str(pathlib.Path(__file__).parent.absolute().joinpath("border_640x400.ppm"))
+PPM_PARTITION_FILE = str(pathlib.Path(__file__).parent.absolute().joinpath("partition_640x400.ppm"))
 
 def test_DubinsPPMSetup_init_0():
     '''test that DubinsPPMSetup constructed without error'''
-    DubinsPPMSetup(PPM_FILE_0, 1, 1)
+    DubinsPPMSetup(PPM_BORDER_FILE, 1, 1)
 
 def test_DubinsPPMSetup_state_checker_0():
     '''test that known states validity'''
 
     # ~~~ ARRANGE ~~~
-    ds = DubinsPPMSetup(PPM_FILE_0, 1, 1)
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, 1, 1)
     valid_fn = ds.space_info.getStateValidityChecker()
     s0 = ob.State(ob.DubinsStateSpace())
     s0().setX(300)
@@ -42,7 +43,7 @@ def test_DubinsPPMSetup_propagate_path_0():
     '''test that propagator arrives at expected state'''
 
     # ~~~ ARRANGE ~~~
-    ds = DubinsPPMSetup(PPM_FILE_0, 1, 1)
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, 1, 1)
     si = ds.space_info
     propagator = ds.space_info.getStatePropagator()
 
@@ -84,7 +85,7 @@ def test_DubinsPPMSetup_propagate_path_1():
     '''test that propagator arrives at expected state'''
 
     # ~~~ ARRANGE ~~~
-    ds = DubinsPPMSetup(PPM_FILE_0, 10, 1)
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, 10, 1)
     si = ds.space_info
     propagator = ds.space_info.getStatePropagator()
 
@@ -126,7 +127,7 @@ def test_DubinsPPMSetup_propagate_path_2():
     '''test that propagator arrives at expected state'''
 
     # ~~~ ARRANGE ~~~
-    ds = DubinsPPMSetup(PPM_FILE_0, 10, 1)
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, 10, 1)
     si = ds.space_info
     propagator = ds.space_info.getStatePropagator()
 
@@ -173,7 +174,7 @@ def test_DubinsPPMSetup_propagate_path_3():
     x0 = 300
     y0 = 200
     yaw0 = 0
-    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, min_turn_radius=min_turn_radius)
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, speed=speed, min_turn_radius=min_turn_radius)
     si = ds.space_info
     propagator = ds.space_info.getStatePropagator()
 
@@ -224,7 +225,7 @@ def test_DubinsPPMSetup_propagate_path_4():
     x0 = 300
     y0 = 200
     yaw0 = 0
-    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, min_turn_radius=min_turn_radius)
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, speed=speed, min_turn_radius=min_turn_radius)
     si = ds.space_info
     propagator = ds.space_info.getStatePropagator()
 
@@ -283,7 +284,7 @@ def test_hypothesis_DubinsPPMSetup_propagate_path_error_check(speed, min_turn_ra
     '''test a broad range of propagator inputs to see if they raise errors'''
     # ~~~ ARRANGE ~~~
 
-    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, min_turn_radius=min_turn_radius)
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, speed=speed, min_turn_radius=min_turn_radius)
     si = ds.space_info
     propagator = ds.space_info.getStatePropagator()
 
@@ -326,7 +327,7 @@ def test_hypothesis_DubinsPPMSetup_propagate_path_clipped_ctrl(speed, min_turn_r
     '''test a narrow range of propagator inputs with clipped control value'''
     # ~~~ ARRANGE ~~~
 
-    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, min_turn_radius=min_turn_radius)
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, speed=speed, min_turn_radius=min_turn_radius)
     si = ds.space_info
     propagator = ds.space_info.getStatePropagator()
     cbounds = ds.space_info.getControlSpace().getBounds()
@@ -387,7 +388,7 @@ def test_DubinsPPMSetup_propagator_0():
     '''test that propagator arrives at expected state'''
 
     # ~~~ ARRANGE ~~~
-    ds = DubinsPPMSetup(PPM_FILE_0, 1, 1)
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, 1, 1)
     propagator = ds.space_info.getStatePropagator()
 
     # create initial state
@@ -419,7 +420,7 @@ def test_DubinsPPMSetup_propagator_1():
     '''test that propagator arrives at expected state'''
 
     # ~~~ ARRANGE ~~~
-    ds = DubinsPPMSetup(PPM_FILE_0, 10, 1)
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, 10, 1)
     propagator = ds.space_info.getStatePropagator()
 
     # create initial state
@@ -451,7 +452,7 @@ def test_DubinsPPMSetup_propagator_2():
     '''test that propagator arrives at expected state'''
 
     # ~~~ ARRANGE ~~~
-    ds = DubinsPPMSetup(PPM_FILE_0, 10, 1)
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, 10, 1)
     propagator = ds.space_info.getStatePropagator()
 
     # create initial state
@@ -488,7 +489,7 @@ def test_DubinsPPMSetup_propagator_3():
     x0 = 300
     y0 = 200
     yaw0 = 0
-    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, min_turn_radius=min_turn_radius)
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, speed=speed, min_turn_radius=min_turn_radius)
     propagator = ds.space_info.getStatePropagator()
 
     # create initial state
@@ -526,7 +527,7 @@ def test_DubinsPPMSetup_propagator_4():
     x0 = 300
     y0 = 200
     yaw0 = 0
-    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, min_turn_radius=min_turn_radius)
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, speed=speed, min_turn_radius=min_turn_radius)
     propagator = ds.space_info.getStatePropagator()
 
     # create initial state
@@ -568,7 +569,7 @@ def test_hypothesis_DubinsPPMSetup_propagator_error_check(speed, min_turn_radius
     '''test a broad range of propagator inputs to see if they raise errors'''
     # ~~~ ARRANGE ~~~
 
-    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, min_turn_radius=min_turn_radius)
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, speed=speed, min_turn_radius=min_turn_radius)
     propagator = ds.space_info.getStatePropagator()
     cbounds = ds.space_info.getControlSpace().getBounds()
 
@@ -607,7 +608,7 @@ def test_hypothesis_DubinsPPMSetup_propagator_clipped_ctrl(speed, min_turn_radiu
     '''test a narrow range of propagator inputs with clipped control value'''
     # ~~~ ARRANGE ~~~
 
-    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, min_turn_radius=min_turn_radius)
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, speed=speed, min_turn_radius=min_turn_radius)
     propagator = ds.space_info.getStatePropagator()
     cbounds = ds.space_info.getControlSpace().getBounds()
 
@@ -660,7 +661,7 @@ def test_DubinsPPMSetup_sampleReachableSet_0():
     x0 = 300
     y0 = 200
     yaw0 = 0
-    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, min_turn_radius=min_turn_radius)
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, speed=speed, min_turn_radius=min_turn_radius)
 
     # create initial state
     s0 = ob.State(ob.DubinsStateSpace())
@@ -701,7 +702,7 @@ def test_DubinsPPMSetup_estimateRiskMetric_zero_risk_region_0():
     near_dist = 150
 
     # create system setup
-    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, min_turn_radius=min_turn_radius)
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, speed=speed, min_turn_radius=min_turn_radius)
 
     # create sampling point
     s_near = ds.space_info.allocState()
@@ -741,7 +742,7 @@ def test_DubinsPPMSetup_cast_ray_0():
     yaw0 = 0
 
     # create system setup
-    ds = DubinsPPMSetup(PPM_FILE_0, speed=speed, min_turn_radius=min_turn_radius)
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, speed=speed, min_turn_radius=min_turn_radius)
 
     # create sampling point
     s = ds.space_info.allocState()
@@ -772,7 +773,7 @@ def test_hypothesis_DubinsPPMSetup_cast_ray(x0, y0, yaw0, theta, res):
     # ~~~ ARRANGE ~~~
 
     # create system setup
-    ds = DubinsPPMSetup(PPM_FILE_0, speed=1.0, min_turn_radius=1.0)
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, speed=1.0, min_turn_radius=1.0)
 
     # create sampling point
     s = ds.space_info.allocState()
@@ -831,6 +832,43 @@ def test_hypothesis_DubinsPPMSetup_cast_ray(x0, y0, yaw0, theta, res):
     assert np.greater_equal(l, exp_l-res)
     assert np.less_equal(l, exp_l+res)
 
+def test_DubinsPPMSetup_isPathValid_0():
+    '''basic check that path through thin obstacle is invalid'''
+
+    # ~~~ ARRANGE ~~~
+
+    x0 = 100
+    y0 = 200
+    yaw0 = 0
+    x1 = 540
+    y1 = 200
+    yaw1 = 0
+
+    # create system setup
+    ds = DubinsPPMSetup(PPM_PARTITION_FILE, speed=1.0, min_turn_radius=1.0)
+
+    # create states for path
+    s0 = ds.space_info.allocState()
+    s0.setX(x0)
+    s0.setY(y0)
+    s0.setYaw(yaw0)
+
+    s1 = ds.space_info.allocState()
+    s1.setX(x1)
+    s1.setY(y1)
+    s1.setYaw(yaw1)
+
+    # create a 2-step path that crosses the parition obstacle
+    pth = oc.PathControl(ds.space_info)
+    pth.append(s0)
+    pth.append(s1)
+
+    # ~~~ ACT ~~~
+    # check path is valid
+    is_valid = ds.isPathValid(pth)
+
+    # ~~~ ASSERT ~~~
+    assert not is_valid
 
 if __name__ == "__main__":
     faulthandler.enable()

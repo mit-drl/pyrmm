@@ -870,6 +870,102 @@ def test_DubinsPPMSetup_isPathValid_0():
     # ~~~ ASSERT ~~~
     assert not is_valid
 
+@given(
+    st.floats(min_value=0, max_value=640, allow_nan=False, allow_infinity=False, exclude_min=True, exclude_max=True),
+    st.floats(min_value=0, max_value=400, allow_nan=False, allow_infinity=False, exclude_min=True, exclude_max=True),
+    st.floats(min_value=-10*np.pi, max_value=10*np.pi, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=0, max_value=640, allow_nan=False, allow_infinity=False, exclude_min=True, exclude_max=True),
+    st.floats(min_value=0, max_value=400, allow_nan=False, allow_infinity=False, exclude_min=True, exclude_max=True),
+    st.floats(min_value=-10*np.pi, max_value=10*np.pi, allow_nan=False, allow_infinity=False),
+)
+def test_hypothesis_DubinsPPMSetup_isPathValid_2point(x0, y0, yaw0, x1, y1, yaw1):
+    '''randomly generate 2-point path and check path collision with partition'''
+    # ~~~ ARRANGE ~~~
+
+    # create system setup
+    ds = DubinsPPMSetup(PPM_PARTITION_FILE, speed=1.0, min_turn_radius=1.0)
+
+    # create states for path
+    s0 = ds.space_info.allocState()
+    s0.setX(x0)
+    s0.setY(y0)
+    s0.setYaw(yaw0)
+
+    s1 = ds.space_info.allocState()
+    s1.setX(x1)
+    s1.setY(y1)
+    s1.setYaw(yaw1)
+
+    # create a 2-step path that crosses the parition obstacle
+    pth = oc.PathControl(ds.space_info)
+    pth.append(s0)
+    pth.append(s1)
+
+    # ~~~ ACT ~~~
+    # check path is valid
+    is_valid = ds.isPathValid(pth)
+
+    # ~~~ ASSERT ~~~
+    if (x0 < 320 and x1 < 320) or (x0 >= 321 and x1 >= 321):
+        # both points to left or right of partition
+        assert is_valid
+    else:
+        # points cross partion
+        assert not is_valid
+
+@given(
+    st.floats(min_value=0, max_value=640, allow_nan=False, allow_infinity=False, exclude_min=True, exclude_max=True),
+    st.floats(min_value=0, max_value=400, allow_nan=False, allow_infinity=False, exclude_min=True, exclude_max=True),
+    st.floats(min_value=-10*np.pi, max_value=10*np.pi, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=0, max_value=640, allow_nan=False, allow_infinity=False, exclude_min=True, exclude_max=True),
+    st.floats(min_value=0, max_value=400, allow_nan=False, allow_infinity=False, exclude_min=True, exclude_max=True),
+    st.floats(min_value=-10*np.pi, max_value=10*np.pi, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=0, max_value=640, allow_nan=False, allow_infinity=False, exclude_min=True, exclude_max=True),
+    st.floats(min_value=0, max_value=400, allow_nan=False, allow_infinity=False, exclude_min=True, exclude_max=True),
+    st.floats(min_value=-10*np.pi, max_value=10*np.pi, allow_nan=False, allow_infinity=False),
+)
+def test_hypothesis_DubinsPPMSetup_isPathValid_3point(x0, y0, yaw0, x1, y1, yaw1, x2, y2, yaw2):
+    '''randomly generate 3-point path and check path collision with partition'''
+    # ~~~ ARRANGE ~~~
+
+    # create system setup
+    ds = DubinsPPMSetup(PPM_PARTITION_FILE, speed=1.0, min_turn_radius=1.0)
+
+    # create states for path
+    s0 = ds.space_info.allocState()
+    s0.setX(x0)
+    s0.setY(y0)
+    s0.setYaw(yaw0)
+
+    s1 = ds.space_info.allocState()
+    s1.setX(x1)
+    s1.setY(y1)
+    s1.setYaw(yaw1)
+
+    s2 = ds.space_info.allocState()
+    s2.setX(x2)
+    s2.setY(y2)
+    s2.setYaw(yaw2)
+
+    # create a 2-step path that crosses the parition obstacle
+    pth = oc.PathControl(ds.space_info)
+    pth.append(s0)
+    pth.append(s1)
+    pth.append(s2)
+
+    # ~~~ ACT ~~~
+    # check path is valid
+    is_valid = ds.isPathValid(pth)
+
+    # ~~~ ASSERT ~~~
+    if (x0 < 320 and x1 < 320 and x2 < 320) or (x0 >= 321 and x1 >= 321 and x2 >= 321):
+        # both points to left or right of partition
+        assert is_valid
+    else:
+        # points cross partion
+        assert not is_valid
+
+
 if __name__ == "__main__":
     faulthandler.enable()
     test_DubinsPPMSetup_cast_ray_0()

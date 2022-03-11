@@ -14,7 +14,7 @@ import pyrmm.utils.utils as U
 from pyrmm.setups.dubins import DubinsPPMSetup
 
 _HASH_LEN = 5
-_CONFIG_NAME = "dubins_datamaker_app"
+_CONFIG_NAME = "dubins_datagen_app"
 _MONITOR_RATE = 100
 
 ##############################################

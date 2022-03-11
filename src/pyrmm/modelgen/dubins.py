@@ -16,7 +16,7 @@ from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler
 
 import pyrmm.utils.utils as U
 
-_CONFIG_NAME = "dubins_border_640x400"
+_CONFIG_NAME = "dubins_modelgen_app"
 _NUM_MODEL_INPUTS = 8
 
 ##############################################
@@ -24,7 +24,7 @@ _NUM_MODEL_INPUTS = 8
 ##############################################
 
 def se2_to_numpy(se2):
-    '''convert OMPL SE2StateInternal object to torch tensor'''
+    '''convert OMPL SE2StateInternal object to numpy array'''
     return np.array([se2.getX(), se2.getY(), se2.getYaw()])
 
 class RiskMetricDataModule(LightningDataModule):

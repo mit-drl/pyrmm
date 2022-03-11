@@ -63,13 +63,13 @@ _DEFAULT_LIDAR_RESOLUTION = 1.0
 LidarConfig = pbuilds(Lidar, num_rays=_DEFUALT_LIDAR_NUM_RAYS, resolution=_DEFAULT_LIDAR_RESOLUTION)
 
 # Default sampler and risk estimator configs
-_DEFAULT_N_SAMPLES = 1024
+_DEFAULT_N_SAMPLES = 2048
 _DEFAULT_DURATION = 2.0
 _DEFAULT_N_BRANCHES = 32
 _DEFAULT_TREE_DEPTH = 2
-_DEFAULT_N_STEPS = 2
+_DEFAULT_N_STEPS = 8
 _DEFAULT_POLICY = 'uniform_random'
-_DEFAULT_MAXTASKS = 50
+_DEFAULT_MAXTASKS = 16
 
 # Top-level configuration and store for command line interface
 make_config_input = {

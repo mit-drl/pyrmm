@@ -7,7 +7,7 @@ import numpy as np
 from functools import partial
 from pathlib import Path
 from hydra.core.config_store import ConfigStore
-from hydra_zen import make_config, instantiate, make_custom_builds_fn
+from hydra_zen import make_config, instantiate, make_custom_builds_fn, builds
 from hydra_zen import ZenField as zf
 
 import pyrmm.utils.utils as U
@@ -41,15 +41,20 @@ def get_abs_path_str(rel_file_path):
 pbuilds = make_custom_builds_fn(populate_full_signature=True)
 
 # DubinsPPMSetup Config
-_DEFAULT_PPM_FILE = "tests/border_640x400.ppm"
-PPMFileConfig = pbuilds(get_abs_path_str, rel_file_path=_DEFAULT_PPM_FILE)
+# _DEFAULT_PPM_FILE = "tests/border_640x400.ppm"
+# PPMFileConfig = pbuilds(get_abs_path_str, rel_file_path=_DEFAULT_PPM_FILE)
 
 _DEFAULT_SPEED = 10.0
 _DEFAULT_MIN_TURN_RADIUS = 50.0
-DubinsPPMSetupConfig = pbuilds(DubinsPPMSetup,
-    ppm_file = PPMFileConfig,
+# DubinsPPMSetupConfig = pbuilds(DubinsPPMSetup,
+#     ppm_file = PPMFileConfig,
+#     speed=_DEFAULT_SPEED,
+#     min_turn_radius=_DEFAULT_MIN_TURN_RADIUS
+# )
+DubinsPPMSetupConfig = builds(DubinsPPMSetup,
     speed=_DEFAULT_SPEED,
-    min_turn_radius=_DEFAULT_MIN_TURN_RADIUS
+    min_turn_radius=_DEFAULT_MIN_TURN_RADIUS,
+    zen_partial=True
 )
 
 # Lidar config
@@ -68,6 +73,7 @@ _DEFAULT_MAXTASKS = 50
 
 # Top-level configuration and store for command line interface
 make_config_input = {
+    'ppm_dir':'outputs/2022-03-10/19-31-52/',
     U.SYSTEM_SETUP: DubinsPPMSetupConfig,
     U.N_SAMPLES: zf(int, _DEFAULT_N_SAMPLES),
     U.DURATION: zf(float, _DEFAULT_DURATION),
@@ -86,41 +92,47 @@ ConfigStore.instance().store(_CONFIG_NAME,Config)
 ############### TASK FUNCTIONS ###############
 ##############################################
 
-@hydra.main(config_path=None, config_name=_CONFIG_NAME)
-def task_function(cfg: Config):
-    '''Instantiate Dubins setup and generate risk metric data'''
+def sample_risk_metrics(dubppm: DubinsPPMSetup, cfg_obj, save_name: str):
+    '''sample states of DubinsPPMSetup and compute risk metrics
+    
+    Args:
+        dubppm : DubinsPPMSetup
+            the dubins ppm setup object, with associated ppm of 
+            obstacle configuraton space, used for sampling and risk
+            metric computation
+        cfg_obj :
+            instantiate configuration object
+        save_name : str
+            name of pickle file to save risk metrics
+    '''
 
-    pool = multiprocess.Pool(getattr(cfg, U.N_CORES), maxtasksperchild=cfg.maxtasks)
-
-    obj = instantiate(cfg)
+    pool = multiprocess.Pool(getattr(cfg_obj, U.N_CORES), maxtasksperchild=cfg_obj.maxtasks)
 
     # sample states to evaluate risk metrics
-    sampler = getattr(obj, U.SYSTEM_SETUP).space_info.allocStateSampler()
-    states = getattr(obj, U.N_SAMPLES) * [None] 
-    states = getattr(obj, U.N_SAMPLES) * [None] 
-    observations = getattr(obj, U.N_SAMPLES) * [None] 
-    for i in range(getattr(obj, U.N_SAMPLES)):
+    sampler = dubppm.space_info.allocStateSampler()
+    states = getattr(cfg_obj, U.N_SAMPLES) * [None] 
+    observations = getattr(cfg_obj, U.N_SAMPLES) * [None] 
+    for i in range(getattr(cfg_obj, U.N_SAMPLES)):
 
         # assign state
-        states[i] = getattr(obj, U.SYSTEM_SETUP).space_info.allocState()
+        states[i] = dubppm.space_info.allocState()
         sampler.sampleUniform(states[i])
 
         # get ray casts for sampled state
-        observations[i] = [getattr(obj, U.SYSTEM_SETUP).cast_ray(states[i], theta, obj.lidar.resolution) for theta in obj.lidar.angles] 
+        observations[i] = [dubppm.cast_ray(states[i], theta, cfg_obj.lidar.resolution) for theta in cfg_obj.lidar.angles] 
 
         if i%_MONITOR_RATE ==  0:
             print("State sampling and ray casting: completed {} of {}".format(i, len(states)))
 
     # multiprocess implementation of parallel risk metric estimation
-    U.update_pickler_se2stateinternal()
     partial_estimateRiskMetric = partial(
-        getattr(obj, U.SYSTEM_SETUP).estimateRiskMetric, 
+        dubppm.estimateRiskMetric, 
         trajectory=None,
-        distance=getattr(obj, U.DURATION),
-        branch_fact=getattr(obj, U.N_BRANCHES),
-        depth=getattr(obj, U.TREE_DEPTH),
-        n_steps=getattr(obj, U.N_STEPS),
-        policy=getattr(obj, U.POLICY)
+        distance=getattr(cfg_obj, U.DURATION),
+        branch_fact=getattr(cfg_obj, U.N_BRANCHES),
+        depth=getattr(cfg_obj, U.TREE_DEPTH),
+        n_steps=getattr(cfg_obj, U.N_STEPS),
+        policy=getattr(cfg_obj, U.POLICY)
     )
 
     # use iterative map for process tracking
@@ -141,7 +153,33 @@ def task_function(cfg: Config):
 
     # save data for pytorch training
     data = [i for i in zip(states, risk_metrics, observations)]
-    torch.save(data, open(_SAVE_FNAME+".pt", "wb"))
+    torch.save(data, open(save_name+".pt", "wb"))
+
+
+@hydra.main(config_path=None, config_name=_CONFIG_NAME)
+def task_function(cfg: Config):
+    '''Instantiate Dubins setup and generate risk metric data'''
+
+    obj = instantiate(cfg)
+
+    # update pickler to allow parallelization of ompl objects
+    U.update_pickler_se2stateinternal()
+
+    # get path to all ppm files in ppm_dir
+    ppm_paths = list(Path(get_abs_path_str(obj.ppm_dir)).glob('*.ppm'))
+    
+    # iterate through each ppm configuration file for data generation
+    for i, pp in enumerate(ppm_paths):
+
+        # instantiate dubins ppm object from partial object and ppm file
+        dubins_ppm_setup = getattr(obj, U.SYSTEM_SETUP)(ppm_file=str(pp))
+
+        # create a unique name for saving risk metric data associated with specific ppm file
+        save_name = _SAVE_FNAME + '_' + pp.stem
+
+        # sample states in ppm config and compute risk metrics
+        print("\nRISK DATA GENERATION {} OF {}\nDUBINS VEHICLE IN OBSTACLE SPACE {}\n".format(i, len(ppm_paths), pp.name))
+        sample_risk_metrics(dubppm=dubins_ppm_setup, cfg_obj=obj, save_name=save_name)
 
 if __name__ == "__main__":
     task_function()

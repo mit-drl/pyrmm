@@ -73,7 +73,7 @@ _DEFAULT_MAXTASKS = 50
 
 # Top-level configuration and store for command line interface
 make_config_input = {
-    'ppm_dir':'outputs/2022-03-10/19-31-52/',
+    # 'ppm_dir':'outputs/2022-03-10/19-31-52/',
     U.SYSTEM_SETUP: DubinsPPMSetupConfig,
     U.N_SAMPLES: zf(int, _DEFAULT_N_SAMPLES),
     U.DURATION: zf(float, _DEFAULT_DURATION),
@@ -85,7 +85,7 @@ make_config_input = {
     'maxtasks': zf(int,_DEFAULT_MAXTASKS),
     'lidar': LidarConfig
 }
-Config = make_config(**make_config_input)
+Config = make_config('ppm_dir', **make_config_input)
 ConfigStore.instance().store(_CONFIG_NAME,Config)
 
 ##############################################
@@ -149,7 +149,7 @@ def sample_risk_metrics(dubppm: DubinsPPMSetup, cfg_obj, save_name: str):
     pool.close()
     pool.join()
 
-    print("total time: {:.2f}".format(time.time()-t_start))
+    print("Subprocess elapsed time: {:.2f}".format(time.time()-t_start))
 
     # save data for pytorch training
     data = [i for i in zip(states, risk_metrics, observations)]
@@ -169,6 +169,7 @@ def task_function(cfg: Config):
     ppm_paths = list(Path(get_abs_path_str(obj.ppm_dir)).glob('*.ppm'))
     
     # iterate through each ppm configuration file for data generation
+    t_start = time.time()
     for i, pp in enumerate(ppm_paths):
 
         # instantiate dubins ppm object from partial object and ppm file
@@ -178,8 +179,11 @@ def task_function(cfg: Config):
         save_name = _SAVE_FNAME + '_' + pp.stem
 
         # sample states in ppm config and compute risk metrics
-        print("\nRISK DATA GENERATION {} OF {}\nDUBINS VEHICLE IN OBSTACLE SPACE {}\n".format(i, len(ppm_paths), pp.name))
+        print("\nRISK DATA GENERATION {} OF {}\nDUBINS VEHICLE IN OBSTACLE SPACE {}\n".format(i+1, len(ppm_paths), pp.name))
         sample_risk_metrics(dubppm=dubins_ppm_setup, cfg_obj=obj, save_name=save_name)
+        print("\n===================================")
+
+    print("\nTotal elapsed time: {:.2f}".format(time.time()-t_start))
 
 if __name__ == "__main__":
     task_function()

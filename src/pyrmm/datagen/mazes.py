@@ -38,12 +38,16 @@ def task_function(cfg: MazegenConfig):
 
         # get maze type integer and create maze name
         maze_type_cnt, maze_type = divmod(i, _N_MAZE_TYPES)
-        maze_name = '_'.join(['maze', 'type', str(maze_type), 'cnt', str(maze_type_cnt)])
+        maze_name = '_'.join(['maze', str(i), 'type', str(maze_type)])
     
         # generate mazes
         mazegen_cmd = repo_dir + '/mazegenerator/src/mazegen'
         mazegen_cmd += ' -o ' + maze_name
         mazegen_cmd += ' -m ' + str(maze_type)
+        if maze_type == 2:
+            # reduce size for honeycomb mazes because default is too large
+            # for memory
+            mazegen_cmd += ' -s 10'
         mazegen_proc = subprocess.Popen(mazegen_cmd.split(), stdout=subprocess.PIPE)
         output, error = mazegen_proc.communicate()
 

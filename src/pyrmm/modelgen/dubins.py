@@ -224,8 +224,15 @@ class CheckBatchGradient(Callback):
 def get_data_paths(pathlist):
     '''get absolute paths for list of repo-relative paths '''
     repo_dir = U.get_repo_path()
-    if not isinstance(pathlist, list):
+    
+    # if single string path is given, put it in 1-enty list
+    if isinstance(pathlist, str):
         pathlist = [pathlist]
+    
+    # if pathlist is something else (e.g. ListConfig), convert to list
+    if not isinstance(pathlist, list):
+        pathlist = list(pathlist)
+        
     return [str(Path(repo_dir).joinpath(dp)) for dp in pathlist]
 
 
@@ -238,8 +245,9 @@ pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 default_datapaths = [
     # 'outputs/2022-01-25/15-41-18/datagen_dubins_0aa84_c8494.pt',
     # 'outputs/2022-01-25/16-54-11/datagen_dubins_8299c_c8494.pt',
-    'outputs/2022-02-02/13-42-25/datagen_dubins_56d76_03af3.pt',
-    'outputs/2022-02-02/14-21-04/datagen_dubins_56d76_03af3.pt'
+    # 'outputs/2022-02-02/13-42-25/datagen_dubins_56d76_03af3.pt',
+    # 'outputs/2022-02-02/14-21-04/datagen_dubins_56d76_03af3.pt'
+    'outputs/2022-03-10/16-17-45/datagen_dubins_68efd_b9cc2.pt'
 ]
 DataPathConf = builds(get_data_paths, pathlist=default_datapaths)
 

@@ -116,7 +116,7 @@ class RiskMetricDataModule(LightningDataModule):
             
             if i == 0:
                 # record system parameters
-                ppm_file = cfg[U.SYSTEM_SETUP]['ppm_file']
+                # ppm_file = cfg[U.SYSTEM_SETUP]['ppm_file']
                 speed = cfg[U.SYSTEM_SETUP]['speed']
                 turn_rad = cfg[U.SYSTEM_SETUP]['min_turn_radius']
 
@@ -128,7 +128,7 @@ class RiskMetricDataModule(LightningDataModule):
             
             else:
                 # check system parameters match
-                assert ppm_file == cfg[U.SYSTEM_SETUP]['ppm_file']
+                # assert ppm_file == cfg[U.SYSTEM_SETUP]['ppm_file']
                 assert np.isclose(speed, cfg[U.SYSTEM_SETUP]['speed'])
                 assert np.isclose(turn_rad, cfg[U.SYSTEM_SETUP]['min_turn_radius'])
 
@@ -221,19 +221,37 @@ class CheckBatchGradient(Callback):
         if example_input.grad[zero_grad_inds].abs().sum().item() > 0:
             raise RuntimeError("Your model mixes data across the batch dimension!")
 
-def get_data_paths(pathlist):
-    '''get absolute paths for list of repo-relative paths '''
-    repo_dir = U.get_repo_path()
+# def get_abs_path_str_list(pathlist):
+#     '''get absolute paths for list of repo-relative paths '''
+#     repo_dir = U.get_repo_path()
     
-    # if single string path is given, put it in 1-enty list
-    if isinstance(pathlist, str):
-        pathlist = [pathlist]
+#     # if single string path is given, put it in 1-enty list
+#     if isinstance(pathlist, str):
+#         pathlist = [pathlist]
     
-    # if pathlist is something else (e.g. ListConfig), convert to list
-    if not isinstance(pathlist, list):
-        pathlist = list(pathlist)
+#     # if pathlist is something else (e.g. ListConfig), convert to list
+#     if not isinstance(pathlist, list):
+#         pathlist = list(pathlist)
         
-    return [str(Path(repo_dir).joinpath(dp)) for dp in pathlist]
+#     return [str(Path(repo_dir).joinpath(dp)) for dp in pathlist]
+
+def get_abs_path_str(rel_file_path):
+    '''get absolute path of path relative to repo head'''
+    repo_dir = U.get_repo_path()
+    return str(Path(repo_dir).joinpath(rel_file_path))
+
+def get_abs_data_paths(datadir):
+    '''get list of absolute paths to .pt data fils in data_dir'''
+
+    if datadir is None:
+        raise Exception('please enter valid data directory')
+    
+    # get list of path objects to .pt files
+    pathlist = list(Path(get_abs_path_str(datadir)).glob('*.pt'))
+    
+    # convert path objects to strings
+    return [str(pth) for pth in pathlist]
+
 
 
 ##############################################
@@ -242,16 +260,18 @@ def get_data_paths(pathlist):
 
 pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
-default_datapaths = [
-    # 'outputs/2022-01-25/15-41-18/datagen_dubins_0aa84_c8494.pt',
-    # 'outputs/2022-01-25/16-54-11/datagen_dubins_8299c_c8494.pt',
-    # 'outputs/2022-02-02/13-42-25/datagen_dubins_56d76_03af3.pt',
-    # 'outputs/2022-02-02/14-21-04/datagen_dubins_56d76_03af3.pt'
-    'outputs/2022-03-10/16-17-45/datagen_dubins_68efd_b9cc2.pt'
-]
-DataPathConf = builds(get_data_paths, pathlist=default_datapaths)
+# default_datapaths = [
+#     # 'outputs/2022-01-25/15-41-18/datagen_dubins_0aa84_c8494.pt',
+#     # 'outputs/2022-01-25/16-54-11/datagen_dubins_8299c_c8494.pt',
+#     # 'outputs/2022-02-02/13-42-25/datagen_dubins_56d76_03af3.pt',
+#     # 'outputs/2022-02-02/14-21-04/datagen_dubins_56d76_03af3.pt'
+#     'outputs/2022-03-10/16-17-45/datagen_dubins_68efd_b9cc2.pt'
+# ]
+# DataPathConf = builds(get_data_paths, pathlist=default_datapaths)
+# DataPathConf = pbuilds(get_abs_data_paths, datadir=None)
 
-DataConf = builds(RiskMetricDataModule, datapaths=DataPathConf, val_percent=0.15, batch_size=64, num_workers=4)
+# DataConf = pbuilds(RiskMetricDataModule, datapaths=DataPathConf, val_percent=0.15, batch_size=64, num_workers=4)
+DataConf = pbuilds(RiskMetricDataModule, val_percent=0.15, batch_size=64, num_workers=4)
 
 ModelConf = builds(single_layer_nn, num_inputs=_NUM_MODEL_INPUTS, num_neurons=64)
 
@@ -266,6 +286,7 @@ TrainerConf = pbuilds(Trainer,
     progress_bar_refresh_rate=0)
 
 ExperimentConfig = make_config(
+    'datadir',
     data_module=DataConf,
     pl_module=PLModuleConf,
     trainer=TrainerConf,
@@ -286,15 +307,19 @@ def task_function(cfg: ExperimentConfig):
     # instantiate the experiment objects
     obj = instantiate(cfg)
 
+    # create data module
+    datapaths = get_abs_data_paths(obj.datadir)
+    data_module = obj.data_module(datapaths=datapaths)
+
     # visualize training data
-    U.plot_dubins_data(obj.data_module.raw_data_paths[0], desc="Truth", data=obj.data_module.raw_data)
+    # U.plot_dubins_data(data_module.raw_data_paths[0], desc="Truth", data=data_module.raw_data)
 
     # finish instantiating the trainer
     trainer = obj.trainer(callbacks=[InputMonitor(), CheckBatchGradient()])
     # trainer = obj.trainer(callbacks=[InputMonitor()])
 
     # train the model
-    trainer.fit(obj.pl_module, obj.data_module)
+    trainer.fit(obj.pl_module, data_module)
 
     # randomly sample test data for visualization
     # convert SE2StateInternal objects into numpy arrays
@@ -333,8 +358,8 @@ def task_function(cfg: ExperimentConfig):
     # t0_pred_pt = obj.pl_module(t0_scaled_pt)
     # for i, t in enumerate(test_inpt_np):
     #     print("orig state: {}\nscaled state: {}\nrisk pred: {}\n=================\n".format(t, t0_scaled_pt.numpy()[i], t0_pred_pt.detach().numpy()[i]))
-    test_indices = np.random.choice(range(len(obj.data_module.raw_data)), 10000)
-    test_ssamples, test_rmetrics, test_lidars = tuple(zip(*obj.data_module.raw_data))
+    test_indices = np.random.choice(range(len(data_module.raw_data)), 10000)
+    test_ssamples, test_rmetrics, test_lidars = tuple(zip(*data_module.raw_data))
     test_ssamples = np.array(test_ssamples)[test_indices]
     test_rmetrics = np.array(test_rmetrics)[test_indices]
     test_lidars = np.array(test_lidars)[test_indices]
@@ -342,12 +367,12 @@ def task_function(cfg: ExperimentConfig):
     test_rmetrics_np = np.asarray(test_rmetrics)
     test_lidars_np = np.asarray(test_lidars)
     # test_ssamples_scaled_pt = torch.from_numpy(obj.data_module.input_scaler.transform(test_ssamples_np))
-    test_lidars_scaled_pt = torch.from_numpy(obj.data_module.observation_scaler.transform(test_lidars_np))
+    test_lidars_scaled_pt = torch.from_numpy(data_module.observation_scaler.transform(test_lidars_np))
     test_rmetrics_pt = torch.tensor(test_rmetrics_np)
     test_pred_pt = obj.pl_module(test_lidars_scaled_pt)
     print('predicted data range: {} - {}'.format(torch.min(test_pred_pt), torch.max(test_pred_pt)))
     test_data = zip(test_ssamples, test_pred_pt.detach().numpy(), test_lidars)
-    U.plot_dubins_data(obj.data_module.raw_data_paths[0], desc='Inferred', data=test_data)
+    # U.plot_dubins_data(data_module.raw_data_paths[0], desc='Inferred', data=test_data)
 
 
 ##############################################

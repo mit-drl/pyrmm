@@ -221,19 +221,6 @@ class CheckBatchGradient(Callback):
         if example_input.grad[zero_grad_inds].abs().sum().item() > 0:
             raise RuntimeError("Your model mixes data across the batch dimension!")
 
-# def get_abs_path_str_list(pathlist):
-#     '''get absolute paths for list of repo-relative paths '''
-#     repo_dir = U.get_repo_path()
-    
-#     # if single string path is given, put it in 1-enty list
-#     if isinstance(pathlist, str):
-#         pathlist = [pathlist]
-    
-#     # if pathlist is something else (e.g. ListConfig), convert to list
-#     if not isinstance(pathlist, list):
-#         pathlist = list(pathlist)
-        
-#     return [str(Path(repo_dir).joinpath(dp)) for dp in pathlist]
 
 def get_abs_path_str(rel_file_path):
     '''get absolute path of path relative to repo head'''
@@ -260,17 +247,6 @@ def get_abs_data_paths(datadir):
 
 pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
-# default_datapaths = [
-#     # 'outputs/2022-01-25/15-41-18/datagen_dubins_0aa84_c8494.pt',
-#     # 'outputs/2022-01-25/16-54-11/datagen_dubins_8299c_c8494.pt',
-#     # 'outputs/2022-02-02/13-42-25/datagen_dubins_56d76_03af3.pt',
-#     # 'outputs/2022-02-02/14-21-04/datagen_dubins_56d76_03af3.pt'
-#     'outputs/2022-03-10/16-17-45/datagen_dubins_68efd_b9cc2.pt'
-# ]
-# DataPathConf = builds(get_data_paths, pathlist=default_datapaths)
-# DataPathConf = pbuilds(get_abs_data_paths, datadir=None)
-
-# DataConf = pbuilds(RiskMetricDataModule, datapaths=DataPathConf, val_percent=0.15, batch_size=64, num_workers=4)
 DataConf = pbuilds(RiskMetricDataModule, val_percent=0.15, batch_size=64, num_workers=4)
 
 ModelConf = builds(single_layer_nn, num_inputs=_NUM_MODEL_INPUTS, num_neurons=64)
@@ -321,43 +297,10 @@ def task_function(cfg: ExperimentConfig):
     # train the model
     trainer.fit(obj.pl_module, data_module)
 
-    # randomly sample test data for visualization
+    # randomly sample one of the datasets for pseudo-testing accuracy of model predictions
+    # (i.e. not true testing because data is currently part of training)
     # convert SE2StateInternal objects into numpy arrays
     obj.pl_module.eval()
-    # print('\n\nTEST EVALS\n\n')
-    # test_inpt_np = np.array([
-    #     [0,0,0], 
-    #     [320, 0, 0], 
-    #     [640, 0, 0], 
-    #     [0, 200, 0],
-    #     [0, 400, 0],
-    #     [320, 200, 0],
-    #     [320, 400, 0],
-    #     [640, 200, 0],
-    #     [640, 400, 0],
-    #     [0,0,-np.pi], 
-    #     [320, 0, -np.pi], 
-    #     [640, 0, -np.pi], 
-    #     [0, 200, -np.pi],
-    #     [0, 400, -np.pi],
-    #     [320, 200, -np.pi],
-    #     [320, 400, -np.pi],
-    #     [640, 200, -np.pi],
-    #     [640, 400, -np.pi],
-    #     [0,0,np.pi], 
-    #     [320, 0, np.pi], 
-    #     [640, 0, np.pi], 
-    #     [0, 200, np.pi],
-    #     [0, 400, np.pi],
-    #     [320, 200, np.pi],
-    #     [320, 400, np.pi],
-    #     [640, 200, np.pi],
-    #     [640, 400, np.pi],
-    #     ])
-    # t0_scaled_pt = torch.from_numpy(obj.data_module.input_scaler.transform(test_inpt_np))
-    # t0_pred_pt = obj.pl_module(t0_scaled_pt)
-    # for i, t in enumerate(test_inpt_np):
-    #     print("orig state: {}\nscaled state: {}\nrisk pred: {}\n=================\n".format(t, t0_scaled_pt.numpy()[i], t0_pred_pt.detach().numpy()[i]))
     test_indices = np.random.choice(range(len(data_module.raw_data)), 10000)
     test_ssamples, test_rmetrics, test_lidars = tuple(zip(*data_module.raw_data))
     test_ssamples = np.array(test_ssamples)[test_indices]

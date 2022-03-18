@@ -55,15 +55,18 @@ class RiskMetricDataModule(LightningDataModule):
         RiskMetricDataModule.verify_hydrazen_rmm_data(dpaths)
 
         # load data objects
-        data = []
-        for i, dp in enumerate(dpaths):
-            data.extend(torch.load(dp))
-        n_data = len(data)
+        raw_data = dict()
+        concat_data = []
+        for dp in dpaths:
+            cur_data = torch.load(dp)
+            raw_data[str(dp)] = cur_data
+            concat_data.extend(cur_data)
+        n_data = len(concat_data)
         n_val = int(n_data*val_percent)
         n_train = n_data - n_val
 
         # convert SE2StateInternal objects into numpy arrays
-        ssamples, rmetrics, lidars = tuple(zip(*data))
+        ssamples, rmetrics, lidars = tuple(zip(*concat_data))
         ssamples_np = np.concatenate([se2_to_numpy(s).reshape(1,3) for s in ssamples], axis=0)
         rmetrics_np = np.asarray(rmetrics).reshape(-1,1)
         lidars_np = np.asarray(lidars)
@@ -92,8 +95,8 @@ class RiskMetricDataModule(LightningDataModule):
         self.train_dataset, self.val_dataset = random_split(full_dataset, [n_train, n_val])
 
         # store for later visualization use
-        self.raw_data = data
-        self.raw_data_paths = dpaths
+        self.raw_data = raw_data
+        # self.raw_data_paths = dpaths
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, num_workers=self.num_workers, batch_size=self.batch_size, shuffle=True)
@@ -287,8 +290,10 @@ def task_function(cfg: ExperimentConfig):
     datapaths = get_abs_data_paths(obj.datadir)
     data_module = obj.data_module(datapaths=datapaths)
 
-    # visualize training data
-    # U.plot_dubins_data(data_module.raw_data_paths[0], desc="Truth", data=data_module.raw_data)
+    # select pseudo-test data and visualize
+    pstest_dp = np.random.choice(list(data_module.raw_data.keys()))
+    pstest_ssamples, pstest_rmetrics, pstest_lidars = tuple(zip(*data_module.raw_data[pstest_dp]))
+    U.plot_dubins_data(Path(pstest_dp), desc="Truth", data=data_module.raw_data[pstest_dp])
 
     # finish instantiating the trainer
     trainer = obj.trainer(callbacks=[InputMonitor(), CheckBatchGradient()])
@@ -301,21 +306,12 @@ def task_function(cfg: ExperimentConfig):
     # (i.e. not true testing because data is currently part of training)
     # convert SE2StateInternal objects into numpy arrays
     obj.pl_module.eval()
-    test_indices = np.random.choice(range(len(data_module.raw_data)), 10000)
-    test_ssamples, test_rmetrics, test_lidars = tuple(zip(*data_module.raw_data))
-    test_ssamples = np.array(test_ssamples)[test_indices]
-    test_rmetrics = np.array(test_rmetrics)[test_indices]
-    test_lidars = np.array(test_lidars)[test_indices]
-    test_ssamples_np = np.concatenate([se2_to_numpy(s).reshape(1,3) for s in test_ssamples], axis=0)
-    test_rmetrics_np = np.asarray(test_rmetrics)
-    test_lidars_np = np.asarray(test_lidars)
-    # test_ssamples_scaled_pt = torch.from_numpy(obj.data_module.input_scaler.transform(test_ssamples_np))
-    test_lidars_scaled_pt = torch.from_numpy(data_module.observation_scaler.transform(test_lidars_np))
-    test_rmetrics_pt = torch.tensor(test_rmetrics_np)
-    test_pred_pt = obj.pl_module(test_lidars_scaled_pt)
-    print('predicted data range: {} - {}'.format(torch.min(test_pred_pt), torch.max(test_pred_pt)))
-    test_data = zip(test_ssamples, test_pred_pt.detach().numpy(), test_lidars)
-    # U.plot_dubins_data(data_module.raw_data_paths[0], desc='Inferred', data=test_data)
+    pstest_lidars_np = np.asarray(pstest_lidars)
+    pstest_lidars_scaled_pt = torch.from_numpy(data_module.observation_scaler.transform(pstest_lidars_np))
+    pstest_pred_pt = obj.pl_module(pstest_lidars_scaled_pt)
+    print('predicted data range: {} - {}'.format(torch.min(pstest_pred_pt), torch.max(pstest_pred_pt)))
+    pstest_data = zip(pstest_ssamples, pstest_pred_pt.detach().numpy(), pstest_lidars)
+    U.plot_dubins_data(Path(pstest_dp), desc='Inferred', data=pstest_data)
 
 
 ##############################################

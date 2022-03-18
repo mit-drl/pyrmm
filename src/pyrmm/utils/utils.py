@@ -47,7 +47,14 @@ def plot_dubins_data(datapath, desc, data=None, cmap='coolwarm'):
 
     # load the ppm image used during data generation
     repo_dir = get_repo_path()
-    imagepath = Path(repo_dir).joinpath(cfg[SYSTEM_SETUP]['ppm_file']['rel_file_path'])
+    if 'ppm_dir' in cfg:
+        abs_ppm_path = Path(repo_dir).joinpath(cfg['ppm_dir'])
+        ppm_file='_'.join(datapath.stem.split('_')[4:])+'.ppm'
+        imagepath = abs_ppm_path.joinpath(ppm_file)
+    elif 'ppm_file' in cfg[SYSTEM_SETUP]:
+        imagepath = Path(repo_dir).joinpath(cfg[SYSTEM_SETUP]['ppm_file']['rel_file_path'])
+    else:
+        raise Exception('Path to ppm image undefined')
     image = plt.imread(imagepath)
 
     # unzip tuples of ssamples and rmetrics

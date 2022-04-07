@@ -1,0 +1,8 @@
+name: pybullet_test
+dependencies:
+  - python=3.8
+  - ipython
+  - pip
+  - pip:
+    - numpy
+    - pybullet

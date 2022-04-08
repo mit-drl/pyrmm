@@ -12,6 +12,7 @@ dill
 gitpython
 hydra-zen
 scikit-image
+pybullet
 git+https://github.com/AndrewWalker/pydubins.git
 # git+github:AndrewWalker/pydubins.git
 

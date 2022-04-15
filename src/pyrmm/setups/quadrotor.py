@@ -21,13 +21,14 @@ SystemSetup for Quadrotor vehicle
 
 '''
 
+import numpy as np
+import pybullet as pb
+
 from ompl import base as ob
 from ompl import control as oc
 
-import pybullet as pb
-
 from pyrmm.setups import SystemSetup
-from pyrmm.dynamics.quadrotor import copy_state_pb2ompl
+import pyrmm.dynamics.quadrotor as QD
 
 class QuadrotorPyBulletSetup(SystemSetup):
     ''' Quadrotor vehicle defined with PyBullet physics and configuration space
@@ -44,11 +45,7 @@ class QuadrotorPyBulletSetup(SystemSetup):
         # TODO: generate configuration space
 
         # create compound state space (pos, quat, vel, ang_vel) and set bounds
-        state_space = ob.CompoundStateSpace()
-        state_space.addSubspace(ob.RealVectorStateSpace(3), 1.0)    # position
-        state_space.addSubspace(ob.SO3StateSpace(), 1.0)    # orientation
-        state_space.addSubspace(ob.RealVectorStateSpace(3), 1.0)    # velocity
-        state_space.addSubspace(ob.RealVectorStateSpace(3), 1.0)    # angular velocity
+        state_space = QD.QuadrotorStateSpace()
 
         # TODO: create control space and set bounds
         control_space = oc.RealVectorControlSpace(stateSpace=state_space, dim=4)
@@ -88,31 +85,6 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
         self.__si = spaceInformation
         super().__init__(si=spaceInformation)
 
-    def body_thrust_torque_physics(self, controls, drone_id):
-        '''physics model based on body-fixed thrust (z-axis aligned force) and torque controls
-        Args:
-            controls : ndarray
-                (4)-shaped array of force and torques in body axes: [F_zb, M_xb, M_yb, M_zb]
-            drone_id : int
-                PyBullet unique object of drone
-
-        Ref:
-            Allen, "A real-time framework for kinodynamic planning in dynamic environments with application to quadrotor obstacle avoidance",
-            Sec 4.1
-        '''
-        pb.applyExternalForce(objectUniqueId=drone_id,
-                                linkIndex=-1,
-                                forceObj=[0, 0, controls[0]],
-                                posObj=[0, 0, 0],
-                                flags=pb.LINK_FRAME,
-                                physicsClientId=self.pbClientId
-                                )
-        pb.applyExternalTorque(objectUniqueId=drone_id,
-                              linkIndex=-1,
-                              torqueObj=controls[1:],
-                              flags=pb.LINK_FRAME,
-                              physicsClientId=self.pbClientId
-                              )
 
     def propagate(self, state, control, duration, result):
         ''' propagate from start based on control, store in state
@@ -136,17 +108,28 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
             Ref: https://github.com/utiasDSL/gym-pybullet-drones/blob/a4e165bcbeb9133bee4bf920fca3d1a170f7bba7/gym_pybullet_drones/envs/BaseAviary.py#L272
         '''
 
-        # TODO: reset the pb body state based on propogation start state
+        # reset the pb body state based on propogation start state
+        QD.copy_state_ompl2pb(
+            pbBodyId=self.pbBodyId, 
+            pbClientId=self.pbClientId, 
+            omplState=state
+        )
 
-        # TODO: clip the control to ensure it is within the control bounds
+        # clip the control to ensure it is within the control bounds
+        cbounds = self.__si.getControlSpace().getBounds()
+        bounded_control = np.clip(control, cbounds.low, cbounds.high)
 
         # call pybullet's simulator step, performs ode propagation
         # TODO: step simulation for duration
-        self.body_thrust_torque_physics(control, self.pbBodyId)
-        pb.stepSimulation(physicsClientId=self.pbClientId)
+        dt = pb.getPhysicsEngineParameters()['fixedTimeStep']
+        QD.body_thrust_torque_physics(bounded_control, self.pbBodyId, self.pbClientId)
+        t = 0.0
+        while t < duration:
+            pb.stepSimulation(physicsClientId=self.pbClientId)
+            t += dt
 
         # Extract state information from pb physics client and store in OMPL result
-        copy_state_pb2ompl(
+        QD.copy_state_pb2ompl(
             pbBodyId=self.pbBodyId, 
             pbClientId=self.pbClientId, 
             omplState=result)

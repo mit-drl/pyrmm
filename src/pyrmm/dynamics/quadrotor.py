@@ -91,7 +91,33 @@ def copy_state_ompl2pb(pbBodyId, pbClientId, omplState):
         physicsClientId=pbClientId
     )
 
-    
+def body_thrust_torque_physics(controls, pbQuadId, pbClientId):
+        '''physics model based on body-fixed thrust (z-axis aligned force) and torque controls
+        Args:
+            controls : ndarray
+                (4)-shaped array of force and torques in body axes: [F_zb, M_xb, M_yb, M_zb]
+            pbBodyId : int
+                PyBullet unique object ID of quadrotor body associated with propagator
+            pbClientId : int
+                ID number of pybullet physics client
+
+        Ref:
+            Allen, "A real-time framework for kinodynamic planning in dynamic environments with application to quadrotor obstacle avoidance",
+            Sec 4.1
+        '''
+        pb.applyExternalForce(objectUniqueId=pbQuadId,
+                                linkIndex=-1,
+                                forceObj=[0, 0, controls[0]],
+                                posObj=[0, 0, 0],
+                                flags=pb.LINK_FRAME,
+                                physicsClientId=pbClientId
+                                )
+        pb.applyExternalTorque(objectUniqueId=pbQuadId,
+                              linkIndex=-1,
+                              torqueObj=controls[1:],
+                              flags=pb.LINK_FRAME,
+                              physicsClientId=pbClientId
+                              )
 
 def copy_state_pb2ompl(pbBodyId, pbClientId, omplState):
     '''Copy the 6DoF state from PyBullent into OMPL state in place

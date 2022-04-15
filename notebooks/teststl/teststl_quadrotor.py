@@ -21,4 +21,7 @@ pb.setGravity(0,0,-1.0)
 
 while pb.isConnected():
   pb.stepSimulation()
+  pos, quat = pb.getBasePositionAndOrientation(quad_body_id)
+  print("pos: {}, quat: {}".format(pos, quat))
+  print("euler angles: {}".format(pb.getEulerFromQuaternion(quat)))
   time.sleep(dt)

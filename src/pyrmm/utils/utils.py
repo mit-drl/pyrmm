@@ -27,6 +27,16 @@ N_STEPS = 'n_steps'
 POLICY = 'policy'
 N_CORES = 'n_cores'
 
+GRAV_CONST = 9.81 # m/s**2
+
+def clip_control(controlSpace, control):
+        '''clip control to control space bounds'''
+        bounded_control = controlSpace.allocControl()
+        bounds = controlSpace.getBounds()
+        for i in range(controlSpace.getDimension()):
+            bounded_control[i] = np.clip(control[i], bounds.low[i], bounds.high[i])
+
+        return bounded_control
 
 def get_repo_path():
     '''get full path to repo head'''

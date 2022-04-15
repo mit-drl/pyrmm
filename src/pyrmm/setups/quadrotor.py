@@ -28,7 +28,9 @@ from ompl import base as ob
 from ompl import control as oc
 
 from pyrmm.setups import SystemSetup
+import pyrmm.utils.utils as U
 import pyrmm.dynamics.quadrotor as QD
+
 
 class QuadrotorPyBulletSetup(SystemSetup):
     ''' Quadrotor vehicle defined with PyBullet physics and configuration space
@@ -49,6 +51,7 @@ class QuadrotorPyBulletSetup(SystemSetup):
 
         # TODO: create control space and set bounds
         control_space = oc.RealVectorControlSpace(stateSpace=state_space, dim=4)
+        raise NotImplementedError('No control bounds specified. Make these a function of max rotor thrust given as input to setup')
 
         # create space information for state and control space
         space_info = oc.SpaceInformation(stateSpace=state_space, controlSpace=control_space)
@@ -77,6 +80,9 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
 
         self.pbClientId = pbClientId
         self.pbBodyId = pbBodyId
+
+        # set gravity assuming world-up reference frame (positive z-axis points anti-gravity)
+        pb.setGravity(0, 0, -U.GRAV_CONST, physicsClientId=self.pbClientId)
 
         # Store information about space propagator operates on
         # NOTE: this serves the same purpose asthe  protected attribute si_ 
@@ -116,11 +122,9 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
         )
 
         # clip the control to ensure it is within the control bounds
-        cbounds = self.__si.getControlSpace().getBounds()
-        bounded_control = np.clip(control, cbounds.low, cbounds.high)
+        bounded_control = U.clip_control(controlSpace=self.__si.getControlSpace(), control=control)
 
         # call pybullet's simulator step, performs ode propagation
-        # TODO: step simulation for duration
         dt = pb.getPhysicsEngineParameters()['fixedTimeStep']
         QD.body_thrust_torque_physics(bounded_control, self.pbBodyId, self.pbClientId)
         t = 0.0

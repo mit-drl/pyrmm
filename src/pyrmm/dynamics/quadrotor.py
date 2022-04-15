@@ -25,6 +25,7 @@ Ref: https://github.com/utiasDSL/gym-pybullet-drones/blob/master/gym_pybullet_dr
 
 import pybullet as pb
 from ompl import base as ob
+from ompl import control as oc
 
 class QuadrotorStateSpace(ob.CompoundStateSpace):
     '''6DoF state space defined as OMPL CompoundStateSpace'''
@@ -34,6 +35,11 @@ class QuadrotorStateSpace(ob.CompoundStateSpace):
         self.addSubspace(ob.SO3StateSpace(), 1.0)    # orientation
         self.addSubspace(ob.RealVectorStateSpace(3), 1.0)    # velocity
         self.addSubspace(ob.RealVectorStateSpace(3), 1.0)    # angular velocity
+
+class QuadrotorThrustMomentControlSpace(oc.RealVectorControlSpace):
+    '''Quadrotor control via z-axis thrust and moments'''
+    def __init__(self, stateSpace):
+        super().__init__(stateSpace=stateSpace, dim=4)
 
 
 def copy_state_ompl2pb(pbBodyId, pbClientId, omplState):
@@ -91,11 +97,12 @@ def copy_state_ompl2pb(pbBodyId, pbClientId, omplState):
         physicsClientId=pbClientId
     )
 
-def body_thrust_torque_physics(controls, pbQuadId, pbClientId):
+def body_thrust_torque_physics(control, pbQuadId, pbClientId):
         '''physics model based on body-fixed thrust (z-axis aligned force) and torque controls
         Args:
-            controls : ndarray
-                (4)-shaped array of force and torques in body axes: [F_zb, M_xb, M_yb, M_zb]
+            controls : oc.ControlType
+                OMPL ControlType from QuadrotorThrustMomentControlSpace defining
+                force and torques in body axes: [F_zb, M_xb, M_yb, M_zb]
             pbBodyId : int
                 PyBullet unique object ID of quadrotor body associated with propagator
             pbClientId : int
@@ -105,16 +112,21 @@ def body_thrust_torque_physics(controls, pbQuadId, pbClientId):
             Allen, "A real-time framework for kinodynamic planning in dynamic environments with application to quadrotor obstacle avoidance",
             Sec 4.1
         '''
+        # extract and apply body z-axis aligned thrus
+        thrust = control[0]
         pb.applyExternalForce(objectUniqueId=pbQuadId,
                                 linkIndex=-1,
-                                forceObj=[0, 0, controls[0]],
+                                forceObj=[0, 0, thrust],
                                 posObj=[0, 0, 0],
                                 flags=pb.LINK_FRAME,
                                 physicsClientId=pbClientId
                                 )
+
+        # extract and apply body torques
+        moments = [control[1], control[2], control[3]]
         pb.applyExternalTorque(objectUniqueId=pbQuadId,
                               linkIndex=-1,
-                              torqueObj=controls[1:],
+                              torqueObj=moments,
                               flags=pb.LINK_FRAME,
                               physicsClientId=pbClientId
                               )

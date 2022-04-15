@@ -23,6 +23,19 @@ Ref: https://github.com/utiasDSL/gym-pybullet-drones/blob/master/gym_pybullet_dr
 
 """
 
+import pybullet as pb
+from ompl import base as ob
+
+class QuadrotorStateSpace(ob.CompoundStateSpace):
+    '''6DoF state space defined as OMPL CompoundStateSpace'''
+    def __init__(self):
+        super().__init__()
+        self.addSubspace(ob.RealVectorStateSpace(3), 1.0)    # position
+        self.addSubspace(ob.SO3StateSpace(), 1.0)    # orientation
+        self.addSubspace(ob.RealVectorStateSpace(3), 1.0)    # velocity
+        self.addSubspace(ob.RealVectorStateSpace(3), 1.0)    # angular velocity
+
+
 def copy_state_ompl2pb(pbBodyId, pbClientId, omplState):
     '''Copy the 6DoF state from OMPL into PyBullet state in place
     Args:
@@ -65,7 +78,18 @@ def copy_state_ompl2pb(pbBodyId, pbClientId, omplState):
     w_bu_wu[2] = omplState[3][2]
 
     # update PyBullet State
-    raise NotImplementedError()
+    pb.resetBasePositionAndOrientation(
+        bodyUniqueId=pbBodyId,
+        posObj=p_bu_wu__wu,
+        ornObj=q_bu_wu,
+        physicsClientId=pbClientId
+    )
+    pb.resetBaseVelocity(
+        objectUniqueId=pbBodyId,
+        linearVelocity=v_bu_wu__wu,
+        angularVelocity=w_bu_wu,
+        physicsClientId=pbClientId
+    )
 
     
 
@@ -84,11 +108,11 @@ def copy_state_pb2ompl(pbBodyId, pbClientId, omplState):
         OMPL quaternion: https://ompl.kavrakilab.org/classompl_1_1base_1_1SO3StateSpace_1_1StateType.html
     '''
     p_bu_wu__wu, q_bu_wu = pb.getBasePositionAndOrientation(
-        objectUniqueId=self.pbBodyId,
-        physicsClientId=self.pbClientId)
+        bodyUniqueId=pbBodyId,
+        physicsClientId=pbClientId)
     v_bu_wu__wu, w_bu_wu = pb.getBaseVelocity(
-        bodyUniqueId=self.pbBodyId,
-        physicsClientId=self.pbClientId
+        bodyUniqueId=pbBodyId,
+        physicsClientId=pbClientId
     )
 
     # store state in OMPL CompoundState object in-place

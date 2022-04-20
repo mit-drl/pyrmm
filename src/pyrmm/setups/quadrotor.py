@@ -126,9 +126,11 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
 
         # call pybullet's simulator step, performs ode propagation
         dt = pb.getPhysicsEngineParameters()['fixedTimeStep']
-        QD.body_thrust_torque_physics(bounded_control, self.pbBodyId, self.pbClientId)
         t = 0.0
         while t < duration:
+            # must reset external forces and torques after each sim step
+            # ref: https://docs.google.com/document/d/10sXEhzFRSnvFcl3XxNGhnD4N2SedqwdAvK3dsihxVUA/edit#heading=h.mq73m9o2gcpy
+            QD.body_thrust_torque_physics(bounded_control, self.pbBodyId, self.pbClientId)
             pb.stepSimulation(physicsClientId=self.pbClientId)
             t += dt
 

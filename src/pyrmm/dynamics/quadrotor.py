@@ -31,15 +31,41 @@ class QuadrotorStateSpace(ob.CompoundStateSpace):
     '''6DoF state space defined as OMPL CompoundStateSpace'''
     def __init__(self):
         super().__init__()
-        self.addSubspace(ob.RealVectorStateSpace(3), 1.0)    # position
-        self.addSubspace(ob.SO3StateSpace(), 1.0)    # orientation
-        self.addSubspace(ob.RealVectorStateSpace(3), 1.0)    # velocity
-        self.addSubspace(ob.RealVectorStateSpace(3), 1.0)    # angular velocity
+        self.addSubspace(ob.RealVectorStateSpace(3), 1.0)   # position
+        self.addSubspace(ob.SO3StateSpace(), 1.0)           # orientation
+        self.addSubspace(ob.RealVectorStateSpace(3), 1.0)   # velocity
+        self.addSubspace(ob.RealVectorStateSpace(3), 1.0)   # angular velocity
 
 class QuadrotorThrustMomentControlSpace(oc.RealVectorControlSpace):
-    '''Quadrotor control via z-axis thrust and moments'''
-    def __init__(self, stateSpace):
+    '''Quadrotor control via body z-axis thrust and moments'''
+    def __init__(self, stateSpace, fzmax, mxmax, mymax, mzmax):
+        '''
+        Args:
+            stateSpace : ob.StateSpace
+                state space associated with quadrotor (pos, orn, vel, ang vel)
+            famx : float
+                max net force from all rotors along body z axis (N)
+            mxmax : float
+                max net moment applied by rotors along body x axis (N*m)
+            mymax : float
+                max net moment applied by rotors along body y axis (N*m)
+            mzmax : float
+                max net moment applied by rotors along body z axis (N*m)
+        '''
+        assert fzmax > 0
+        assert mxmax > 0
+        assert mymax > 0
+        assert mzmax > 0
         super().__init__(stateSpace=stateSpace, dim=4)
+
+        # set control bounds: fz always positive, moments symmetric positiv and negative
+        cbounds = ob.RealVectorBounds(4)
+        cbounds.setLow(0, 0); cbounds.setHigh(0, fzmax)
+        cbounds.setLow(1, -mxmax); cbounds.setHigh(1, mxmax)
+        cbounds.setLow(2, -mymax); cbounds.setHigh(2, mymax)
+        cbounds.setLow(3, -mzmax); cbounds.setHigh(3, mzmax)
+        self.setBounds(cbounds)
+
 
 
 def copy_state_ompl2pb(pbBodyId, pbClientId, omplState):

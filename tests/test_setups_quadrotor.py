@@ -8,7 +8,9 @@ from ompl import control as oc
 
 import pyrmm.utils.utils as U
 import pyrmm.dynamics.quadrotor as QD
-from pyrmm.setups.quadrotor import QuadrotorPyBulletStatePropagator
+from pyrmm.setups.quadrotor import \
+    QuadrotorPyBulletSetup, \
+    QuadrotorPyBulletStatePropagator
 
 QUAD_URDF = str(pathlib.Path(__file__).parent.absolute().joinpath("quadrotor.urdf"))
 
@@ -45,10 +47,48 @@ def quadrotor_pybullet_propagator():
 
     yield space_info, quadPropagator
 
+    # ~~ TEARDOWN ~~
+    # disconnect from pybullet physics client
+    pb.disconnect()
+
+@pytest.fixture
+def quadrotor_pybullet_setup():
+    # ~~ ARRANGE ~~
+    qpbsetup = QuadrotorPyBulletSetup()
+
+    # ~~ PASS TO TEST
+    yield qpbsetup
+
     # ~~ Teardown ~~
     # disconnect from pybullet physics client
     pb.disconnect()
 
+
+def test_QuadrotorPyBulletSetup_state_checker_0(quadrotor_pybullet_setup):
+    '''test that simple, initial state in empty environment has no collisions'''
+
+    # ~~ ARRANGE ~~
+
+    # get quadrotor setup object
+    if quadrotor_pybullet_setup is None:
+        qpbsetup = QuadrotorPyBulletSetup()
+    else:
+        qpbsetup = quadrotor_pybullet_setup
+
+    # get initial state from pybullet
+    s0 = qpbsetup.space_info.allocState()
+    QD.copy_state_pb2ompl(
+        pbBodyId=qpbsetup.pbBodyId,
+        pbClientId=qpbsetup.pbClientId,
+        omplState=s0
+    )
+
+    # ~~ ACT ~~
+    # get state validity
+    is_valid = qpbsetup.space_info.isValid(s0)
+
+    # ~~ ASSERT ~~
+    assert is_valid
 
 def test_QuadrotorPyBulletStatePropagator_propagate_hover(quadrotor_pybullet_propagator):
     '''Test that perfect hover thrust does not move the quadrotor'''

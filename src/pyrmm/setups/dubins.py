@@ -278,8 +278,8 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
 
 
         Notes:
-            This function is similar, but disctinct from 'StatePropagator.propogate', thus its different name to no overload `propagate`. 
-            propogate does not store or return the path to get to result
+            This function is similar, but disctinct from 'StatePropagator.propagate', thus its different name to no overload `propagate`. 
+            propagate does not store or return the path to get to result
             
             Currently using scipy's odeint. This creates a dependency on scipy and is likely inefficient
             because it's perform the numerical integration in python instead of C++. 

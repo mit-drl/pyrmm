@@ -25,6 +25,8 @@ import pathlib
 import numpy as np
 import pybullet as pb
 
+from functools import partial
+
 from ompl import base as ob
 from ompl import control as oc
 
@@ -53,10 +55,10 @@ class QuadrotorPyBulletSetup(SystemSetup):
 
         # generate configuration space
         # connect to headless physics engine
-        pbClientId = pb.connect(pb.DIRECT)
+        self.pbClientId = pb.connect(pb.DIRECT)
 
         # create pybullet instance of quadrotor
-        pbQuadBodyId = pb.loadURDF(_QUAD_URDF)
+        self.pbBodyId = pb.loadURDF(_QUAD_URDF)
 
         # create compound state space (pos, quat, vel, ang_vel) and set bounds
         state_space = QD.QuadrotorStateSpace()
@@ -76,15 +78,47 @@ class QuadrotorPyBulletSetup(SystemSetup):
 
         # create and set propagator class from ODEs
         propagator = QuadrotorPyBulletStatePropagator(
-            pbBodyId=pbQuadBodyId, 
-            pbClientId=pbClientId, 
+            pbBodyId=self.pbBodyId, 
+            pbClientId=self.pbClientId, 
             spaceInformation=space_info)
         space_info.setStatePropagator(propagator)
 
         # TODO: create and set state validity checker
+        validityChecker = ob.StateValidityCheckerFn(partial(self.isStateValid, space_info))
+        space_info.setStateValidityChecker(validityChecker)
 
         # TODO: call parent init to create simple setup
-        # super().__init__(space_information=space_info)
+        super().__init__(space_information=space_info)
+    
+    def isStateValid(self, spaceInformation, state):
+        ''' check for collisions using pybullet getContactPoints
+        Args:
+            spaceInformation : ob.SpaceInformationPtr
+                state space information as given by SimpleSetup.getSpaceInformation
+            state : ob.State
+                state to check for validity
+        
+        Returns:
+            True if state in bound and not in collision with obstacles
+        '''
+
+        # reset the pb body state based on propogation start state
+        QD.copy_state_ompl2pb(
+            pbBodyId=self.pbBodyId, 
+            pbClientId=self.pbClientId, 
+            omplState=state
+        )
+
+        # get all contacts between quadrotor and other objects in env
+        contacts = pb.getContactPoints(
+            bodyA = self.pbBodyId,
+            physicsClientId = self.pbClientId
+        )
+
+        if len(contacts) > 0:
+            return False
+        else:
+            return True
 
 class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
 
@@ -160,5 +194,31 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
             pbBodyId=self.pbBodyId, 
             pbClientId=self.pbClientId, 
             omplState=result)
+
+    def propagate_path(self, state, control, duration, path):
+        ''' propagate from start based on control, store final state in result, store path to result
+        Args:
+            state : ob.State
+                start state of propagation
+            control : oc.Control
+                control to apply during propagation
+            duration : float
+                duration of propagation
+            path : oc.ControlPath
+                path from state to result in nsteps. initial state is state, final state is result
+
+        Returns:
+            None
+
+
+        Notes:
+            This function is similar, but disctinct from 'StatePropagator.propagate', thus its different name to no overload `propagate`. 
+            propagate does not store or return the path to get to result
+            
+            Currently using scipy's odeint. This creates a dependency on scipy and is likely inefficient
+            because it's perform the numerical integration in python instead of C++. 
+            Could be improved later
+        '''
+        raise NotImplementedError()
 
         

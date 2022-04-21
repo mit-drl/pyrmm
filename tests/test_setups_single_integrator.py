@@ -1,7 +1,7 @@
 import pytest
 import pathlib
 import numpy as np
-from hypothesis import given, strategies as st
+from hypothesis import given, settings, strategies as st
 
 from pyrmm.setups.single_integrator import SingleIntegrator1DSetup
 
@@ -53,6 +53,7 @@ def test_SingleIntegrator1DPPMSetup_estimateRiskMetric_0():
         )
     )
 
+@settings(deadline=500)
 @given(
     x0 = st.floats(min_value=-1e3, max_value=1e3, allow_nan=False, allow_infinity=False),
     v = st.floats(min_value=-1e3, max_value=1e3, allow_nan=False, allow_infinity=False),

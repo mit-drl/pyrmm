@@ -194,6 +194,6 @@ def copy_state_pb2ompl(pbBodyId, pbClientId, omplState):
     omplState[2][1] = v_bu_wu__wu[1]
     omplState[2][2] = v_bu_wu__wu[2]
     # angular velocity
-    omplState[3][0] = v_bu_wu__wu[0]
-    omplState[3][1] = v_bu_wu__wu[1]
-    omplState[3][2] = v_bu_wu__wu[2]
+    omplState[3][0] = w_bu_wu[0]
+    omplState[3][1] = w_bu_wu[1]
+    omplState[3][2] = w_bu_wu[2]

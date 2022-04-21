@@ -21,6 +21,7 @@ SystemSetup for Quadrotor vehicle
 
 '''
 
+import pathlib
 import numpy as np
 import pybullet as pb
 
@@ -31,6 +32,12 @@ from pyrmm.setups import SystemSetup
 import pyrmm.utils.utils as U
 import pyrmm.dynamics.quadrotor as QD
 
+# hard-coded setup parameters
+_QUAD_URDF = str(pathlib.Path(U.get_repo_path()).joinpath("tests/quadrotor.urdf"))
+_FZMAX=8.0
+_MXMAX=2.0
+_MYMAX=2.0
+_MZMAX=1.0
 
 class QuadrotorPyBulletSetup(SystemSetup):
     ''' Quadrotor vehicle defined with PyBullet physics and configuration space
@@ -44,21 +51,35 @@ class QuadrotorPyBulletSetup(SystemSetup):
 
         # TODO: save init args for re-creation of object
 
-        # TODO: generate configuration space
+        # generate configuration space
+        # connect to headless physics engine
+        pbClientId = pb.connect(pb.DIRECT)
+
+        # create pybullet instance of quadrotor
+        pbQuadBodyId = pb.loadURDF(_QUAD_URDF)
 
         # create compound state space (pos, quat, vel, ang_vel) and set bounds
         state_space = QD.QuadrotorStateSpace()
 
-        # TODO: create control space and set bounds
-        control_space = oc.RealVectorControlSpace(stateSpace=state_space, dim=4)
-        raise NotImplementedError('No control bounds specified. Make these a function of max rotor thrust given as input to setup')
+        # create control space and set bounds
+        control_space = QD.QuadrotorThrustMomentControlSpace(
+            stateSpace=state_space,
+            fzmax=_FZMAX,
+            mxmax=_MXMAX,
+            mymax=_MYMAX,
+            mzmax=_MZMAX)
 
         # create space information for state and control space
         space_info = oc.SpaceInformation(stateSpace=state_space, controlSpace=control_space)
         # space_info = oc.SpaceInformation(stateSpace=state_space)
         self.space_info = space_info
 
-        # TODO: create and set propagator class from ODEs
+        # create and set propagator class from ODEs
+        propagator = QuadrotorPyBulletStatePropagator(
+            pbBodyId=pbQuadBodyId, 
+            pbClientId=pbClientId, 
+            spaceInformation=space_info)
+        space_info.setStatePropagator(propagator)
 
         # TODO: create and set state validity checker
 

@@ -3,6 +3,7 @@ import pathlib
 import copy
 import numpy as np
 import pybullet as pb
+import pybullet_data as pbd
 
 from ompl import control as oc
 
@@ -89,6 +90,36 @@ def test_QuadrotorPyBulletSetup_state_checker_0(quadrotor_pybullet_setup):
 
     # ~~ ASSERT ~~
     assert is_valid
+
+def test_QuadrotorPyBulletSetup_state_checker_1(quadrotor_pybullet_setup):
+    '''test that collision with floor plane causes invalid state'''
+
+    # ~~ ARRANGE ~~
+
+    # get quadrotor setup object
+    if quadrotor_pybullet_setup is None:
+        qpbsetup = QuadrotorPyBulletSetup()
+    else:
+        qpbsetup = quadrotor_pybullet_setup
+
+    # load in floor plane to environment (from pybullet_data)
+    pb.setAdditionalSearchPath(pbd.getDataPath())
+    floorBodyId = pb.loadURDF("plane100.urdf")
+
+    # get initial state from pybullet
+    s0 = qpbsetup.space_info.allocState()
+    QD.copy_state_pb2ompl(
+        pbBodyId=qpbsetup.pbBodyId,
+        pbClientId=qpbsetup.pbClientId,
+        omplState=s0
+    )
+
+    # ~~ ACT ~~
+    # get state validity
+    is_valid = qpbsetup.space_info.isValid(s0)
+
+    # ~~ ASSERT ~~
+    assert not is_valid
 
 def test_QuadrotorPyBulletStatePropagator_propagate_hover(quadrotor_pybullet_propagator):
     '''Test that perfect hover thrust does not move the quadrotor'''

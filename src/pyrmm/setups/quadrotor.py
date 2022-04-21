@@ -109,6 +109,11 @@ class QuadrotorPyBulletSetup(SystemSetup):
             omplState=state
         )
 
+        # call collision detection function to assess collisions 
+        # independent of simulation stepping
+        # ref: https://docs.google.com/document/d/10sXEhzFRSnvFcl3XxNGhnD4N2SedqwdAvK3dsihxVUA/edit#
+        pb.performCollisionDetection()
+
         # get all contacts between quadrotor and other objects in env
         contacts = pb.getContactPoints(
             bodyA = self.pbBodyId,

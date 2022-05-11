@@ -152,7 +152,7 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
         super().__init__(si=spaceInformation)
 
 
-    def propagate(self, state, control, duration, result):
+    def propagate(self, state, control, duration, result, **kwargs):
         ''' propagate from start based on control, store in state
         Args:
             state : ob.State
@@ -163,6 +163,8 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
                 duration of propagation
             result : ob.State
                 end state of propagation, modified in place
+            ret_true_duration : bool (optional)
+                flag to signal true duration should be returned
 
         Notes:
             By default, propagate does not perform or is used in integration,
@@ -173,8 +175,8 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
             This implementation uses pybullet's built-in ode propagator.
             Ref: https://github.com/utiasDSL/gym-pybullet-drones/blob/a4e165bcbeb9133bee4bf920fca3d1a170f7bba7/gym_pybullet_drones/envs/BaseAviary.py#L272
 
-            Due to PyBullet's fixed timestep implementation, the duration of propagation is approximate. There is likely to be a truncation or 
-            "under propagation"
+            Due to PyBullet's fixed timestep implementation, the duration of propagation is approximate. There is likely to cause
+            an "over propagation" beyond the request duration
         '''
 
         # check that propagation is not too small of time for PyBullet
@@ -206,8 +208,12 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
             pbBodyId=self.pbBodyId, 
             pbClientId=self.pbClientId, 
             omplState=result)
+        
+        # return the true duration if requested
+        if 'ret_true_duration' in kwargs and kwargs['ret_true_duration']:
+            return t
 
-    def propagate_path(self, state, control, duration, path):
+    def propagate_path(self, state, control, duration, path, **kwargs):
         ''' propagate from start based on control, store final state in result, store path to result
         Args:
             state : ob.State
@@ -218,10 +224,12 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
                 duration of propagation
             path : oc.ControlPath
                 path from state to result in nsteps. initial state is state, final state is result
+            ret_true_duration : bool (optional)
+                flag to signal true duration should be returned
 
         Returns:
-            None
-
+            t : float (if ret_true_duration flag)
+                true duration propagated 
 
         Notes:
             This function is similar, but disctinct from 'StatePropagator.propagate', thus its different name to no overload `propagate`. 
@@ -243,8 +251,8 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
         assert nsteps >= 2
         assert duration > 0 and not np.isclose(duration, 0.0)
 
-        # compute duration of each substep
-        sub_dur = duration/(nsteps-1)
+        # compute requested duration of each substep
+        req_sub_dur = duration/(nsteps-1)
 
         # clip the control to ensure it is within the control bounds
         # and so that it can be stored in path's controls (can't be done in propagate func)
@@ -254,14 +262,20 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
         sspace.copyState(destination=pstates[0], source=state)
 
         # Call propagate on each step to get each intermediate point on path
+        cum_dur = 0.0
         for i in range(nsteps-1):
             cspace.copyControl(destination=pcontrols[i], source=bounded_control)
-            ptimes[i] = sub_dur
-            self.propagate(
+            true_sub_dur = self.propagate(
                 state=pstates[i],
                 control=pcontrols[i],
-                duration=ptimes[i],
-                result=pstates[i+1]
+                duration=req_sub_dur,
+                result=pstates[i+1],
+                ret_true_duration = True
             )
+            ptimes[i] = true_sub_dur
+            cum_dur += true_sub_dur
+
+        if 'ret_true_duration' in kwargs and kwargs['ret_true_duration']:
+            return cum_dur
 
         

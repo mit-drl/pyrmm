@@ -326,7 +326,7 @@ def test_QuadrotorPyBulletStatePropagator_propagate_path_hover(quadrotor_pybulle
 
     # create path object and alloc a randomized number of intermediate steps
     path = oc.PathControl(space_info)
-    nsteps = np.random.randint(5, 100)
+    nsteps = np.random.randint(5, 10)
     for _ in range(nsteps-1):
         path.append(state=space_info.allocState(), control=space_info.allocControl(), duration=0)
     path.append(state=space_info.allocState())
@@ -361,5 +361,83 @@ def test_QuadrotorPyBulletStatePropagator_propagate_path_hover(quadrotor_pybulle
         assert np.isclose(init_state[3][1], result_state[3][1])
         assert np.isclose(init_state[3][2], result_state[3][2])
 
+def test_QuadrotorPyBulletStatePropagator_propagate_path_climb(quadrotor_pybullet_propagator):
+    '''Test that known climb rate results in expected climb distance at each point on path'''
+
+    # ~~ ARRANGE ~~
+
+    if quadrotor_pybullet_propagator is None:
+        space_info, quadPropagator = get_quadrotor_pybullet_propagator_objects()
+    else:
+        space_info, quadPropagator = quadrotor_pybullet_propagator
+
+    # create initial and resulting OMPL state objects
+    init_state = space_info.getStateSpace().allocState()
+    QD.copy_state_pb2ompl(quadPropagator.pbBodyId, quadPropagator.pbClientId, init_state)
+
+    # turn off linear damping for no velocity damping
+    pb.changeDynamics(
+        bodyUniqueId=quadPropagator.pbBodyId,
+        linkIndex=-1,
+        linearDamping=0.0
+    )
+
+    # calculate climbing thrust
+    climb_acc = np.random.rand()*10 - 5
+    req_dur = np.random.rand()*10 + 1
+    mass = 0.5  # see quadrotor.urdf
+    thrust = mass * (U.GRAV_CONST + climb_acc)
+    control = space_info.getControlSpace().allocControl()
+    control[0] = thrust
+    control[1] = 0.0
+    control[2] = 0.0
+    control[3] = 0.0
+
+    # create path object and alloc a randomized number of intermediate steps
+    path = oc.PathControl(space_info)
+    nsteps = np.random.randint(5, 10)
+    for _ in range(nsteps-1):
+        path.append(state=space_info.allocState(), control=space_info.allocControl(), duration=0)
+    path.append(state=space_info.allocState())
+
+    # ~~ ACT ~~
+
+    # apply hovering thrust
+    true_duration = quadPropagator.propagate_path(
+        state=init_state,
+        control=control,
+        duration=req_dur,
+        path=path,
+        ret_true_duration = True
+    )
+
+    # ~~ ASSERT ~~
+
+    # check that init state is almost equal to resulting state because perfect hover
+    # subdur = dur/nsteps
+    cum_t = 0.0
+    for i in range(nsteps):
+        exp_p_z = 0.5 * climb_acc * cum_t**2
+        exp_v_z = climb_acc * cum_t
+        result_state = path.getState(i)
+        assert np.isclose(init_state[0][0], result_state[0][0])
+        assert np.isclose(init_state[0][1], result_state[0][1])
+        assert np.isclose(result_state[0][2], exp_p_z, rtol=5e-2)
+        assert np.isclose(init_state[1].x, result_state[1].x)
+        assert np.isclose(init_state[1].y, result_state[1].y)
+        assert np.isclose(init_state[1].z, result_state[1].z)
+        assert np.isclose(init_state[1].w, result_state[1].w)
+        assert np.isclose(init_state[2][0], result_state[2][0])
+        assert np.isclose(init_state[2][1], result_state[2][1])
+        assert np.isclose(result_state[2][2], exp_v_z, rtol=1e-2)
+        assert np.isclose(init_state[3][0], result_state[3][0])
+        assert np.isclose(init_state[3][1], result_state[3][1])
+        assert np.isclose(init_state[3][2], result_state[3][2])
+        if i < nsteps-1:
+            cum_t += path.getControlDurations()[i]
+
+    assert np.isclose(true_duration, cum_t)
+
 if __name__ == "__main__":
-    test_QuadrotorPyBulletStatePropagator_propagate_drift(None)
+    # test_QuadrotorPyBulletStatePropagator_propagate_drift(None)
+    test_QuadrotorPyBulletStatePropagator_propagate_path_climb(None)

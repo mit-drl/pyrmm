@@ -172,7 +172,7 @@ def test_QuadrotorPyBulletStatePropagator_propagate_hover(quadrotor_pybullet_pro
     assert np.isclose(init_state[3][2], result_state[3][2])
 
 def test_QuadrotorPyBulletStatePropagator_propagate_drift(quadrotor_pybullet_propagator):
-    '''Test that non-zero initial horizontal velocity drifts an known distance'''
+    '''Test that non-zero initial horizontal velocity drifts a known distance'''
 
     # ~~ ARRANGE ~~
 
@@ -190,7 +190,7 @@ def test_QuadrotorPyBulletStatePropagator_propagate_drift(quadrotor_pybullet_pro
         angularVelocity=[0.0, 0.0, 0.0],
         physicsClientId=quadPropagator.pbClientId)
 
-    # turn of linear damping for perfect drift
+    # turn off linear damping for perfect drift
     pb.changeDynamics(
         bodyUniqueId=quadPropagator.pbBodyId,
         linkIndex=-1,
@@ -255,14 +255,14 @@ def test_QuadrotorPyBulletStatePropagator_propagate_climb(quadrotor_pybullet_pro
     QD.copy_state_pb2ompl(quadPropagator.pbBodyId, quadPropagator.pbClientId, init_state)
     result_state = space_info.getStateSpace().allocState()
 
-    # turn of linear damping for no velocity damping
+    # turn off linear damping for no velocity damping
     pb.changeDynamics(
         bodyUniqueId=quadPropagator.pbBodyId,
         linkIndex=-1,
         linearDamping=0.0
     )
 
-    # calculate hovering thrust
+    # calculate climbing thrust
     climb_acc = -0.122648
     dur = 4.18569
     mass = 0.5  # see quadrotor.urdf
@@ -301,6 +301,65 @@ def test_QuadrotorPyBulletStatePropagator_propagate_climb(quadrotor_pybullet_pro
     assert np.isclose(init_state[3][0], result_state[3][0])
     assert np.isclose(init_state[3][1], result_state[3][1])
     assert np.isclose(init_state[3][2], result_state[3][2])
+
+
+def test_QuadrotorPyBulletStatePropagator_propagate_path_hover(quadrotor_pybullet_propagator):
+    '''Test that perfect hover thrust does not move the quadrotor using propagate_path'''
+
+    # ~~ ARRANGE ~~
+
+    # unpack fixture values
+    space_info, quadPropagator = quadrotor_pybullet_propagator
+
+    # create initial and resulting OMPL state objects
+    init_state = space_info.getStateSpace().allocState()
+    QD.copy_state_pb2ompl(quadPropagator.pbBodyId, quadPropagator.pbClientId, init_state)
+
+    # calculate hovering thrust
+    mass = 0.5  # see quadrotor.urdf
+    thrust = mass * U.GRAV_CONST
+    control = space_info.getControlSpace().allocControl()
+    control[0] = thrust
+    control[1] = 0.0
+    control[2] = 0.0
+    control[3] = 0.0
+
+    # create path object and alloc a randomized number of intermediate steps
+    path = oc.PathControl(space_info)
+    nsteps = np.random.randint(5, 100)
+    for _ in range(nsteps-1):
+        path.append(state=space_info.allocState(), control=space_info.allocControl(), duration=0)
+    path.append(state=space_info.allocState())
+
+    # ~~ ACT ~~
+
+    # apply hovering thrust
+    quadPropagator.propagate_path(
+        state = init_state,
+        control = control,
+        duration = 10.0,
+        path = path
+    )
+
+
+    # ~~ ASSERT ~~
+
+    # check that init state is almost equal to every state in path because hovering
+    for i in range(nsteps):
+        result_state = path.getState(i)
+        assert np.isclose(init_state[0][0], result_state[0][0])
+        assert np.isclose(init_state[0][1], result_state[0][1])
+        assert np.isclose(init_state[0][2], result_state[0][2])
+        assert np.isclose(init_state[1].x, result_state[1].x)
+        assert np.isclose(init_state[1].y, result_state[1].y)
+        assert np.isclose(init_state[1].z, result_state[1].z)
+        assert np.isclose(init_state[1].w, result_state[1].w)
+        assert np.isclose(init_state[2][0], result_state[2][0])
+        assert np.isclose(init_state[2][1], result_state[2][1])
+        assert np.isclose(init_state[2][2], result_state[2][2])
+        assert np.isclose(init_state[3][0], result_state[3][0])
+        assert np.isclose(init_state[3][1], result_state[3][1])
+        assert np.isclose(init_state[3][2], result_state[3][2])
 
 if __name__ == "__main__":
     test_QuadrotorPyBulletStatePropagator_propagate_drift(None)

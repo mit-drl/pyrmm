@@ -169,10 +169,18 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
             even when defined through an ODESolver; see:
             https://ompl.kavrakilab.org/RigidBodyPlanningWithODESolverAndControls_8py_source.html
             https://ompl.kavrakilab.org/classompl_1_1control_1_1StatePropagator.html#a4bf54becfce458e1e8abfa4a37ae8dff
-            Therefore we must implement an ODE solver ourselves.
-            This uses pybullet's built-in ode propagator.
+
+            This implementation uses pybullet's built-in ode propagator.
             Ref: https://github.com/utiasDSL/gym-pybullet-drones/blob/a4e165bcbeb9133bee4bf920fca3d1a170f7bba7/gym_pybullet_drones/envs/BaseAviary.py#L272
+
+            Due to PyBullet's fixed timestep implementation, the duration of propagation is approximate. There is likely to be a truncation or 
+            "under propagation"
         '''
+
+        # check that propagation is not too small of time for PyBullet
+        dt = pb.getPhysicsEngineParameters()['fixedTimeStep']
+        if dt > duration:
+            raise Exception("Duration of propagation is less than PyBullet's fixed timestep")
 
         # reset the pb body state based on propogation start state
         QD.copy_state_ompl2pb(
@@ -185,7 +193,6 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
         bounded_control = U.clip_control(controlSpace=self.__si.getControlSpace(), control=control)
 
         # call pybullet's simulator step, performs ode propagation
-        dt = pb.getPhysicsEngineParameters()['fixedTimeStep']
         t = 0.0
         while t < duration:
             # must reset external forces and torques after each sim step
@@ -220,10 +227,41 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
             This function is similar, but disctinct from 'StatePropagator.propagate', thus its different name to no overload `propagate`. 
             propagate does not store or return the path to get to result
             
-            Currently using scipy's odeint. This creates a dependency on scipy and is likely inefficient
-            because it's perform the numerical integration in python instead of C++. 
-            Could be improved later
+            This implementation uses pybullet's built-in ode propagator.
+            Ref: https://github.com/utiasDSL/gym-pybullet-drones/blob/a4e165bcbeb9133bee4bf920fca3d1a170f7bba7/gym_pybullet_drones/envs/BaseAviary.py#L272
         '''
-        raise NotImplementedError()
+
+        # unpack objects from space information for ease of use
+        sspace = self.__si.getStateSpace()
+        cspace = self.__si.getControlSpace()
+        nsteps = path.getStateCount()
+        pstates = path.getStates()
+        pcontrols = path.getControls()
+        ptimes = path.getControlDurations()
+        assert len(pstates) == nsteps
+        assert len(pcontrols) == len(ptimes) == nsteps-1
+        assert nsteps >= 2
+        assert duration > 0 and not np.isclose(duration, 0.0)
+
+        # compute duration of each substep
+        sub_dur = duration/(nsteps-1)
+
+        # clip the control to ensure it is within the control bounds
+        # and so that it can be stored in path's controls (can't be done in propagate func)
+        bounded_control = U.clip_control(controlSpace=cspace, control=control)
+
+        # set initial path state equal to initial state
+        sspace.copyState(destination=pstates[0], source=state)
+
+        # Call propagate on each step to get each intermediate point on path
+        for i in range(nsteps-1):
+            cspace.copyControl(destination=pcontrols[i], source=bounded_control)
+            ptimes[i] = sub_dur
+            self.propagate(
+                state=pstates[i],
+                control=pcontrols[i],
+                duration=ptimes[i],
+                result=pstates[i+1]
+            )
 
         

@@ -37,5 +37,15 @@ def task_function(cfg: Config):
     # instantiate quadrotor pybullet setup object
     quadpb_setup = getattr(obj, U.SYSTEM_SETUP)()
 
+    # load environment URDF
+    # TODO
+
+    # sample states in environment and compute risk metrics
+    # TODO
+
+if __name__ == "__main__":
+    task_function()
+
+
 
 

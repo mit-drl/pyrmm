@@ -1,4 +1,6 @@
 import hydra
+import pybullet as pb
+import pybullet_data as pbd
 
 from hydra.core.config_store import ConfigStore
 from hydra_zen import make_config, instantiate, builds
@@ -35,10 +37,11 @@ def task_function(cfg: Config):
     # TODO
 
     # instantiate quadrotor pybullet setup object
-    quadpb_setup = getattr(obj, U.SYSTEM_SETUP)()
+    quadpb_setup = getattr(obj, U.SYSTEM_SETUP)
 
     # load environment URDF
-    # TODO
+    pb.setAdditionalSearchPath(pbd.getDataPath())
+    bld_body_id = pb.loadURDF("samurai.urdf")
 
     # sample states in environment and compute risk metrics
     # TODO

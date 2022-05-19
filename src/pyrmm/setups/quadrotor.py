@@ -125,6 +125,31 @@ class QuadrotorPyBulletSetup(SystemSetup):
         else:
             return True
 
+    def observeLidar(self, state, range, angles):
+        ''' get simulated lidar data from ray casting at a given state
+        Args:
+            state : QD.QuadrotorState
+                state from which to make observation
+            range : float
+                range of each ray to cast [m]
+            angles : list(tuples)
+                list of tuples describing angle of each ray [rad] relative to body orientation
+                tuples give (polar,azimuth) angles.
+                See physics spherical coord convention: https://en.wikipedia.org/wiki/Spherical_coordinate_system#/media/File:3D_Spherical.svg
+        Returns:
+            observation : list-like
+                array giving observation values
+        '''
+
+        # Find ray endpoint in body-fixed coords
+
+        # Convert ray endpoint to world coords
+
+        # Call rayTestBatch with from and to endpoints
+
+        raise NotImplementedError()
+
+
 class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
 
     def __init__(self, pbBodyId, pbClientId, spaceInformation):

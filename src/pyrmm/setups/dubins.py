@@ -193,7 +193,7 @@ class DubinsPPMSetup(SystemSetup):
     def observeState(self, state):
         '''query observation from a particular state
         Args:
-            state : ompl.base.State
+            state : ob.SE2State
                 state from which to make observation
         Returns:
             observation : list-like

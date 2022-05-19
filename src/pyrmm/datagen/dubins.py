@@ -21,12 +21,6 @@ _CONFIG_NAME = "dubins_datagen_app"
 _SAVE_FNAME = U.format_save_filename(Path(__file__), _HASH_LEN)
 _REPO_PATH = U.get_repo_path()
 
-class Lidar():
-    def __init__(self, num_rays: int, resolution: float):
-        self.num_rays = num_rays
-        self.resolution = resolution
-        self.angles = np.linspace(0, 2*np.pi, num=num_rays, endpoint=False)
-
 def get_abs_path_str(rel_file_path):
     '''get absolute path of path relative to repo head'''
     return str(Path(_REPO_PATH).joinpath(rel_file_path))
@@ -39,16 +33,21 @@ pbuilds = make_custom_builds_fn(populate_full_signature=True)
 
 _DEFAULT_SPEED = 10.0
 _DEFAULT_MIN_TURN_RADIUS = 50.0
+_DEFAULT_LIDAR_RESOLUTION = 1.0
+_DEFAULT_LIDAR_NUM_RAYS = 8
 DubinsPPMSetupConfig = builds(DubinsPPMSetup,
-    speed=_DEFAULT_SPEED,
-    min_turn_radius=_DEFAULT_MIN_TURN_RADIUS,
+    speed = _DEFAULT_SPEED,
+    min_turn_radius = _DEFAULT_MIN_TURN_RADIUS,
+    lidar_resolution = _DEFAULT_LIDAR_RESOLUTION,
+    lidar_n_rays = _DEFAULT_LIDAR_NUM_RAYS,
     zen_partial=True
 )
 
 # Lidar config
-_DEFUALT_LIDAR_NUM_RAYS = 8
-_DEFAULT_LIDAR_RESOLUTION = 1.0
-LidarConfig = pbuilds(Lidar, num_rays=_DEFUALT_LIDAR_NUM_RAYS, resolution=_DEFAULT_LIDAR_RESOLUTION)
+# _DEFUALT_LIDAR_NUM_RAYS = 8
+# _DEFAULT_LIDAR_RESOLUTION = 1.0
+# LidarConfig = pbuilds(Lidar, num_rays=_DEFUALT_LIDAR_NUM_RAYS, resolution=_DEFAULT_LIDAR_RESOLUTION)
+
 
 # Default sampler and risk estimator configs
 _DEFAULT_N_SAMPLES = 2048
@@ -71,7 +70,6 @@ make_config_input = {
     U.POLICY: zf(str,_DEFAULT_POLICY),
     U.N_CORES: zf(int, multiprocess.cpu_count()),
     'maxtasks': zf(int,_DEFAULT_MAXTASKS),
-    'lidar': LidarConfig
 }
 Config = make_config('ppm_dir', **make_config_input)
 ConfigStore.instance().store(_CONFIG_NAME,Config)

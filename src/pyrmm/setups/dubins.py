@@ -19,7 +19,7 @@ from pyrmm.utils.utils import is_pixel_free_space
 class DubinsPPMSetup(SystemSetup):
     ''' Dubins car with ppm file for obstacle configuration space
     '''
-    def __init__(self, ppm_file, speed, min_turn_radius):
+    def __init__(self, ppm_file, speed, min_turn_radius, lidar_resolution=None, lidar_n_rays=None):
         '''
         Args:
             ppm_file : str
@@ -28,6 +28,11 @@ class DubinsPPMSetup(SystemSetup):
                 tangential speed of dubins vehicle
             min_turn_radius : float
                 minimum turning radius of the dubins vehicle
+            lidar_resolution : float
+                step length of ray for validity checking (i.e. obstacle collision)
+            lidar_n_rays : int
+                number of lidar rays to be evenly spaced from 0 to 2pi
+            
         '''
 
         assert speed > 0
@@ -37,10 +42,18 @@ class DubinsPPMSetup(SystemSetup):
         self.ppm_file = ppm_file
         self.speed = speed
         self.min_turn_radius = min_turn_radius
+        self.lidar_resolution = lidar_resolution
+        self.lidar_n_rays = lidar_n_rays
 
         # generate configuration space from ppm file
         self.ppm_config_space = ou.PPM()
         self.ppm_config_space.loadFile(self.ppm_file)
+
+        # compute lidar angles
+        if lidar_resolution is not None and lidar_n_rays is not None:
+            self.lidar_angles = np.linspace(0, 2*np.pi, num=lidar_n_rays, endpoint=False)
+        else:
+            self.lidar_angles = None
 
         # create state space and set bounds
         # state_space = ob.DubinsStateSpace(turningRadius=turning_radius)
@@ -176,6 +189,21 @@ class DubinsPPMSetup(SystemSetup):
             ray_length += resolution
 
         return ray_length
+
+    def observeState(self, state):
+        '''query observation from a particular state
+        Args:
+            state : ompl.base.State
+                state from which to make observation
+        Returns:
+            observation : list-like
+                array giving observation values
+        '''
+        assert self.lidar_resolution is not None
+        assert self.lidar_resolution > 0
+        assert self.lidar_angles is not None
+        assert len(self.lidar_angles) > 0
+        return [self.cast_ray(state, theta, self.lidar_resolution) for theta in self.lidar_angles]
 
     def dummyRiskMetric(self, state, trajectory, distance, branch_fact, depth, n_steps, policy='uniform_random', samples=None):
         '''A stand-in for the actual risk metric estimator used for model training testing purposes

@@ -1,15 +1,21 @@
 import hydra
+import time
 import pybullet as pb
 import pybullet_data as pbd
 
+from pathlib import Path
 from hydra.core.config_store import ConfigStore
 from hydra_zen import make_config, instantiate, builds
 
 import pyrmm.utils.utils as U
+from pyrmm.datagen.sampler import sample_risk_metrics
 from pyrmm.setups.quadrotor import QuadrotorPyBulletSetup
 
 
+_HASH_LEN = 5
 _CONFIG_NAME = "quadrotor_datagen_app"
+
+_SAVE_FNAME = U.format_save_filename(Path(__file__), _HASH_LEN)
 
 ##############################################
 ############# HYDARA-ZEN CONFIGS #############
@@ -44,7 +50,10 @@ def task_function(cfg: Config):
     bld_body_id = pb.loadURDF("samurai.urdf")
 
     # sample states in environment and compute risk metrics
-    # TODO
+    t_start = time.time()
+    sample_risk_metrics(sysset=quadpb_setup, cfg_obj=obj, save_name=_SAVE_FNAME)
+    print("\nTotal elapsed time: {:.2f}".format(time.time()-t_start))
+
 
 if __name__ == "__main__":
     task_function()

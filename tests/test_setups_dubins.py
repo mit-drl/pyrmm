@@ -832,6 +832,83 @@ def test_hypothesis_DubinsPPMSetup_cast_ray(x0, y0, yaw0, theta, res):
     assert np.greater_equal(l, exp_l-res)
     assert np.less_equal(l, exp_l+res)
 
+@given(
+    st.floats(min_value=-1e3, max_value=1e3, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=-1e3, max_value=1e3, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=-10*np.pi, max_value=10*np.pi, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=1e-3, max_value=100, allow_nan=False, allow_infinity=False),
+    st.integers(min_value=1, max_value=16)
+)
+def test_hypothesis_DubinsPPMSetup_observeState(x0, y0, yaw0, res, n_rays):
+    '''check observation for expected lengths'''
+
+    # ~~~ ARRANGE ~~~
+
+    # create system setup
+    ds = DubinsPPMSetup(PPM_BORDER_FILE, speed=1.0, min_turn_radius=1.0, lidar_resolution=res, lidar_n_rays=n_rays)
+
+    # create sampling point
+    s = ds.space_info.allocState()
+    s.setX(x0)
+    s.setY(y0)
+    s.setYaw(yaw0)
+
+    # specify known obstacles
+    xlow = 25
+    xhigh = 615
+    ylow = 25
+    yhigh = 375
+
+    # ~~~ ACT ~~~
+    # get ray cast observations
+    obs = ds.observeState(s)
+
+    for i, obsi in enumerate(obs):
+
+        # get angle of i-th observation ray
+        theta = i * 2*np.pi/n_rays
+
+        # compute expected ray length
+        ray_head = yaw0 + theta
+        ray_vec = np.array([np.cos(ray_head), np.sin(ray_head)])
+        x_vec = np.array([1,0])
+        y_vec = np.array([0,1])
+        th_x = np.arccos(np.dot(x_vec, ray_vec))
+        th_y = np.arccos(np.dot(y_vec, ray_vec))
+
+        if x0 <= xlow or x0 >= xhigh or y0 <= ylow or y0 >= yhigh:
+            exp_l = 0.0
+
+        else:
+            if th_x < np.pi/2:
+                # intersects xhigh
+                exp_l_x = (xhigh-x0)/np.cos(th_x)
+
+            elif th_x > np.pi/2:
+                # intersects xlow
+                exp_l_x = (x0-xlow)/np.cos(np.pi-th_x)
+            else:
+                exp_l_x = np.inf
+
+            if th_y < np.pi/2:
+                # intersect yhigh
+                exp_l_y = (yhigh-y0)/np.cos(th_y)
+
+            elif th_y > np.pi/2:
+                # intersect ylow
+                exp_l_y = (y0-ylow)/np.cos(np.pi-th_y)
+
+            else:
+                exp_l_y = np.inf
+
+            exp_l = np.min([exp_l_x, exp_l_y])
+
+
+        # ~~~ ASSERT ~~~
+        assert np.greater_equal(obsi, 0.0)
+        assert np.greater_equal(obsi, exp_l-res)
+        assert np.less_equal(obsi, exp_l+res)
+
 def test_DubinsPPMSetup_isPathValid_0():
     '''basic check that path through thin obstacle is invalid'''
 

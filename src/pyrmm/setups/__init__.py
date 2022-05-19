@@ -193,4 +193,15 @@ class SystemSetup:
 
         # Evaluate the risk metric
         return self.risk_fn(risk_vals)
+
+    def observeState(self, state):
+        '''query observation from a particular state
+        Args:
+            state : ompl.base.State
+                state from which to make observation
+        Returns:
+            observation : ndarray
+                array giving observation values
+        '''
+        raise NotImplementedError('To be implemented by child class')
         

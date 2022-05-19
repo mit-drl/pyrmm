@@ -36,8 +36,8 @@ def sample_risk_metrics(sysset: SystemSetup, cfg_obj, save_name: str):
         states[i] = sysset.space_info.allocState()
         sampler.sampleUniform(states[i])
 
-        # get ray casts for sampled state
-        observations[i] = [sysset.cast_ray(states[i], theta, cfg_obj.lidar.resolution) for theta in cfg_obj.lidar.angles] 
+        # get observation from state
+        observations[i] = sysset.observeState(states[i])
 
         if i%_MONITOR_RATE ==  0:
             print("State sampling and ray casting: completed {} of {}".format(i, len(states)))

@@ -150,10 +150,19 @@ def test_QuadrotorPyBulletSetup_observeLidar_0(quadrotor_pybullet_setup):
         ornObj = initOrn,
         physicsClientId = qpbsetup.pbClientId
     )
+    s0 = qpbsetup.space_info.allocState()
+    QD.copy_state_pb2ompl(
+        pbBodyId=qpbsetup.pbBodyId,
+        pbClientId=qpbsetup.pbClientId,
+        omplState=s0
+    )
 
     # ~~ ACT ~~
     # observe lidar ray casts
-    ray = qpbsetup.observeLidar(None, range = 100, angles=[(np.pi, 0.0)])[0]
+    ray = qpbsetup.observeLidar(
+        state = s0,
+        ray_range = 100, 
+        ray_angles=[(np.pi, 0.0)])[0]
 
     # ~~ ASSERT ~~
 
@@ -175,7 +184,7 @@ def test_QuadrotorPyBulletSetup_observeLidar_0(quadrotor_pybullet_setup):
 #     y = st.floats(min_value=-10, max_value=10, allow_nan=False),
 # )
 def test_QuadrotorPyBulletSetup_observeLidar_1(quadrotor_pybullet_setup):
-    '''check that ray cast to ground is of expected length'''
+    '''check that batch of rays cast to ground is of expected length, others don't intersect'''
 
     # ~~ ARRANGE ~~
 
@@ -226,7 +235,6 @@ def test_QuadrotorPyBulletSetup_observeLidar_1(quadrotor_pybullet_setup):
     
     # ~~ ACT ~~
     # observe lidar ray casts
-    ray_range=100
     rays = qpbsetup.observeLidar(s0, ray_range=ray_range, ray_angles=angles)
 
     # ~~ ASSERT ~~
@@ -264,7 +272,91 @@ def test_QuadrotorPyBulletSetup_observeLidar_1(quadrotor_pybullet_setup):
         assert ray[1] == -1
         assert np.isclose(ray[2], 1.0)
 
+def test_QuadrotorPyBulletSetup_observeLidar_2(quadrotor_pybullet_setup):
+    '''check ray casts intersect with ground given arbitrary pos and orientation'''
 
+    # ~~ ARRANGE ~~
+
+    # get quadrotor setup object
+    if quadrotor_pybullet_setup is None:
+        qpbsetup = QuadrotorPyBulletSetup()
+    else:
+        qpbsetup = quadrotor_pybullet_setup
+
+    # load in floor plane to environment (from pybullet_data)
+    pb.setAdditionalSearchPath(pbd.getDataPath())
+    floorBodyId = pb.loadURDF("plane100.urdf")
+
+    # ranomized but fixed position and orientation
+    px = -7.502776
+    py = -0.88515
+    pz = 4.2003
+    p_bu_wu__wu = (px, py, pz)
+    roll = 0.9385
+    pitch = -1.4110
+    yaw = -0.0880
+    q_bu_wu = pb.getQuaternionFromEuler(eulerAngles=(roll, pitch, yaw))
+    
+    # compute rotation matrix from body to world
+    R_bu2wu = np.array(pb.getMatrixFromQuaternion(q_bu_wu)).reshape(3,3)
+
+    # set pybullet and ompl state
+    pb.resetBasePositionAndOrientation(qpbsetup.pbBodyId, p_bu_wu__wu, q_bu_wu, qpbsetup.pbClientId)
+    s0 = qpbsetup.space_info.allocState()
+    QD.copy_state_pb2ompl(
+        pbBodyId=qpbsetup.pbBodyId,
+        pbClientId=qpbsetup.pbClientId,
+        omplState=s0
+    )
+
+    # create lidar ray angles
+    ray_range = 100
+    ray_angles = [
+        (np.pi/2, 0),
+        (np.pi/2, np.pi/2),
+        (np.pi/2, np.pi),
+        (np.pi/2, 3*np.pi/2),
+        (0,0),
+        (np.pi,0)
+    ]
+    n_rays = len(ray_angles)
+
+    # unit vectors of rays in body coords
+    ray_unit_vectors__bu = [
+        (1,0,0),
+        (0,1,0),
+        (-1,0,0),
+        (0,-1,0),
+        (0,0,1),
+        (0,0,-1)
+    ]
+
+    # ~~ ACT ~~
+    # observe lidar ray casts
+    rays = qpbsetup.observeLidar(s0, ray_range=ray_range, ray_angles=ray_angles)
+
+    # ~~ ASSERT ~~
+    # based on randomized orientation, rays that are expected to intersect ground
+    intersect_rays = [2,3,5]
+    nonintersect_rays = [0,1,4]
+
+    for i in intersect_rays:
+        assert rays[i][0] == floorBodyId
+
+        # unit vector of ray in world-up coords
+        ru__wu = np.matmul(R_bu2wu, np.array(ray_unit_vectors__bu[i]).reshape(3,1))
+        
+        # compute expected length to intersect
+        l_exp = abs(pz)/np.dot([0,0,-1], ru__wu)[0]
+
+        # check ray length fraction
+        assert np.isclose(rays[i][2], l_exp/ray_range, rtol=1e-3)
+
+
+    # check rays not expected to intersect ground
+    for i in nonintersect_rays:
+        assert rays[i][0] == -1
+        assert np.isclose(rays[i][2], 1.0)
 
 def test_QuadrotorPyBulletStatePropagator_propagate_hover(quadrotor_pybullet_propagator):
     '''Test that perfect hover thrust does not move the quadrotor'''
@@ -586,4 +678,4 @@ def test_QuadrotorPyBulletStatePropagator_propagate_path_climb(quadrotor_pybulle
 if __name__ == "__main__":
     # test_QuadrotorPyBulletStatePropagator_propagate_drift(None)
     # test_QuadrotorPyBulletStatePropagator_propagate_path_climb(None)
-    test_QuadrotorPyBulletSetup_observeLidar_1(None)
+    test_QuadrotorPyBulletSetup_observeLidar_2(None)

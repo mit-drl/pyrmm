@@ -141,13 +141,28 @@ class QuadrotorPyBulletSetup(SystemSetup):
                 array giving observation values
         '''
 
-        # Find ray endpoint in body-fixed coords
+        # n_rays = len(angles)
 
-        # Convert ray endpoint to world coords
+        # position of ray endpoint relative to quadrotor body, experessed in quad body-up coords
+        # p_end_bu__bu = n_rays * [None]
+        p_frm_bu__bu = len(angles) * [(0.0, 0.0, 0.0)]
+        p_to_bu__bu = [U.spherical_to_cartesian(rho=range, theta=ang[0], phi=ang[1]) for ang in angles]
+
+        # for i, ang in enumerate(angles):
+        #     # Find ray endpoint in body-fixed cartesian coords
+        #     p_end_bu__bu[i] = U.spherical_to_cartesian(rho=range, theta=ang[0], phi=ang[1])
+
+            # Convert ray endpoint to world coords
 
         # Call rayTestBatch with from and to endpoints
+        ray_casts = pb.rayTestBatch(
+            rayFromPositions = p_frm_bu__bu,
+            rayToPositions = p_to_bu__bu,
+            parentObjectUniqueId = self.pbBodyId,
+            parentLinkIndex = -1,
+            physicsClientId = self.pbClientId)
 
-        raise NotImplementedError()
+        return ray_casts
 
 
 class QuadrotorPyBulletStatePropagator(oc.StatePropagator):

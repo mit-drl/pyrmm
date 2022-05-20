@@ -29,6 +29,35 @@ N_CORES = 'n_cores'
 
 GRAV_CONST = 9.81 # m/s**2
 
+def spherical_to_cartesian(rho:float, theta:float, phi:float):
+    '''convert shperical coords to cartesian coords
+    Uses physics-standard convention: (radius, polar angle, azimuthal angle)
+
+    Ref: 
+        https://en.wikipedia.org/wiki/Spherical_coordinate_system#Coordinate_system_conversions
+
+    Args:
+        rho : float
+            radius from origin
+        theta : float
+            polar angle from z-axis [rad]
+        phi : float
+            azimuthal angle from x-axis [rad]
+
+    Returns:
+        x, y, z : float
+    
+    '''
+    assert rho >= 0.0
+    assert theta >= 0.0 and theta <= np.pi
+    assert phi >= 0.0 and phi <= 2* np.pi
+
+    x = rho * np.cos(phi) * np.sin(theta)
+    y = rho * np.sin(phi) * np.sin(theta)
+    z = rho * np.cos(theta)
+
+    return (x, y, z)
+
 def clip_control(controlSpace, control):
         '''clip control to control space bounds'''
         bounded_control = controlSpace.allocControl()

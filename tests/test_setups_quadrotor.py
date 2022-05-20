@@ -121,6 +121,53 @@ def test_QuadrotorPyBulletSetup_state_checker_1(quadrotor_pybullet_setup):
     # ~~ ASSERT ~~
     assert not is_valid
 
+def test_QuadrotorPyBulletSetup_observeLidar_0(quadrotor_pybullet_setup):
+    '''check that ray cast to ground is of expected length'''
+
+    # ~~ ARRANGE ~~
+
+    # get quadrotor setup object
+    if quadrotor_pybullet_setup is None:
+        qpbsetup = QuadrotorPyBulletSetup()
+    else:
+        qpbsetup = quadrotor_pybullet_setup
+
+    # load in floor plane to environment (from pybullet_data)
+    pb.setAdditionalSearchPath(pbd.getDataPath())
+    floorBodyId = pb.loadURDF("plane100.urdf")
+
+    # Set quadrotor pybullet state to known position
+    xpos = 13.4078
+    ypos = -36.29397
+    zpos = 10.0
+    initPos, initOrn = pb.getBasePositionAndOrientation(qpbsetup.pbBodyId)
+    pb.resetBasePositionAndOrientation(
+        bodyUniqueId = qpbsetup.pbBodyId,
+        posObj = [xpos, ypos, zpos],
+        ornObj = initOrn,
+        physicsClientId = qpbsetup.pbClientId
+    )
+
+    # ~~ ACT ~~
+    # observe lidar ray casts
+    ray = qpbsetup.observeLidar(None, range = 100, angles=[(np.pi, 0.0)])[0]
+
+    # ~~ ASSERT ~~
+
+    # check that body hit is the floor
+    assert ray[0] == floorBodyId
+    assert ray[1] == -1
+
+    # check that hit fraction is 1/10 of ray length  
+    # quadrotor is 10 m above ground and ray is 100 m long
+    assert np.isclose(ray[2], 0.1, rtol=1e-4)
+
+    # check world position of hit
+    assert np.isclose(ray[3][0], xpos)
+    assert np.isclose(ray[3][1], ypos)
+    assert np.isclose(ray[3][2], 0.0, atol=1e-3)
+
+
 def test_QuadrotorPyBulletStatePropagator_propagate_hover(quadrotor_pybullet_propagator):
     '''Test that perfect hover thrust does not move the quadrotor'''
 

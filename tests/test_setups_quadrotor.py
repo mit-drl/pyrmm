@@ -5,6 +5,9 @@ import numpy as np
 import pybullet as pb
 import pybullet_data as pbd
 
+from hypothesis import given
+from hypothesis import strategies as st
+
 from ompl import control as oc
 
 import pyrmm.utils.utils as U
@@ -166,6 +169,101 @@ def test_QuadrotorPyBulletSetup_observeLidar_0(quadrotor_pybullet_setup):
     assert np.isclose(ray[3][0], xpos)
     assert np.isclose(ray[3][1], ypos)
     assert np.isclose(ray[3][2], 0.0, atol=1e-3)
+
+# @given(
+#     x = st.floats(min_value=-10, max_value=10, allow_nan=False),
+#     y = st.floats(min_value=-10, max_value=10, allow_nan=False),
+# )
+def test_QuadrotorPyBulletSetup_observeLidar_1(quadrotor_pybullet_setup):
+    '''check that ray cast to ground is of expected length'''
+
+    # ~~ ARRANGE ~~
+
+    # get quadrotor setup object
+    if quadrotor_pybullet_setup is None:
+        qpbsetup = QuadrotorPyBulletSetup()
+    else:
+        qpbsetup = quadrotor_pybullet_setup
+
+    # load in floor plane to environment (from pybullet_data)
+    pb.setAdditionalSearchPath(pbd.getDataPath())
+    floorBodyId = pb.loadURDF("plane100.urdf")
+
+    # create OMPL state to ray cast from
+    x = -5.03267
+    y = 6.637698
+    z = 1.0
+    s0 = qpbsetup.space_info.allocState()
+    QD.copy_state_pb2ompl(
+        pbBodyId=qpbsetup.pbBodyId,
+        pbClientId=qpbsetup.pbClientId,
+        omplState=s0
+    )
+    s0[0][0] = x
+    s0[0][1] = y
+    s0[0][2] = z
+
+    # create lidar ray angles
+    ray_range = 100
+    angles = [
+        (np.pi, 0),
+        (3*np.pi/4, 0),
+        (3*np.pi/4, np.pi/4),
+        (3*np.pi/4, np.pi/2),
+        (3*np.pi/4, 3*np.pi/4),
+        (3*np.pi/4, np.pi),
+        (3*np.pi/4, 5*np.pi/4),
+        (3*np.pi/4, 3*np.pi/2),
+        (3*np.pi/4, 7*np.pi/4),
+        (3*np.pi/4, 2*np.pi),
+        (np.pi/2, 0),
+        (np.pi/2, np.pi/2),
+        (np.pi/2, np.pi),
+        (np.pi/2, 3*np.pi/2),
+        (0,0) 
+    ]
+    n_rays = len(angles)
+    
+    # ~~ ACT ~~
+    # observe lidar ray casts
+    ray_range=100
+    rays = qpbsetup.observeLidar(s0, ray_range=ray_range, ray_angles=angles)
+
+    # ~~ ASSERT ~~
+
+    # check rays that should intersect floor
+    # check that body hit is the floor
+    assert rays[0][0] == floorBodyId
+    assert rays[0][1] == -1
+
+    # check that hit fraction is 1/10 of ray length  
+    # quadrotor is 10 m above ground and ray is 100 m long
+    assert np.isclose(rays[0][2], 0.01, rtol=1e-3)
+
+    # check world position of hit
+    assert np.isclose(rays[0][3][0], x)
+    assert np.isclose(rays[0][3][1], y)
+    assert np.isclose(rays[0][3][2], 0.0, atol=1e-3)
+
+    # check rays that intersect ground
+    for i in range(1,10):
+        ray = rays[i]
+        ang = angles[i]
+        assert ray[0] == floorBodyId
+        assert ray[1] == -1
+        assert np.isclose(ray[2], z/(np.cos(np.pi-ang[0]) * ray_range), rtol=1e-3)
+        assert np.isclose(ray[3][0], x + z * np.tan(np.pi-ang[0]) * np.cos(ang[1]), rtol=1e-3)
+        assert np.isclose(ray[3][1], y + z * np.tan(np.pi-ang[0]) * np.sin(ang[1]), rtol=1e-3)
+        assert np.isclose(ray[3][2], 0.0, atol=1e-3)
+
+    # check rays that don't intersect ground
+    for i in range(10,n_rays):
+        ray = rays[i]
+        ang = angles[i]
+        assert ray[0] == -1
+        assert ray[1] == -1
+        assert np.isclose(ray[2], 1.0)
+
 
 
 def test_QuadrotorPyBulletStatePropagator_propagate_hover(quadrotor_pybullet_propagator):
@@ -487,4 +585,5 @@ def test_QuadrotorPyBulletStatePropagator_propagate_path_climb(quadrotor_pybulle
 
 if __name__ == "__main__":
     # test_QuadrotorPyBulletStatePropagator_propagate_drift(None)
-    test_QuadrotorPyBulletStatePropagator_propagate_path_climb(None)
+    # test_QuadrotorPyBulletStatePropagator_propagate_path_climb(None)
+    test_QuadrotorPyBulletSetup_observeLidar_1(None)

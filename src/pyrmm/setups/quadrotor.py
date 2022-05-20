@@ -125,7 +125,7 @@ class QuadrotorPyBulletSetup(SystemSetup):
         else:
             return True
 
-    def observeLidar(self, state, range, angles):
+    def observeLidar(self, state, ray_range, ray_angles):
         ''' get simulated lidar data from ray casting at a given state
         Args:
             state : QD.QuadrotorState
@@ -141,23 +141,22 @@ class QuadrotorPyBulletSetup(SystemSetup):
                 array giving observation values
         '''
 
-        # n_rays = len(angles)
+        n_rays = len(ray_angles)
 
-        # position of ray endpoint relative to quadrotor body, experessed in quad body-up coords
-        # p_end_bu__bu = n_rays * [None]
-        p_frm_bu__bu = len(angles) * [(0.0, 0.0, 0.0)]
-        p_to_bu__bu = [U.spherical_to_cartesian(rho=range, theta=ang[0], phi=ang[1]) for ang in angles]
+        # update pybullet state with ompl state
+        QD.copy_state_ompl2pb(
+            pbBodyId = self.pbBodyId, 
+            pbClientId = self.pbClientId,
+            omplState = state)
 
-        # for i, ang in enumerate(angles):
-        #     # Find ray endpoint in body-fixed cartesian coords
-        #     p_end_bu__bu[i] = U.spherical_to_cartesian(rho=range, theta=ang[0], phi=ang[1])
-
-            # Convert ray endpoint to world coords
+        # position of ray endpoints relative to quadrotor body, experessed in quad body-up coords
+        p_ri_bu__bu = n_rays * [(0.0, 0.0, 0.0)]
+        p_rf_bu__bu = [U.spherical_to_cartesian(rho=ray_range, theta=ang[0], phi=ang[1]) for ang in ray_angles]
 
         # Call rayTestBatch with from and to endpoints
         ray_casts = pb.rayTestBatch(
-            rayFromPositions = p_frm_bu__bu,
-            rayToPositions = p_to_bu__bu,
+            rayFromPositions = p_ri_bu__bu,
+            rayToPositions = p_rf_bu__bu,
             parentObjectUniqueId = self.pbBodyId,
             parentLinkIndex = -1,
             physicsClientId = self.pbClientId)

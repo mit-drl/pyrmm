@@ -22,7 +22,7 @@ Ref: https://github.com/utiasDSL/gym-pybullet-drones/blob/master/gym_pybullet_dr
 # m = marker frame (inertial or non-inertial, depending on motion of marker. Origin: center of marker. Alignment when looking at marker: x-right, y-up, z-out of plane toward you)
 
 """
-
+import copyreg
 import pybullet as pb
 from ompl import base as ob
 from ompl import control as oc
@@ -35,6 +35,47 @@ class QuadrotorStateSpace(ob.CompoundStateSpace):
         self.addSubspace(ob.SO3StateSpace(), 1.0)           # orientation
         self.addSubspace(ob.RealVectorStateSpace(3), 1.0)   # velocity
         self.addSubspace(ob.RealVectorStateSpace(3), 1.0)   # angular velocity
+
+_DUMMY_QUADROTORSPACE = QuadrotorStateSpace()
+
+def _pickle_QuadrotorState(state):
+    '''pickle QuadrotorState (OMPL compound state) object'''
+    px = state[0][0]
+    py = state[0][1]
+    pz = state[0][2]
+    qx = state[1].x
+    qy = state[1].y
+    qz = state[1].z
+    qw = state[1].w
+    vx = state[2][0]
+    vy = state[2][1]
+    vz = state[2][2]
+    wx = state[3][0]
+    wy = state[3][1]
+    wz = state[3][2]
+    return _unpickle_QuadrotorState, (px,py,pz,qx,qy,qz,qw,vx,vy,vz,wx,wy,wz)
+
+def _unpickle_QuadrotorState(px,py,pz,qx,qy,qz,qw,vx,vy,vz,wx,wy,wz):
+    '''unpickle QuadrotorState (OMPL compound state) object'''
+    state = _DUMMY_QUADROTORSPACE.allocState()
+    state[0][0] = px
+    state[0][1] = py
+    state[0][2] = pz
+    state[1].x = qx
+    state[1].y = qy
+    state[1].z = qz
+    state[1].w = qw
+    state[2][0] = vx
+    state[2][1] = vy
+    state[2][2] = vz
+    state[3][0] = wx
+    state[3][1] = wy
+    state[3][2] = wz
+    return state
+
+def update_pickler_quadrotorstate():
+    '''updates pickler to enable pickling and unpickling of ompl objects'''
+    copyreg.pickle(_DUMMY_QUADROTORSPACE.allocState().__class__, _pickle_QuadrotorState, _unpickle_QuadrotorState)
 
 class QuadrotorThrustMomentControlSpace(oc.RealVectorControlSpace):
     '''Quadrotor control via body z-axis thrust and moments'''

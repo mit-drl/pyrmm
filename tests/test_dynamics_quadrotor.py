@@ -1,5 +1,6 @@
 import pytest
 import pathlib
+import pickle
 import numpy as np
 import pybullet as pb
 
@@ -123,5 +124,41 @@ def test_copy_state_2(pybullet_copy_state):
     assert np.allclose(vel, vel0)
     assert np.allclose(angv, angv0)
 
+def test_update_pickler_quadrotorstate_0(pybullet_copy_state):
+    '''test QuadrotorStateSpace state can be pickled and reproduced'''
+
+    # ~~ ARRANGE ~~
+    if pybullet_copy_state is None:
+        pbClientId, pbQuadBodyId, omplState = get_pybullet_copy_state_objects()
+    else:
+        pbClientId, pbQuadBodyId, omplState = pybullet_copy_state
+
+    # set pre-specified random state
+    pos0 = [-3.83344849, -3.5406428 ,  2.06718344]
+    eul0 = [6.24745327, 6.26306319, 0.59214794]
+    quat0 = pb.getQuaternionFromEuler(eul0)
+    vel0 = [3.43719412, 2.46519465, 1.83673987]
+    angv0 = [ 0.80282335,  0.97132736, -0.50887632]
+    pb.resetBasePositionAndOrientation(pbQuadBodyId, pos0, quat0, pbClientId)
+    pb.resetBaseVelocity(pbQuadBodyId, vel0, angv0, pbClientId)
+
+    # copy pb state to ompl
+    QD.copy_state_pb2ompl(pbClientId=pbClientId, pbBodyId=pbQuadBodyId, omplState=omplState)
+
+    # ~~ ACT ~~
+    # update pickler
+    QD.update_pickler_quadrotorstate()
+
+    # pickle and unpickle ompl state
+    omplState_copy = pickle.loads(pickle.dumps(omplState))
+
+    # ~~ ASSERT ~~
+    assert np.allclose(pos0, [omplState_copy[0][i] for i in range(3)])
+    qc = omplState_copy[1]
+    assert np.allclose(quat0, [qc.x, qc.y, qc.z, qc.w])
+    assert np.allclose(vel0, [omplState_copy[2][i] for i in range(3)])
+    assert np.allclose(angv0, [omplState_copy[3][i] for i in range(3)])
+
 if __name__ == "__main__":
-    test_copy_state_2(None)
+    # test_copy_state_2(None)
+    test_update_pickler_quadrotorstate_0(None)

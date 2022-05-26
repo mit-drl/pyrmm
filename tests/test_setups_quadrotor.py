@@ -56,7 +56,7 @@ def quadrotor_pybullet_propagator():
     pb.disconnect()
 
 @pytest.fixture
-def quadrotor_pybullet_setup():
+def quadrotor_pybullet_setup_no_lidar():
     # ~~ ARRANGE ~~
     qpbsetup = QuadrotorPyBulletSetup()
 
@@ -68,16 +68,16 @@ def quadrotor_pybullet_setup():
     pb.disconnect()
 
 
-def test_QuadrotorPyBulletSetup_state_checker_0(quadrotor_pybullet_setup):
+def test_QuadrotorPyBulletSetup_state_checker_0(quadrotor_pybullet_setup_no_lidar):
     '''test that simple, initial state in empty environment has no collisions'''
 
     # ~~ ARRANGE ~~
 
     # get quadrotor setup object
-    if quadrotor_pybullet_setup is None:
+    if quadrotor_pybullet_setup_no_lidar is None:
         qpbsetup = QuadrotorPyBulletSetup()
     else:
-        qpbsetup = quadrotor_pybullet_setup
+        qpbsetup = quadrotor_pybullet_setup_no_lidar
 
     # get initial state from pybullet
     s0 = qpbsetup.space_info.allocState()
@@ -94,16 +94,16 @@ def test_QuadrotorPyBulletSetup_state_checker_0(quadrotor_pybullet_setup):
     # ~~ ASSERT ~~
     assert is_valid
 
-def test_QuadrotorPyBulletSetup_state_checker_1(quadrotor_pybullet_setup):
+def test_QuadrotorPyBulletSetup_state_checker_1(quadrotor_pybullet_setup_no_lidar):
     '''test that collision with floor plane causes invalid state'''
 
     # ~~ ARRANGE ~~
 
     # get quadrotor setup object
-    if quadrotor_pybullet_setup is None:
+    if quadrotor_pybullet_setup_no_lidar is None:
         qpbsetup = QuadrotorPyBulletSetup()
     else:
-        qpbsetup = quadrotor_pybullet_setup
+        qpbsetup = quadrotor_pybullet_setup_no_lidar
 
     # load in floor plane to environment (from pybullet_data)
     pb.setAdditionalSearchPath(pbd.getDataPath())
@@ -124,16 +124,16 @@ def test_QuadrotorPyBulletSetup_state_checker_1(quadrotor_pybullet_setup):
     # ~~ ASSERT ~~
     assert not is_valid
 
-def test_QuadrotorPyBulletSetup_observeLidar_0(quadrotor_pybullet_setup):
+def test_QuadrotorPyBulletSetup_observeLidar_0(quadrotor_pybullet_setup_no_lidar):
     '''check that ray cast to ground is of expected length'''
 
     # ~~ ARRANGE ~~
 
     # get quadrotor setup object
-    if quadrotor_pybullet_setup is None:
+    if quadrotor_pybullet_setup_no_lidar is None:
         qpbsetup = QuadrotorPyBulletSetup()
     else:
-        qpbsetup = quadrotor_pybullet_setup
+        qpbsetup = quadrotor_pybullet_setup_no_lidar
 
     # load in floor plane to environment (from pybullet_data)
     pb.setAdditionalSearchPath(pbd.getDataPath())
@@ -161,7 +161,7 @@ def test_QuadrotorPyBulletSetup_observeLidar_0(quadrotor_pybullet_setup):
     # observe lidar ray casts
     ray = qpbsetup.observeLidar(
         state = s0,
-        ray_range = 100, 
+        ray_range = 100,
         ray_angles=[(np.pi, 0.0)])[0]
 
     # ~~ ASSERT ~~
@@ -183,16 +183,16 @@ def test_QuadrotorPyBulletSetup_observeLidar_0(quadrotor_pybullet_setup):
 #     x = st.floats(min_value=-10, max_value=10, allow_nan=False),
 #     y = st.floats(min_value=-10, max_value=10, allow_nan=False),
 # )
-def test_QuadrotorPyBulletSetup_observeLidar_1(quadrotor_pybullet_setup):
+def test_QuadrotorPyBulletSetup_observeLidar_1(quadrotor_pybullet_setup_no_lidar):
     '''check that batch of rays cast to ground is of expected length, others don't intersect'''
 
     # ~~ ARRANGE ~~
 
     # get quadrotor setup object
-    if quadrotor_pybullet_setup is None:
+    if quadrotor_pybullet_setup_no_lidar is None:
         qpbsetup = QuadrotorPyBulletSetup()
     else:
-        qpbsetup = quadrotor_pybullet_setup
+        qpbsetup = quadrotor_pybullet_setup_no_lidar
 
     # load in floor plane to environment (from pybullet_data)
     pb.setAdditionalSearchPath(pbd.getDataPath())
@@ -272,16 +272,16 @@ def test_QuadrotorPyBulletSetup_observeLidar_1(quadrotor_pybullet_setup):
         assert ray[1] == -1
         assert np.isclose(ray[2], 1.0)
 
-def test_QuadrotorPyBulletSetup_observeLidar_2(quadrotor_pybullet_setup):
+def test_QuadrotorPyBulletSetup_observeLidar_2(quadrotor_pybullet_setup_no_lidar):
     '''check ray casts intersect with ground given arbitrary pos and orientation'''
 
     # ~~ ARRANGE ~~
 
     # get quadrotor setup object
-    if quadrotor_pybullet_setup is None:
+    if quadrotor_pybullet_setup_no_lidar is None:
         qpbsetup = QuadrotorPyBulletSetup()
     else:
-        qpbsetup = quadrotor_pybullet_setup
+        qpbsetup = quadrotor_pybullet_setup_no_lidar
 
     # load in floor plane to environment (from pybullet_data)
     pb.setAdditionalSearchPath(pbd.getDataPath())
@@ -357,6 +357,66 @@ def test_QuadrotorPyBulletSetup_observeLidar_2(quadrotor_pybullet_setup):
     for i in nonintersect_rays:
         assert rays[i][0] == -1
         assert np.isclose(rays[i][2], 1.0)
+
+def test_QuadrotorPyBulletSetup_observeState_0():
+    '''check that simple state is observed as expected'''
+
+    # ~~ ARRANGE ~~
+
+    # get quadrotor setup object
+    ldr_angs = [(np.pi,0)]
+    qpbsetup = QuadrotorPyBulletSetup(lidar_range=100.,lidar_angles=ldr_angs)
+
+    # load in floor plane to environment (from pybullet_data)
+    pb.setAdditionalSearchPath(pbd.getDataPath())
+    floorBodyId = pb.loadURDF("plane100.urdf")
+
+    # Set quadrotor pybullet state t be 10 meters off the floor
+    xpos = 0
+    ypos = 0
+    zpos = 10.0
+    initPos, initOrn = pb.getBasePositionAndOrientation(qpbsetup.pbBodyId)
+    pb.resetBasePositionAndOrientation(
+        bodyUniqueId = qpbsetup.pbBodyId,
+        posObj = [xpos, ypos, zpos],
+        ornObj = initOrn,
+        physicsClientId = qpbsetup.pbClientId
+    )
+    s0 = qpbsetup.space_info.allocState()
+    QD.copy_state_pb2ompl(
+        pbBodyId=qpbsetup.pbBodyId,
+        pbClientId=qpbsetup.pbClientId,
+        omplState=s0
+    )
+
+    # ~~ ACT ~~
+    # observe state
+    obs = qpbsetup.observeState(state = s0)
+
+    # ~~ ASSERT ~~
+
+    # check lidar observation
+    assert np.isclose(obs[0], zpos, rtol=1e-3)
+
+    # check orientation observation
+    assert np.isclose(obs[1], s0[1].x)
+    assert np.isclose(obs[2], s0[1].y)
+    assert np.isclose(obs[3], s0[1].z)
+    assert np.isclose(obs[4], s0[1].w)
+
+    # check velocity observation
+    assert np.isclose(obs[5], s0[2][0])
+    assert np.isclose(obs[6], s0[2][1])
+    assert np.isclose(obs[7], s0[2][2])
+
+    # check angular rate observation
+    assert np.isclose(obs[8], s0[3][0])
+    assert np.isclose(obs[9], s0[3][1])
+    assert np.isclose(obs[10], s0[3][2])
+
+    # ~~ Teardown ~~
+    # disconnect from pybullet physics client
+    pb.disconnect()
 
 def test_QuadrotorPyBulletStatePropagator_propagate_hover(quadrotor_pybullet_propagator):
     '''Test that perfect hover thrust does not move the quadrotor'''
@@ -678,4 +738,5 @@ def test_QuadrotorPyBulletStatePropagator_propagate_path_climb(quadrotor_pybulle
 if __name__ == "__main__":
     # test_QuadrotorPyBulletStatePropagator_propagate_drift(None)
     # test_QuadrotorPyBulletStatePropagator_propagate_path_climb(None)
-    test_QuadrotorPyBulletSetup_observeLidar_2(None)
+    # test_QuadrotorPyBulletSetup_observeLidar_2(None)
+    test_QuadrotorPyBulletSetup_observeState_0()

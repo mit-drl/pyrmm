@@ -44,14 +44,22 @@ _MZMAX=1.0
 class QuadrotorPyBulletSetup(SystemSetup):
     ''' Quadrotor vehicle defined with PyBullet physics and configuration space
     '''
-    def __init__(self):
+    def __init__(self, lidar_range=None, lidar_angles=None):
         '''
         Args:
+            lidar_range : float
+                range of each ray to cast [m]
+            lidar_angles : list(tuples)
+                list of tuples describing angle of each ray [rad] relative to body orientation
+                tuples give (polar,azimuth) angles.
+                See physics spherical coord convention: https://en.wikipedia.org/wiki/Spherical_coordinate_system#/media/File:3D_Spherical.svg
         '''
 
         # TODO: assert physical inputs
 
-        # TODO: save init args for re-creation of object
+        # save init args for re-creation of object
+        self.lidar_range = lidar_range
+        self.lidar_angles = lidar_angles
 
         # generate configuration space
         # connect to headless physics engine
@@ -128,11 +136,12 @@ class QuadrotorPyBulletSetup(SystemSetup):
     def observeLidar(self, state, ray_range, ray_angles):
         ''' get simulated lidar data from ray casting at a given state
         Args:
-            state : QD.QuadrotorState
-                state from which to make observation
-            range : float
+            state : QD.QuadrotorState or None
+                ompl-based state from which to make observation
+                if state is None, then assume it has already been set (for efficiency)
+            ray_range : float
                 range of each ray to cast [m]
-            angles : list(tuples)
+            ray_angles : list(tuples)
                 list of tuples describing angle of each ray [rad] relative to body orientation
                 tuples give (polar,azimuth) angles.
                 See physics spherical coord convention: https://en.wikipedia.org/wiki/Spherical_coordinate_system#/media/File:3D_Spherical.svg
@@ -144,10 +153,11 @@ class QuadrotorPyBulletSetup(SystemSetup):
         n_rays = len(ray_angles)
 
         # update pybullet state with ompl state
-        QD.copy_state_ompl2pb(
-            pbBodyId = self.pbBodyId, 
-            pbClientId = self.pbClientId,
-            omplState = state)
+        if state is not None:
+            QD.copy_state_ompl2pb(
+                pbBodyId = self.pbBodyId, 
+                pbClientId = self.pbClientId,
+                omplState = state)
 
         # position of ray endpoints relative to quadrotor body, experessed in quad body-up coords
         p_ri_bu__bu = n_rays * [(0.0, 0.0, 0.0)]
@@ -162,6 +172,48 @@ class QuadrotorPyBulletSetup(SystemSetup):
             physicsClientId = self.pbClientId)
 
         return ray_casts
+
+    def observeState(self, state):
+        ''' observer obstacle-relative states: lidar, velocity, orientation quaternion, angular rates
+        Args:
+            state : QD.QuadrotorState
+                ompl-based state from which to make observation
+
+        Returns:
+            observation : list-like
+                array giving observation values
+                [0:n_rays] : lidar range readings [m]
+                [n_rays:n_rays+4] : quaternion of body frame relative to world frame [x,y,z,w]
+                [n_rays+4:n_rays+7] : velocity of body frame relative to world frame [m/s]
+                [n_rays+7:n_rays+10] : body frame rate relative to world frame [rad/s]
+        '''
+
+        # update pybullet state with ompl state
+        QD.copy_state_ompl2pb(
+            pbBodyId = self.pbBodyId, 
+            pbClientId = self.pbClientId,
+            omplState = state)
+
+        # instantiate observation vector
+        n_rays = len(self.lidar_angles)
+        obs = n_rays * [None]
+
+        # get lidar observations
+        # pass None state because it is already copied to pybullet
+        rays = self.observeLidar(state=None, ray_range=self.lidar_range, ray_angles=self.lidar_angles)
+        obs[:n_rays] = [self.lidar_range * r[2] for r in rays]
+
+        # get orientation observation
+        obs[n_rays:n_rays+4] = [state[1].x, state[1].y, state[1].z, state[1].w]
+
+        # get velocity observation
+        obs[n_rays+4:n_rays+7] = [state[2][i] for i in range(3)]
+
+        # get angular rate observation
+        obs[n_rays+7:] = [state[3][i] for i in range(3)]
+
+        return obs
+
 
 
 class QuadrotorPyBulletStatePropagator(oc.StatePropagator):

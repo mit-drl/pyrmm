@@ -418,6 +418,106 @@ def test_QuadrotorPyBulletSetup_observeState_0():
     # disconnect from pybullet physics client
     pb.disconnect()
 
+def test_QuadrotorPyBulletSetup_observeState_1():
+    '''check that simple state is observed as expected'''
+
+    # ~~ ARRANGE ~~
+
+    # get quadrotor setup object
+    ldr_angs = [
+        (np.pi/2, 0),
+        (np.pi/2, np.pi/2),
+        (np.pi/2, np.pi),
+        (np.pi/2, 3*np.pi/2),
+        (0,0),
+        (np.pi,0)
+    ]
+    n_rays = len(ldr_angs)
+    ldr_range = 100.
+    qpbsetup = QuadrotorPyBulletSetup(lidar_range=ldr_range,lidar_angles=ldr_angs)
+
+    # unit vectors of rays in body coords
+    ray_unit_vectors__bu = [
+        (1,0,0),
+        (0,1,0),
+        (-1,0,0),
+        (0,-1,0),
+        (0,0,1),
+        (0,0,-1)
+    ]
+
+    # load in floor plane to environment (from pybullet_data)
+    pb.setAdditionalSearchPath(pbd.getDataPath())
+    floorBodyId = pb.loadURDF("plane100.urdf")
+
+    # Set quadrotor pybullet state to randomized yet fixed position and orientation
+    p_bu_wu__wu = [-4.46113278,  3.40651189,  8.04537052]
+    eul_bu_wu = [-0.00525912,  0.23032606,  0.7182055 ]  # roll, pitch, yaw
+    q_bu_wu = pb.getQuaternionFromEuler(eulerAngles=eul_bu_wu)
+
+    # based on randomized orientation, rays that are expected to intersect ground
+    intersect_rays = [0,1,5]
+    nonintersect_rays = [2,3,4]
+
+    # compute rotation matrix from body to world
+    R_bu2wu = np.array(pb.getMatrixFromQuaternion(q_bu_wu)).reshape(3,3)
+
+    # set quadrotor state to randomized but fixed velocity and angular rates
+    v_bu_wu__wu = [-8.34776217,  5.75793221,  2.64415451]
+    w_bu_wu = [-0.86476772,  0.1442532 ,  1.27495011]
+
+    # set pybullet and ompl state
+    pb.resetBasePositionAndOrientation(qpbsetup.pbBodyId, p_bu_wu__wu, q_bu_wu, qpbsetup.pbClientId)
+    pb.resetBaseVelocity(qpbsetup.pbBodyId, v_bu_wu__wu, w_bu_wu, qpbsetup.pbClientId)
+    s0 = qpbsetup.space_info.allocState()
+    QD.copy_state_pb2ompl(
+        pbBodyId=qpbsetup.pbBodyId,
+        pbClientId=qpbsetup.pbClientId,
+        omplState=s0
+    )
+
+    # ~~ ACT ~~
+    # observe state
+    obs = qpbsetup.observeState(state = s0)
+
+    # ~~ ASSERT ~~
+
+    # check intersecting rays
+    for i in intersect_rays:
+
+        # unit vector of ray in world-up coords
+        ru__wu = np.matmul(R_bu2wu, np.array(ray_unit_vectors__bu[i]).reshape(3,1))
+        
+        # compute expected length to intersect
+        l_exp = min(abs(p_bu_wu__wu[2])/np.dot([0,0,-1], ru__wu)[0], ldr_range)
+
+        # check ray length fraction
+        assert np.isclose(obs[i], l_exp, rtol=1e-3)
+
+    # check rays not expected to intersect ground
+    for i in nonintersect_rays:
+        assert np.isclose(obs[i], ldr_range)
+
+    # check orientation observation
+    assert np.isclose(obs[n_rays], s0[1].x)
+    assert np.isclose(obs[n_rays+1], s0[1].y)
+    assert np.isclose(obs[n_rays+2], s0[1].z)
+    assert np.isclose(obs[n_rays+3], s0[1].w)
+
+    # check velocity observation
+    assert np.isclose(obs[n_rays+4], s0[2][0])
+    assert np.isclose(obs[n_rays+5], s0[2][1])
+    assert np.isclose(obs[n_rays+6], s0[2][2])
+
+    # check angular rate observation
+    assert np.isclose(obs[n_rays+7], s0[3][0])
+    assert np.isclose(obs[n_rays+8], s0[3][1])
+    assert np.isclose(obs[n_rays+9], s0[3][2])
+
+    # ~~ Teardown ~~
+    # disconnect from pybullet physics client
+    pb.disconnect()
+
 def test_QuadrotorPyBulletStatePropagator_propagate_hover(quadrotor_pybullet_propagator):
     '''Test that perfect hover thrust does not move the quadrotor'''
 
@@ -739,4 +839,4 @@ if __name__ == "__main__":
     # test_QuadrotorPyBulletStatePropagator_propagate_drift(None)
     # test_QuadrotorPyBulletStatePropagator_propagate_path_climb(None)
     # test_QuadrotorPyBulletSetup_observeLidar_2(None)
-    test_QuadrotorPyBulletSetup_observeState_0()
+    test_QuadrotorPyBulletSetup_observeState_1()

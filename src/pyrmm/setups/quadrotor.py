@@ -97,6 +97,14 @@ class QuadrotorPyBulletSetup(SystemSetup):
 
         # TODO: call parent init to create simple setup
         super().__init__(space_information=space_info)
+
+    def __reduce__(self):
+        ''' Function to enable re-creation of unpickable object
+
+        Note: See comments about potential risks here
+        https://stackoverflow.com/a/50308545/4055705
+        '''
+        return (QuadrotorPyBulletSetup, (self.lidar_range, self.lidar_angles))
     
     def isStateValid(self, spaceInformation, state):
         ''' check for collisions using pybullet getContactPoints

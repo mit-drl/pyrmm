@@ -1,6 +1,7 @@
 import hydra
 import multiprocess
 import time
+import torch
 import numpy as np
 import pybullet as pb
 import pybullet_data as pbd
@@ -86,7 +87,8 @@ def task_function(cfg: Config):
     # Note: currently using non-multiprocess risk estimation due to errors trying 
     # to run pybullet in parallel
     t_start = time.time()
-    sample_risk_metrics(sysset=quadpb_setup, cfg_obj=obj, save_name=_SAVE_FNAME, multiproc=False)
+    risk_data = sample_risk_metrics(sysset=quadpb_setup, cfg_obj=obj, multiproc=False)
+    torch.save(risk_data, open(_SAVE_FNAME+".pt", "wb"))
     print("\nTotal elapsed time: {:.2f}".format(time.time()-t_start))
 
 

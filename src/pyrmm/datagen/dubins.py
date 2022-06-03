@@ -1,6 +1,7 @@
 import hydra
 import multiprocess
 import time
+import torch
 import numpy as np
 from pathlib import Path
 from hydra.core.config_store import ConfigStore
@@ -102,7 +103,8 @@ def task_function(cfg: Config):
 
         # sample states in ppm config and compute risk metrics
         print("\nRISK DATA GENERATION {} OF {}\nDUBINS VEHICLE IN OBSTACLE SPACE {}\n".format(i+1, len(ppm_paths), pp.name))
-        sample_risk_metrics(sysset=dubins_ppm_setup, cfg_obj=obj, save_name=save_name)
+        risk_data = sample_risk_metrics(sysset=dubins_ppm_setup, cfg_obj=obj)
+        torch.save(risk_data, open(save_name+".pt", "wb"))
         print("\n===================================")
 
     print("\nTotal elapsed time: {:.2f}".format(time.time()-t_start))

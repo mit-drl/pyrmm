@@ -1,7 +1,6 @@
 # tools to assist sampling of states and computing risk metrics in
 # data generation process
 
-import torch
 import time
 import multiprocess
 from functools import partial
@@ -11,8 +10,8 @@ from pyrmm.setups import SystemSetup
 
 _MONITOR_RATE = 100
 
-def sample_risk_metrics(sysset: SystemSetup, cfg_obj, save_name: str, multiproc=True):
-    '''sample states of DubinsPPMSetup and compute risk metrics
+def sample_risk_metrics(sysset:SystemSetup, cfg_obj, multiproc:bool=True):
+    '''sample system states, get observations, and estimate risk metrics
     
     Args:
         sysset : SystemSetup
@@ -20,10 +19,12 @@ def sample_risk_metrics(sysset: SystemSetup, cfg_obj, save_name: str, multiproc=
             for sampling and risk metric computation
         cfg_obj :
             instantiate configuration object
-        save_name : str
-            name of pickle file to save risk metrics
         multiproc : bool
             If true, use multi-process implemtnation
+
+    Returns:
+        risk_data : List
+            Each element in list is a tuple (omplState, risk_metric, observation)
     '''
 
     if multiproc:
@@ -82,6 +83,9 @@ def sample_risk_metrics(sysset: SystemSetup, cfg_obj, save_name: str, multiproc=
 
     print("Total risk estimation elapsed time: {:.2f}".format(time.time()-t_start))
 
-    # save data for pytorch training
-    data = [i for i in zip(states, risk_metrics, observations)]
-    torch.save(data, open(save_name+".pt", "wb"))
+    risk_data = zip(states, risk_metrics, observations)
+    return risk_data
+
+    # # save data for pytorch training
+    # data = [i for i in zip(states, risk_metrics, observations)]
+    # torch.save(data, open(save_name+".pt", "wb"))

@@ -11,7 +11,7 @@ from pyrmm.setups import SystemSetup
 
 _MONITOR_RATE = 100
 
-def sample_risk_metrics(sysset: SystemSetup, cfg_obj, save_name: str):
+def sample_risk_metrics(sysset: SystemSetup, cfg_obj, save_name: str, multiproc=True):
     '''sample states of DubinsPPMSetup and compute risk metrics
     
     Args:
@@ -22,9 +22,12 @@ def sample_risk_metrics(sysset: SystemSetup, cfg_obj, save_name: str):
             instantiate configuration object
         save_name : str
             name of pickle file to save risk metrics
+        multiproc : bool
+            If true, use multi-process implemtnation
     '''
 
-    pool = multiprocess.Pool(getattr(cfg_obj, U.N_CORES), maxtasksperchild=cfg_obj.maxtasks)
+    if multiproc:
+        pool = multiprocess.Pool(getattr(cfg_obj, U.N_CORES), maxtasksperchild=cfg_obj.maxtasks)
 
     # sample states to evaluate risk metrics
     sampler = sysset.space_info.allocStateSampler()
@@ -42,32 +45,42 @@ def sample_risk_metrics(sysset: SystemSetup, cfg_obj, save_name: str):
         if i%_MONITOR_RATE ==  0:
             print("State sampling and ray casting: completed {} of {}".format(i, len(states)))
 
-    # multiprocess implementation of parallel risk metric estimation
+
     partial_estimateRiskMetric = partial(
-        sysset.estimateRiskMetric, 
-        trajectory=None,
-        distance=getattr(cfg_obj, U.DURATION),
-        branch_fact=getattr(cfg_obj, U.N_BRANCHES),
-        depth=getattr(cfg_obj, U.TREE_DEPTH),
-        n_steps=getattr(cfg_obj, U.N_STEPS),
-        policy=getattr(cfg_obj, U.POLICY)
-    )
-
-    # use iterative map for process tracking
+            sysset.estimateRiskMetric, 
+            trajectory=None,
+            distance=getattr(cfg_obj, U.DURATION),
+            branch_fact=getattr(cfg_obj, U.N_BRANCHES),
+            depth=getattr(cfg_obj, U.TREE_DEPTH),
+            n_steps=getattr(cfg_obj, U.N_STEPS),
+            policy=getattr(cfg_obj, U.POLICY)
+        )
     t_start = time.time()
-    rmetrics_iter = pool.imap(partial_estimateRiskMetric, states)
 
-    # track multiprocess progress
-    risk_metrics = []
-    for i,_ in enumerate(states):
-        risk_metrics.append(rmetrics_iter.next())
-        if i%_MONITOR_RATE ==  0:
-            print("Risk metric evaluation: completed {} of {} after {:.2f}".format(i, len(states), time.time()-t_start))
+    if multiproc: 
+        # multiprocess implementation of parallel risk metric estimation
+        # use iterative map for process tracking
+        rmetrics_iter = pool.imap(partial_estimateRiskMetric, states)
 
-    pool.close()
-    pool.join()
+        # track multiprocess progress
+        risk_metrics = []
+        for i,_ in enumerate(states):
+            risk_metrics.append(rmetrics_iter.next())
+            if i%_MONITOR_RATE ==  0:
+                print("Risk metric evaluation: completed {} of {} after {:.2f}".format(i, len(states), time.time()-t_start))
 
-    print("Subprocess elapsed time: {:.2f}".format(time.time()-t_start))
+        pool.close()
+        pool.join()
+
+    else:
+        # single-process implementation of risk metric estimation
+        risk_metrics = []
+        for i, state in enumerate(states):
+            risk_metrics.append(partial_estimateRiskMetric(state=state))
+            if i%_MONITOR_RATE ==  0:
+                print("Risk metric evaluation: completed {} of {} after {:.2f}".format(i, len(states), time.time()-t_start))
+
+    print("Total risk estimation elapsed time: {:.2f}".format(time.time()-t_start))
 
     # save data for pytorch training
     data = [i for i in zip(states, risk_metrics, observations)]

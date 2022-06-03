@@ -83,8 +83,10 @@ def task_function(cfg: Config):
     bld_body_id = pb.loadURDF("samurai.urdf")
 
     # sample states in environment and compute risk metrics
+    # Note: currently using non-multiprocess risk estimation due to errors trying 
+    # to run pybullet in parallel
     t_start = time.time()
-    sample_risk_metrics(sysset=quadpb_setup, cfg_obj=obj, save_name=_SAVE_FNAME)
+    sample_risk_metrics(sysset=quadpb_setup, cfg_obj=obj, save_name=_SAVE_FNAME, multiproc=False)
     print("\nTotal elapsed time: {:.2f}".format(time.time()-t_start))
 
 

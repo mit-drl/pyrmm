@@ -835,8 +835,56 @@ def test_QuadrotorPyBulletStatePropagator_propagate_path_climb(quadrotor_pybulle
 
     assert np.isclose(true_duration, cum_t)
 
+def test_QuadrotorPyBulletSetup_state_sampler_0(quadrotor_pybullet_setup_no_lidar):
+    '''test that state sampler produces non-identical states'''
+
+    # ~~ ARRANGE ~~
+    # get quadrotor setup object
+    if quadrotor_pybullet_setup_no_lidar is None:
+        qpbsetup = QuadrotorPyBulletSetup()
+    else:
+        qpbsetup = quadrotor_pybullet_setup_no_lidar
+
+    # allocate state sampler and state storage
+    n_samples = 2
+    sampler = qpbsetup.space_info.allocStateSampler()
+    states = n_samples * [None] 
+
+    # ~~ ACT ~~
+    # get state validity
+    for i in range(n_samples):
+        states[i] = qpbsetup.space_info.allocState()
+        sampler.sampleUniform(states[i])
+
+    # ~~ ASSERT ~~
+
+    for i in range(n_samples):
+        pos_i = np.array([states[i][0][k] for k in range(3)])
+        qut_i = np.array([states[i][1].x, states[i][1].y, states[i][1].z, states[i][1].w])
+        vel_i = np.array([states[i][2][k] for k in range(3)])
+        omg_i = np.array([states[i][3][k] for k in range(3)])
+
+
+        # check that quaternions are valid
+        assert np.isclose(np.dot(qut_i, qut_i), 1.0)
+
+        for j in range(n_samples):
+            if j == i:
+                continue
+
+            pos_j = np.array([states[j][0][k] for k in range(3)])
+            qut_j = np.array([states[j][1].x, states[j][1].y, states[j][1].z, states[j][1].w])
+            vel_j = np.array([states[j][2][k] for k in range(3)])
+            omg_j = np.array([states[j][3][k] for k in range(3)])
+
+            assert not np.allclose(pos_i, pos_j)
+            assert not np.allclose(qut_i, qut_j)
+            assert not np.allclose(vel_i, vel_j)
+            assert not np.allclose(omg_i, omg_j)
+
 if __name__ == "__main__":
     # test_QuadrotorPyBulletStatePropagator_propagate_drift(None)
     # test_QuadrotorPyBulletStatePropagator_propagate_path_climb(None)
     # test_QuadrotorPyBulletSetup_observeLidar_2(None)
-    test_QuadrotorPyBulletSetup_observeState_1()
+    # test_QuadrotorPyBulletSetup_observeState_1()
+    test_QuadrotorPyBulletSetup_state_sampler_0(None)

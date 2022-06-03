@@ -23,18 +23,71 @@ Ref: https://github.com/utiasDSL/gym-pybullet-drones/blob/master/gym_pybullet_dr
 
 """
 import copyreg
+import numpy as np
 import pybullet as pb
 from ompl import base as ob
 from ompl import control as oc
 
 class QuadrotorStateSpace(ob.CompoundStateSpace):
     '''6DoF state space defined as OMPL CompoundStateSpace'''
-    def __init__(self):
+    def __init__(self, bounds=None):
+        '''
+        Args
+            bounds : Dict
+                dictionary of state space bounds. 
+                If None, no bounds set (but this causes sampler to sample trivial states)
+                If not None, then all entries must be given
+                pos_low : list-like
+                    minimum position states [m]
+                pos_high : list-like
+                    maximum position states [m]
+                vel_low : list-like
+                    minimum velocity states [m/s]
+                vel_high : list-like
+                    maximum velocity states [m/s]
+                omg_low : list-like
+                    minimum angular velocity states [rad/s]
+                omg_high : list-like
+                    maximum angular velocity states [rad/s]
+
+        '''
         super().__init__()
         self.addSubspace(ob.RealVectorStateSpace(3), 1.0)   # position
         self.addSubspace(ob.SO3StateSpace(), 1.0)           # orientation
         self.addSubspace(ob.RealVectorStateSpace(3), 1.0)   # velocity
         self.addSubspace(ob.RealVectorStateSpace(3), 1.0)   # angular velocity
+
+        # set bounds
+        if bounds is not None:
+
+            # ensure bounds properly configured
+            req_keys = ['pos_low', 'pos_high', 'vel_low', 'vel_high', 'omg_low', 'omg_high']
+            assert all([k in bounds.keys() for k in req_keys])
+
+            # set position bounds
+            assert all(np.greater_equal(bounds['pos_high'], bounds['pos_low']))
+            pos_bounds = ob.RealVectorBounds(3)
+            pos_bounds.setLow(0, bounds['pos_low'][0]); pos_bounds.setHigh(0, bounds['pos_high'][0])
+            pos_bounds.setLow(1, bounds['pos_low'][1]); pos_bounds.setHigh(1, bounds['pos_high'][1])
+            pos_bounds.setLow(2, bounds['pos_low'][2]); pos_bounds.setHigh(2, bounds['pos_high'][2])
+            self.getSubspace(0).setBounds(pos_bounds)
+
+            # set velocity bounds
+            assert all(np.greater_equal(bounds['vel_high'], bounds['vel_low']))
+            vel_bounds = ob.RealVectorBounds(3)
+            vel_bounds.setLow(0, bounds['vel_low'][0]); vel_bounds.setHigh(0, bounds['vel_high'][0])
+            vel_bounds.setLow(1, bounds['vel_low'][1]); vel_bounds.setHigh(1, bounds['vel_high'][1])
+            vel_bounds.setLow(2, bounds['vel_low'][2]); vel_bounds.setHigh(2, bounds['vel_high'][2])
+            self.getSubspace(2).setBounds(vel_bounds)
+
+            # set angular velocity bounds
+            assert all(np.greater_equal(bounds['omg_high'], bounds['omg_low']))
+            omg_bounds = ob.RealVectorBounds(3)
+            omg_bounds.setLow(0, bounds['omg_low'][0]); omg_bounds.setHigh(0, bounds['omg_high'][0])
+            omg_bounds.setLow(1, bounds['omg_low'][1]); omg_bounds.setHigh(1, bounds['omg_high'][1])
+            omg_bounds.setLow(2, bounds['omg_low'][2]); omg_bounds.setHigh(2, bounds['omg_high'][2])
+            self.getSubspace(3).setBounds(omg_bounds)
+
 
 _DUMMY_QUADROTORSPACE = QuadrotorStateSpace()
 
@@ -84,7 +137,7 @@ class QuadrotorThrustMomentControlSpace(oc.RealVectorControlSpace):
         Args:
             stateSpace : ob.StateSpace
                 state space associated with quadrotor (pos, orn, vel, ang vel)
-            famx : float
+            fzmax : float
                 max net force from all rotors along body z axis (N)
             mxmax : float
                 max net moment applied by rotors along body x axis (N*m)

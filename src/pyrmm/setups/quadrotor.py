@@ -34,17 +34,35 @@ from pyrmm.setups import SystemSetup
 import pyrmm.utils.utils as U
 import pyrmm.dynamics.quadrotor as QD
 
-# hard-coded setup parameters
-_QUAD_URDF = str(pathlib.Path(U.get_repo_path()).joinpath("tests/quadrotor.urdf"))
-_FZMAX=8.0
-_MXMAX=2.0
-_MYMAX=2.0
-_MZMAX=1.0
+# hard-coded default setup parameters
+_DEFAULT_QUAD_URDF = str(pathlib.Path(U.get_repo_path()).joinpath("tests/quadrotor.urdf"))
+_DEFAULT_POSXMIN = -100.0       # [m]
+_DEFAULT_POSXMAX = 100.0        # [m]
+_DEFAULT_POSYMIN = -100.0       # [m] 
+_DEFAULT_POSYMAX = 100.0        # [m]
+_DEFAULT_POSZMIN = 0.0          # [m]
+_DEFAULT_POSZMAX = 100.0        # [m]
+_DEFAULT_VELXMIN = -10.0        # [m/s]
+_DEFAULT_VELXMAX = 10.0         # [m/s]
+_DEFAULT_VELYMIN = -10.0        # [m/s] 
+_DEFAULT_VELYMAX = 10.0         # [m/s]
+_DEFAULT_VELZMIN = -10.0        # [m/s]
+_DEFAULT_VELZMAX = 10.0         # [m/s]
+_DEFAULT_OMGXMIN = -4*np.pi     # [rad/s]
+_DEFAULT_OMGXMAX = 4*np.pi      # [rad/s]
+_DEFAULT_OMGYMIN = -4*np.pi     # [rad/s] 
+_DEFAULT_OMGYMAX = 4*np.pi      # [rad/s]
+_DEFAULT_OMGZMIN = -4*np.pi     # [rad/s]
+_DEFAULT_OMGZMAX = 4*np.pi      # [rad/s]
+_DEFAULT_FZMAX=8.0              # [N]
+_DEFAULT_MXMAX=2.0              # [N*m]
+_DEFAULT_MYMAX=2.0              # [N*m]
+_DEFAULT_MZMAX=1.0              # [N*m]
 
 class QuadrotorPyBulletSetup(SystemSetup):
     ''' Quadrotor vehicle defined with PyBullet physics and configuration space
     '''
-    def __init__(self, lidar_range=None, lidar_angles=None):
+    def __init__(self, lidar_range=None, lidar_angles=None, **kwargs):
         '''
         Args:
             lidar_range : float
@@ -53,6 +71,18 @@ class QuadrotorPyBulletSetup(SystemSetup):
                 list of tuples describing angle of each ray [rad] relative to body orientation
                 tuples give (polar,azimuth) angles.
                 See physics spherical coord convention: https://en.wikipedia.org/wiki/Spherical_coordinate_system#/media/File:3D_Spherical.svg
+            kwargs : dict (Optional)
+                quad_urdf : str
+                    path to quadrotor urdf robot description file
+                fzmax : float
+                    max net force from all rotors along body z axis (N)
+                mxmax : float
+                    max net moment applied by rotors along body x axis (N*m)
+                mymax : float
+                    max net moment applied by rotors along body y axis (N*m)
+                mzmax : float
+                    max net moment applied by rotors along body z axis (N*m)
+
         '''
 
         # TODO: assert physical inputs
@@ -66,18 +96,47 @@ class QuadrotorPyBulletSetup(SystemSetup):
         self.pbClientId = pb.connect(pb.DIRECT)
 
         # create pybullet instance of quadrotor
-        self.pbBodyId = pb.loadURDF(_QUAD_URDF)
+        self.pbBodyId = pb.loadURDF(_DEFAULT_QUAD_URDF)
 
         # create compound state space (pos, quat, vel, ang_vel) and set bounds
-        state_space = QD.QuadrotorStateSpace()
+        pxmin = _DEFAULT_POSXMIN if 'pxmin' not in kwargs else kwargs['pxmin']
+        pxmax = _DEFAULT_POSXMAX if 'pxmax' not in kwargs else kwargs['pxmax']
+        pymin = _DEFAULT_POSYMIN if 'pymin' not in kwargs else kwargs['pymin']
+        pymax = _DEFAULT_POSYMAX if 'pymax' not in kwargs else kwargs['pymax']
+        pzmin = _DEFAULT_POSZMIN if 'pzmin' not in kwargs else kwargs['pzmin']
+        pzmax = _DEFAULT_POSZMAX if 'pzmax' not in kwargs else kwargs['pzmax']
+        vxmin = _DEFAULT_VELXMIN if 'vxmin' not in kwargs else kwargs['vxmin']
+        vxmax = _DEFAULT_VELXMAX if 'vxmax' not in kwargs else kwargs['vxmax']
+        vymin = _DEFAULT_VELYMIN if 'vymin' not in kwargs else kwargs['vymin']
+        vymax = _DEFAULT_VELYMAX if 'vymax' not in kwargs else kwargs['vymax']
+        vzmin = _DEFAULT_VELZMIN if 'vzmin' not in kwargs else kwargs['vzmin']
+        vzmax = _DEFAULT_VELZMAX if 'vzmax' not in kwargs else kwargs['vzmax']
+        oxmin = _DEFAULT_OMGXMIN if 'oxmin' not in kwargs else kwargs['oxmin']
+        oxmax = _DEFAULT_OMGXMAX if 'oxmax' not in kwargs else kwargs['oxmax']
+        oymin = _DEFAULT_OMGYMIN if 'oymin' not in kwargs else kwargs['oymin']
+        oymax = _DEFAULT_OMGYMAX if 'oymax' not in kwargs else kwargs['oymax']
+        ozmin = _DEFAULT_OMGZMIN if 'ozmin' not in kwargs else kwargs['ozmin']
+        ozmax = _DEFAULT_OMGZMAX if 'ozmax' not in kwargs else kwargs['ozmax']
+        sbounds = dict()
+        sbounds['pos_low']= [pxmin, pymin, pzmin]
+        sbounds['pos_high'] = [pxmax, pymax, pzmax]
+        sbounds['vel_low']= [vxmin, vymin, vzmin]
+        sbounds['vel_high'] = [vxmax, vymax, vzmax]
+        sbounds['omg_low']= [oxmin, oymin, ozmin]
+        sbounds['omg_high'] = [oxmax, oymax, ozmax]
+        state_space = QD.QuadrotorStateSpace(bounds=sbounds)
 
-        # create control space and set bounds
+        # create control space, using default set bounds if none given in kwargs
+        fzmax = _DEFAULT_FZMAX if 'fzmax' not in kwargs else kwargs['fzmax']
+        mxmax = _DEFAULT_MXMAX if 'mxmax' not in kwargs else kwargs['mxmax']
+        mymax = _DEFAULT_MYMAX if 'mymax' not in kwargs else kwargs['mymax']
+        mzmax = _DEFAULT_MZMAX if 'mzmax' not in kwargs else kwargs['mzmax']
         control_space = QD.QuadrotorThrustMomentControlSpace(
             stateSpace=state_space,
-            fzmax=_FZMAX,
-            mxmax=_MXMAX,
-            mymax=_MYMAX,
-            mzmax=_MZMAX)
+            fzmax=fzmax,
+            mxmax=mxmax,
+            mymax=mymax,
+            mzmax=mzmax)
 
         # create space information for state and control space
         space_info = oc.SpaceInformation(stateSpace=state_space, controlSpace=control_space)
@@ -91,11 +150,11 @@ class QuadrotorPyBulletSetup(SystemSetup):
             spaceInformation=space_info)
         space_info.setStatePropagator(propagator)
 
-        # TODO: create and set state validity checker
+        # create and set state validity checker
         validityChecker = ob.StateValidityCheckerFn(partial(self.isStateValid, space_info))
         space_info.setStateValidityChecker(validityChecker)
 
-        # TODO: call parent init to create simple setup
+        # call parent init to create simple setup
         super().__init__(space_information=space_info)
 
     def __reduce__(self):

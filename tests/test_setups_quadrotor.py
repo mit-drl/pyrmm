@@ -846,7 +846,7 @@ def test_QuadrotorPyBulletSetup_state_sampler_0(quadrotor_pybullet_setup_no_lida
         qpbsetup = quadrotor_pybullet_setup_no_lidar
 
     # allocate state sampler and state storage
-    n_samples = 2
+    n_samples = 100
     sampler = qpbsetup.space_info.allocStateSampler()
     states = n_samples * [None] 
 

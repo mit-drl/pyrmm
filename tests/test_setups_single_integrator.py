@@ -61,7 +61,7 @@ def test_SingleIntegrator1DPPMSetup_estimateRiskMetric_0():
     ub_del = st.floats(min_value=1e-3, max_value=1e3, allow_nan=False, allow_infinity=False),
     dur = st.floats(min_value=1e-3, max_value=1e3, allow_nan=False, allow_infinity=False),
     brch = st.integers(min_value=1, max_value=8),
-    dpth = st.integers(min_value=0, max_value=8),
+    dpth = st.integers(min_value=0, max_value=4),
     nstp = st.integers(min_value=2, max_value=8)
 )
 def test_hypothesis_SingleIntegrator1DPPMSetup_estimateRiskMetric_0(x0, v, lb, ub_del, dur, brch, dpth, nstp):

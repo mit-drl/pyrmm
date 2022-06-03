@@ -67,14 +67,15 @@ ConfigStore.instance().store(_CONFIG_NAME,Config)
 ############### TASK FUNCTIONS ###############
 ##############################################
 
-@hydra.main(config_path=None, config_name=_CONFIG_NAME)
-def task_function(cfg: Config): 
-    ''' Instantiate QuadrotorPyBullet setup and sample risk metric data'''
+def create_setup_and_sample_risk_metrics(ss_cfg):
+    '''functionalized SystemSetup creation and risk metric eval for multiprocessing
+    Args:
+        ss_cfg : 
+            SystemSetup Config to instantiate SystemSetup
+    '''
 
-    obj = instantiate(cfg)
-
-    # update pickler to enable parallelization of OMPL objects
-    QD.update_pickler_quadrotorstate()
+    # instantiate config object to create system setup object
+    obj = instantiate(ss_cfg)
 
     # instantiate quadrotor pybullet setup object
     quadpb_setup = getattr(obj, U.SYSTEM_SETUP)
@@ -84,10 +85,22 @@ def task_function(cfg: Config):
     bld_body_id = pb.loadURDF("samurai.urdf")
 
     # sample states in environment and compute risk metrics
-    # Note: currently using non-multiprocess risk estimation due to errors trying 
-    # to run pybullet in parallel
-    t_start = time.time()
+    # Note: don't run sample_risk_metric in multiprocess mode
+    # since multi-processing is brokered in outer loop when using pybullet
     risk_data = sample_risk_metrics(sysset=quadpb_setup, cfg_obj=obj, multiproc=False)
+    return risk_data
+
+
+@hydra.main(config_path=None, config_name=_CONFIG_NAME)
+def task_function(cfg: Config): 
+    ''' Instantiate QuadrotorPyBullet setup and sample risk metric data'''
+
+    # update pickler to enable parallelization of OMPL objects
+    QD.update_pickler_quadrotorstate()
+
+    # call helper function to instantiate quad system setup and get risk data
+    t_start = time.time()
+    risk_data = create_setup_and_sample_risk_metrics(ss_cfg=cfg)
     torch.save(risk_data, open(_SAVE_FNAME+".pt", "wb"))
     print("\nTotal elapsed time: {:.2f}".format(time.time()-t_start))
 

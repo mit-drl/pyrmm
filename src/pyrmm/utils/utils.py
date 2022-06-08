@@ -204,6 +204,29 @@ def partialclass(cls, *args, **kwds):
 
     return NewCls
 
+def min_linfinity_int_vector(n:int, b:int):
+    '''compute a min l-infinity vector of integers with sum constraint
+    This is handy for distributing a fixed number of tasks to a fixed
+    number of processes
+
+    Args:
+        n : int
+            length of vector
+        b : int
+            sum constraint such that sum(x) == b
+        
+    Returns:
+        x : list
+            list of integers representing min l-infinity vector
+    '''
+    assert isinstance(n, int)
+    assert isinstance(b, int)
+    assert n > 0
+    assert b >= 0
+    x_n = b // n
+    r = b % n
+    x = r * [x_n+1] + (n-r)*[x_n]
+    return x
 
 class Node2D:
     """

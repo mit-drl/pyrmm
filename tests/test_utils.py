@@ -44,3 +44,16 @@ def test_hypothesis_spherical_to_cartesian_xyplane(rho, phi):
     assert np.isclose(x, rho*np.cos(phi))
     assert np.isclose(y, rho*np.sin(phi))
     assert np.isclose(0.0, z)
+
+@given(
+    st.integers(min_value=1, max_value=1e3),
+    st.integers(min_value=0, max_value=1e6)
+)
+def test_hypothesis_min_linfinity_int_vector(n,b):
+    # ~~ ARRANGE ~~
+    # ~~ ACT ~~
+    x = U.min_linfinity_int_vector(n,b)
+
+    # ~~ ASSERT ~~
+    assert len(x) == n
+    assert np.sum(x) == b

@@ -6,6 +6,8 @@ import numpy as np
 import pybullet as pb
 import pybullet_data as pbd
 
+from multiprocess import Manager, Process
+from copy import deepcopy
 from pathlib import Path
 from hydra.core.config_store import ConfigStore
 from hydra_zen import make_config, instantiate, builds
@@ -67,11 +69,15 @@ ConfigStore.instance().store(_CONFIG_NAME,Config)
 ############### TASK FUNCTIONS ###############
 ##############################################
 
-def create_setup_and_sample_risk_metrics(ss_cfg):
+def sample_risk_metrics_worker(worker_id, ss_cfg, return_dict):
     '''functionalized SystemSetup creation and risk metric eval for multiprocessing
     Args:
+        worker_id : 
+            a dictionary key to uniquely identify worker
         ss_cfg : 
             SystemSetup Config to instantiate SystemSetup
+        return_dict : multiprocessing.Manager.dict
+            dictionary shared between workers to store return values
     '''
 
     # instantiate config object to create system setup object
@@ -88,7 +94,10 @@ def create_setup_and_sample_risk_metrics(ss_cfg):
     # Note: don't run sample_risk_metric in multiprocess mode
     # since multi-processing is brokered in outer loop when using pybullet
     risk_data = sample_risk_metrics(sysset=quadpb_setup, cfg_obj=obj, multiproc=False)
-    return risk_data
+
+    # store result, check for collision in key
+    assert worker_id not in return_dict
+    return_dict[worker_id] = risk_data
 
 
 @hydra.main(config_path=None, config_name=_CONFIG_NAME)
@@ -98,10 +107,34 @@ def task_function(cfg: Config):
     # update pickler to enable parallelization of OMPL objects
     QD.update_pickler_quadrotorstate()
 
-    # call helper function to instantiate quad system setup and get risk data
     t_start = time.time()
-    risk_data = create_setup_and_sample_risk_metrics(ss_cfg=cfg)
-    torch.save(risk_data, open(_SAVE_FNAME+".pt", "wb"))
+
+    # split processing into fixed number of parallel processes
+    manager = Manager()
+    return_dict = manager.dict()
+    n_jobs = getattr(cfg, U.N_CORES)
+    jobs = n_jobs*[None]
+    n_total_samples = getattr(cfg, U.N_SAMPLES)
+    n_samples_per_job = U.min_linfinity_int_vector(n_jobs, n_total_samples)
+    for wrkid, n_cur_samples in enumerate(n_samples_per_job):
+
+        # create a config with subset of samples
+        cur_cfg = deepcopy(cfg)
+        setattr(cur_cfg, U.N_SAMPLES, n_cur_samples)
+
+        # call helper function to instantiate quad system setup and get risk data
+        p = Process(target=sample_risk_metrics_worker, args=(wrkid, cur_cfg, return_dict))
+        jobs[wrkid] = p
+        p.start()
+
+    # join processes once they complete
+    for proc in jobs:
+        proc.join()
+
+    # compile data and save
+    comp_risk_data = sum([list(dat) for dat in return_dict.values()], [])
+    # comp_risk_data = sum(list(return_dict.values()))
+    torch.save(comp_risk_data, open(_SAVE_FNAME+".pt", "wb"))
     print("\nTotal elapsed time: {:.2f}".format(time.time()-t_start))
 
 

@@ -10,7 +10,7 @@ from pyrmm.setups import SystemSetup
 
 _MONITOR_RATE = 100
 
-def sample_risk_metrics(sysset:SystemSetup, cfg_obj, multiproc:bool=True):
+def sample_risk_metrics(sysset:SystemSetup, cfg_obj, multiproc:bool=True, prfx:str=''):
     '''sample system states, get observations, and estimate risk metrics
     
     Args:
@@ -21,6 +21,8 @@ def sample_risk_metrics(sysset:SystemSetup, cfg_obj, multiproc:bool=True):
             instantiate configuration object
         multiproc : bool
             If true, use multi-process implemtnation
+        prfx : string
+            string to add to prefix print statements
 
     Returns:
         risk_data : List
@@ -44,7 +46,7 @@ def sample_risk_metrics(sysset:SystemSetup, cfg_obj, multiproc:bool=True):
         observations[i] = sysset.observeState(states[i])
 
         if i%_MONITOR_RATE ==  0:
-            print("State sampling and ray casting: completed {} of {}".format(i, len(states)))
+            print("{}State sampling and ray casting: completed {} of {}".format(prfx, i, len(states)))
 
 
     partial_estimateRiskMetric = partial(
@@ -68,7 +70,7 @@ def sample_risk_metrics(sysset:SystemSetup, cfg_obj, multiproc:bool=True):
         for i,_ in enumerate(states):
             risk_metrics.append(rmetrics_iter.next())
             if i%_MONITOR_RATE ==  0:
-                print("Risk metric evaluation: completed {} of {} after {:.2f}".format(i, len(states), time.time()-t_start))
+                print("{}Risk metric evaluation: completed {} of {} after {:.2f}".format(prfx, i, len(states), time.time()-t_start))
 
         pool.close()
         pool.join()
@@ -79,9 +81,9 @@ def sample_risk_metrics(sysset:SystemSetup, cfg_obj, multiproc:bool=True):
         for i, state in enumerate(states):
             risk_metrics.append(partial_estimateRiskMetric(state=state))
             if i%_MONITOR_RATE ==  0:
-                print("Risk metric evaluation: completed {} of {} after {:.2f}".format(i, len(states), time.time()-t_start))
+                print("{}Risk metric evaluation: completed {} of {} after {:.2f}".format(prfx,i, len(states), time.time()-t_start))
 
-    print("Total risk estimation elapsed time: {:.2f}".format(time.time()-t_start))
+    print("{}Total risk estimation elapsed time: {:.2f}".format(prfx,time.time()-t_start))
 
     risk_data = zip(states, risk_metrics, observations)
     return risk_data

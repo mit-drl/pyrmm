@@ -69,7 +69,7 @@ ConfigStore.instance().store(_CONFIG_NAME,Config)
 ############### TASK FUNCTIONS ###############
 ##############################################
 
-def sample_risk_metrics_worker(worker_id, ss_cfg, return_dict):
+def sample_risk_metrics_worker(worker_id, ss_cfg, return_dict, prfx):
     '''functionalized SystemSetup creation and risk metric eval for multiprocessing
     Args:
         worker_id : 
@@ -78,6 +78,8 @@ def sample_risk_metrics_worker(worker_id, ss_cfg, return_dict):
             SystemSetup Config to instantiate SystemSetup
         return_dict : multiprocessing.Manager.dict
             dictionary shared between workers to store return values
+        prfx : string
+            string to add to prefix print statements
     '''
 
     # instantiate config object to create system setup object
@@ -93,7 +95,7 @@ def sample_risk_metrics_worker(worker_id, ss_cfg, return_dict):
     # sample states in environment and compute risk metrics
     # Note: don't run sample_risk_metric in multiprocess mode
     # since multi-processing is brokered in outer loop when using pybullet
-    risk_data = sample_risk_metrics(sysset=quadpb_setup, cfg_obj=obj, multiproc=False)
+    risk_data = sample_risk_metrics(sysset=quadpb_setup, cfg_obj=obj, multiproc=False, prfx=prfx)
 
     # store result, check for collision in key
     assert worker_id not in return_dict
@@ -123,7 +125,8 @@ def task_function(cfg: Config):
         setattr(cur_cfg, U.N_SAMPLES, n_cur_samples)
 
         # call helper function to instantiate quad system setup and get risk data
-        p = Process(target=sample_risk_metrics_worker, args=(wrkid, cur_cfg, return_dict))
+        prfx = 'Job {}/{}: '.format(wrkid,n_jobs)
+        p = Process(target=sample_risk_metrics_worker, args=(wrkid, cur_cfg, return_dict, prfx))
         jobs[wrkid] = p
         p.start()
 

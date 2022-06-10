@@ -1,0 +1,1768 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="default">
+    <atmosphere type="adiabatic"/>
+    <light name="group/sun" type="directional">
+      <direction>-0.5 0.1 -0.9</direction>
+      <attenuation>
+        <range>1000.0</range>
+        <quadratic>0.001</quadratic>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+      </attenuation>
+      <pose frame="">0 0 20 0 -0 0</pose>
+      <cast_shadows>1</cast_shadows>
+      <specular>0.2 0.2 0.2 1</specular>
+      <diffuse>0.8 0.8 0.8 1.0</diffuse>
+    </light>
+    <gravity>0 0 -9.8</gravity>
+    <model name="cylinder">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">-6.93001 -5.45701 0.344994 -1.85684 0.909253 3.14159</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.1</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.00507687553037</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.00448108488609</izz>
+            <iyy>0.00507687553037</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <length>0.583403779967</length>
+              <radius>0.299368832248</radius>
+            </cylinder>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <length>0.583403779967</length>
+              <radius>0.299368832248</radius>
+            </cylinder>
+          </geometry>
+          <material>
+            <diffuse>0.388235294118 0.662745098039 0.313725490196 1</diffuse>
+            <ambient>0.388235 0.662745 0.313725 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cuboid">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">0.580374 13.4447 0.536732 -2.78135 -0.267707 2.12915</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.529006352331</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0506313129869</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.00977626473644</izz>
+            <iyy>0.0430985198141</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.159516 0.44308 0.975809</size>
+            </box>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.159516 0.44308 0.975809</size>
+            </box>
+          </geometry>
+          <material>
+            <diffuse>0.0078431372549 0.847058823529 0.913725490196 1</diffuse>
+            <ambient>0.00784314 0.847059 0.913725 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cuboid_7">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">4.36679 13.4451 0.642612 1.39601 0.503686 3.08399</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.1</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0126403351712</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0129548047615</izz>
+            <iyy>0.0156123974717</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.977554 0.773928 0.958058</size>
+            </box>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.977554 0.773928 0.958058</size>
+            </box>
+          </geometry>
+          <material>
+            <diffuse>0.349019607843 0.521568627451 0.337254901961 1</diffuse>
+            <ambient>0.34902 0.521569 0.337255 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cuboid_6">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">-4.57856 12.2801 0.362895 -1.50003 -1.08608 2.45211</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.287173806674</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0119539335067</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0165521025375</izz>
+            <iyy>0.00504706651455</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.44891 0.700096 0.0968449</size>
+            </box>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.44891 0.700096 0.0968449</size>
+            </box>
+          </geometry>
+          <material>
+            <diffuse>0.556862745098 0.898039215686 0.247058823529 1</diffuse>
+            <ambient>0.556863 0.898039 0.247059 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cuboid_5">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">3.08966 5.94231 0.332177 1.63594 0.45551 1.3895</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.982979262347</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0309987722369</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0356702893538</izz>
+            <iyy>0.00659763368988</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.26227 0.605532 0.108429</size>
+            </box>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.26227 0.605532 0.108429</size>
+            </box>
+          </geometry>
+          <material>
+            <diffuse>0.0156862745098 0.290196078431 0.0196078431373 1</diffuse>
+            <ambient>0.0156863 0.290196 0.0196078 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cuboid_4">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">2.88187 13.2986 0.470555 -1.3239 -1.00695 -0.593757</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.377872974586</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0219392592166</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0230275994609</izz>
+            <iyy>0.0363302419362</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.770808 0.370318 0.748053</size>
+            </box>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.770808 0.370318 0.748053</size>
+            </box>
+          </geometry>
+          <material>
+            <diffuse>0.572549019608 0.6 0.00392156862745 1</diffuse>
+            <ambient>0.572549 0.6 0.00392157 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cuboid_3">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">-1.46834 12.1439 0.445225 3.02049 -0.141592 2.33851</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.495479816116</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0295370033184</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0170319606236</izz>
+            <iyy>0.0387294047357</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.563527 0.308112 0.787669</size>
+            </box>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.563527 0.308112 0.787669</size>
+            </box>
+          </geometry>
+          <material>
+            <diffuse>0.694117647059 0.819607843137 0.988235294118 1</diffuse>
+            <ambient>0.694118 0.819608 0.988235 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cuboid_2">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">3.40791 14.163 0.326014 0.535984 -1.08211 -0.516917</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.934717956888</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0137247366548</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0295227432888</izz>
+            <iyy>0.0274601663073</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.52695 0.318339 0.273606</size>
+            </box>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.52695 0.318339 0.273606</size>
+            </box>
+          </geometry>
+          <material>
+            <diffuse>0.61568627451 0.737254901961 0.83137254902 1</diffuse>
+            <ambient>0.615686 0.737255 0.831373 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cuboid_1">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">4.2052 11.0437 0.531606 -1.0258 -0.583617 2.24076</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.695382150924</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0339695223788</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0616042057807</izz>
+            <iyy>0.0849837000789</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.985754 0.302282 0.70344</size>
+            </box>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.985754 0.302282 0.70344</size>
+            </box>
+          </geometry>
+          <material>
+            <diffuse>0.564705882353 0.694117647059 0.203921568627 1</diffuse>
+            <ambient>0.564706 0.694118 0.203922 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cylinder_11">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">-0.366086 -3.87402 0.279585 -2.75394 -1.12864 2.22518</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.1</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.00286144263493</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.00207208020715</izz>
+            <iyy>0.00286144263493</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <length>0.468025964838</length>
+              <radius>0.203572110425</radius>
+            </cylinder>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <length>0.468025964838</length>
+              <radius>0.203572110425</radius>
+            </cylinder>
+          </geometry>
+          <material>
+            <diffuse>0.0078431372549 0.349019607843 0.0588235294118 1</diffuse>
+            <ambient>0.00784314 0.34902 0.0588235 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cylinder_10">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">-2.49195 -0.843274 0.116381 -1.47678 -0.956003 -2.39792</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.957271370767</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0322209341839</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.00478635685383</izz>
+            <iyy>0.0322209341839</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <length>0.611481576849</length>
+              <radius>0.1</radius>
+            </cylinder>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <length>0.611481576849</length>
+              <radius>0.1</radius>
+            </cylinder>
+          </geometry>
+          <material>
+            <diffuse>0.988235294118 0.964705882353 0.474509803922 1</diffuse>
+            <ambient>0.988235 0.964706 0.47451 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cuboid_9">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">2.82684 0.980504 0.384691 0.8536 -1.5539 -1.59805</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.414218791604</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0177186184046</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0315786744776</izz>
+            <iyy>0.025747798483</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.757445 0.584052 0.414964</size>
+            </box>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.757445 0.584052 0.414964</size>
+            </box>
+          </geometry>
+          <material>
+            <diffuse>0.0078431372549 0.0 0.207843137255 1</diffuse>
+            <ambient>0.00784314 0 0.207843 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cuboid_8">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">-3.29062 0.680449 0.475551 1.40354 0.15515 2.53182</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.242392414289</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0259059998427</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0140615975416</izz>
+            <iyy>0.012957976547</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.166026 0.817665 0.783543</size>
+            </box>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.166026 0.817665 0.783543</size>
+            </box>
+          </geometry>
+          <material>
+            <diffuse>0.18431372549 0.937254901961 0.0627450980392 1</diffuse>
+            <ambient>0.184314 0.937255 0.0627451 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cylinder_9">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">-0.497576 1.36935 0.627994 0.799602 -0.262922 -3.00813</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.802376030185</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0898197463619</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.09694566739</izz>
+            <iyy>0.0898197463619</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <length>0.786363221632</length>
+              <radius>0.491575497094</radius>
+            </cylinder>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <length>0.786363221632</length>
+              <radius>0.491575497094</radius>
+            </cylinder>
+          </geometry>
+          <material>
+            <diffuse>0.560784313725 0.596078431373 0.0196078431373 1</diffuse>
+            <ambient>0.560784 0.596078 0.0196078 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cylinder_8">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">-4.32113 -1.03304 0.388921 -0.935629 0.220947 0.874415</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.106306112564</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.00440659825704</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.00628173234363</izz>
+            <iyy>0.00440659825704</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <length>0.377991817928</length>
+              <radius>0.343776030982</radius>
+            </cylinder>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <length>0.377991817928</length>
+              <radius>0.343776030982</radius>
+            </cylinder>
+          </geometry>
+          <material>
+            <diffuse>0.780392156863 0.756862745098 0.0470588235294 1</diffuse>
+            <ambient>0.780392 0.756863 0.0470588 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cuboid_11">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">1.89002 -3.01667 0.284221 -0.825075 -1.36712 -1.77059</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.404423740752</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0239850894067</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0189306304132</izz>
+            <iyy>0.0161775198947</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.406228 0.62983 0.561245</size>
+            </box>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.406228 0.62983 0.561245</size>
+            </box>
+          </geometry>
+          <material>
+            <diffuse>0.243137254902 0.509803921569 0.988235294118 1</diffuse>
+            <ambient>0.243137 0.509804 0.988235 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cuboid_10">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">-4.51358 0.411488 0.466024 2.92988 0.859463 -1.21966</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.1</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.00846837706243</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.00164591361248</izz>
+            <iyy>0.0090132596832</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.362557 0.257025 0.974753</size>
+            </box>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.362557 0.257025 0.974753</size>
+            </box>
+          </geometry>
+          <material>
+            <diffuse>0.992156862745 0.725490196078 0.0823529411765 1</diffuse>
+            <ambient>0.992157 0.72549 0.0823529 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cylinder_1">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">-11.3162 -13.4836 0.543062 2.25576 -0.710765 -7.3247e-17</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.533090225414</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0428235636171</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0584988648754</izz>
+            <iyy>0.0428235636171</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <length>0.552772315587</length>
+              <radius>0.468477090228</radius>
+            </cylinder>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <length>0.552772315587</length>
+              <radius>0.468477090228</radius>
+            </cylinder>
+          </geometry>
+          <material>
+            <diffuse>0.603921568627 0.682352941176 0.0274509803922 1</diffuse>
+            <ambient>0.603922 0.682353 0.027451 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cylinder_3">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">-7.14561 -14.7264 0.436541 3.04939 -0.631144 3.14159</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.942717599088</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0715422859981</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.00471358799544</izz>
+            <iyy>0.0715422859981</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <length>0.938441775451</length>
+              <radius>0.1</radius>
+            </cylinder>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <length>0.938441775451</length>
+              <radius>0.1</radius>
+            </cylinder>
+          </geometry>
+          <material>
+            <diffuse>0.835294117647 0.670588235294 0.0352941176471 1</diffuse>
+            <ambient>0.835294 0.670588 0.0352941 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cylinder_2">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">-9.04846 -5.67966 0.523355 2.64515 -0.318983 -4.38451e-17</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.240832711453</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0200989436225</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0117614179311</izz>
+            <iyy>0.0200989436225</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <length>0.841696893206</length>
+              <radius>0.312526682175</radius>
+            </cylinder>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <length>0.841696893206</length>
+              <radius>0.312526682175</radius>
+            </cylinder>
+          </geometry>
+          <material>
+            <diffuse>0.0470588235294 0.709803921569 0.466666666667 1</diffuse>
+            <ambient>0.0470588 0.709804 0.466667 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cylinder_5">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">-11.9214 -9.23356 0.109398 1.84666 -0.37887 -3.14159</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.434460643683</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.00144820214561</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.00217230321841</izz>
+            <iyy>0.00144820214561</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <length>0.1</length>
+              <radius>0.1</radius>
+            </cylinder>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <length>0.1</length>
+              <radius>0.1</radius>
+            </cylinder>
+          </geometry>
+          <material>
+            <diffuse>0.388235294118 0.96862745098 0.705882352941 1</diffuse>
+            <ambient>0.388235 0.968627 0.705882 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cylinder_4">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">-14.27 -7.68716 0.239762 2.33682 -0.399593 0</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.453029930229</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.00727538712995</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0100550969746</izz>
+            <iyy>0.00727538712995</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <length>0.244011189363</length>
+              <radius>0.210690368075</radius>
+            </cylinder>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <length>0.244011189363</length>
+              <radius>0.210690368075</radius>
+            </cylinder>
+          </geometry>
+          <material>
+            <diffuse>0.58431372549 0.180392156863 0.560784313725 1</diffuse>
+            <ambient>0.584314 0.180392 0.560784 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cylinder_7">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">-9.98036 -7.76813 0.632888 -3.05912 -1.56616 -3.14159</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.1</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0125419298623</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0199467528686</izz>
+            <iyy>0.0125419298623</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <length>0.555181422019</length>
+              <radius>0.631613059849</radius>
+            </cylinder>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <length>0.555181422019</length>
+              <radius>0.631613059849</radius>
+            </cylinder>
+          </geometry>
+          <material>
+            <diffuse>0.325490196078 0.235294117647 0.776470588235 1</diffuse>
+            <ambient>0.32549 0.235294 0.776471 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="cylinder_6">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">-11.6469 -10.7893 0.226284 -2.08479 0.831854 2.47263e-16</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.1</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.00556608009483</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0005</izz>
+            <iyy>0.00556608009483</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <cylinder>
+              <length>0.798704958905</length>
+              <radius>0.1</radius>
+            </cylinder>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <length>0.798704958905</length>
+              <radius>0.1</radius>
+            </cylinder>
+          </geometry>
+          <material>
+            <diffuse>0.580392156863 0.674509803922 0.0078431372549 1</diffuse>
+            <ambient>0.580392 0.67451 0.00784314 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="ball">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">6.25908 -6.72245 4 0 -0 0</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.949629606744</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0334486901762</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0334486901762</izz>
+            <iyy>0.0334486901762</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <sphere>
+              <radius>0.296744336591</radius>
+            </sphere>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.296744336591</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <diffuse>0.76862745098 0.258823529412 0.250980392157 1</diffuse>
+            <ambient>0.768627 0.258824 0.25098 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="ball_10">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">-0.132458 2.79995 0.716379 -0.929258 0.2265 -2.92427</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.687658888939</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.141332495964</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.141332495964</izz>
+            <iyy>0.141332495964</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <sphere>
+              <radius>0.716810714183</radius>
+            </sphere>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.716810714183</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <diffuse>0.537254901961 0.627450980392 0.690196078431 1</diffuse>
+            <ambient>0.537255 0.627451 0.690196 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="ball_8">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">4.18172 2.36405 0.778426 -0.0920474 -0.304074 0.124605</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.221141020888</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0539730119801</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0539730119801</izz>
+            <iyy>0.0539730119801</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <sphere>
+              <radius>0.781130645697</radius>
+            </sphere>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.781130645697</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <diffuse>0.235294117647 0.301960784314 0.0117647058824 1</diffuse>
+            <ambient>0.235294 0.301961 0.0117647 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="ball_9">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">1.25394 0.0480333 0.200325 -1.08318 -0.0308755 2.38685</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.631674975634</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.010193673656</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.010193673656</izz>
+            <iyy>0.010193673656</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <sphere>
+              <radius>0.200857721174</radius>
+            </sphere>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.200857721174</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <diffuse>0.560784313725 0.682352941176 0.133333333333 1</diffuse>
+            <ambient>0.560784 0.682353 0.133333 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="ball_11">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">0.684965 0.564347 0.116318 3.05184 1.15725 3.05845</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.390287268003</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.00211498607937</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.00211498607937</izz>
+            <iyy>0.00211498607937</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <sphere>
+              <radius>0.116394261462</radius>
+            </sphere>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.116394261462</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <diffuse>0.643137254902 0.749019607843 0.125490196078 1</diffuse>
+            <ambient>0.643137 0.74902 0.12549 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="ball_1">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">5.86867 -12.9551 1 0 -0 0</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.330576734085</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0557758164594</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0557758164594</izz>
+            <iyy>0.0557758164594</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <sphere>
+              <radius>0.649466612721</radius>
+            </sphere>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.649466612721</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <diffuse>0.98431372549 0.933333333333 0.674509803922 1</diffuse>
+            <ambient>0.984314 0.933333 0.67451 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="ball_2">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">9.75486 -7.47512 2 0 -0 0</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.258133502916</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0666355009143</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0666355009143</izz>
+            <iyy>0.0666355009143</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <sphere>
+              <radius>0.8033423276</radius>
+            </sphere>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.8033423276</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <diffuse>0.0078431372549 0.670588235294 0.180392156863 1</diffuse>
+            <ambient>0.00784314 0.670588 0.180392 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="ball_3">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">11.8116 -10.9635 4 0 -0 0</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.532990832313</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.148740213597</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.148740213597</izz>
+            <iyy>0.148740213597</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <sphere>
+              <radius>0.835265099295</radius>
+            </sphere>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.835265099295</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <diffuse>0.713725490196 0.41568627451 0.313725490196 1</diffuse>
+            <ambient>0.713725 0.415686 0.313725 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="ball_4">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">11.2157 -5.46213 1 0 -0 0</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.271542864859</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.00108617145944</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.00108617145944</izz>
+            <iyy>0.00108617145944</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <sphere>
+              <radius>0.1</radius>
+            </sphere>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.1</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <diffuse>0.0196078431373 0.411764705882 0.419607843137 1</diffuse>
+            <ambient>0.0196078 0.411765 0.419608 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="ball_5">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">9.52979 -10.8964 2 0 -0 0</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.159012840363</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0497601135145</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0497601135145</izz>
+            <iyy>0.0497601135145</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <sphere>
+              <radius>0.88449338235</radius>
+            </sphere>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.88449338235</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <diffuse>0.498039215686 0.305882352941 0.117647058824 1</diffuse>
+            <ambient>0.498039 0.305882 0.117647 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="ball_6">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">6.08135 -10.4383 2 0 -0 0</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.870205080827</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.0105284969844</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.0105284969844</izz>
+            <iyy>0.0105284969844</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <sphere>
+              <radius>0.173917140219</radius>
+            </sphere>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.173917140219</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <diffuse>0.462745098039 0.662745098039 0.450980392157 1</diffuse>
+            <ambient>0.462745 0.662745 0.45098 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <model name="ball_7">
+      <allow_auto_disable>0</allow_auto_disable>
+      <static>0</static>
+      <pose frame="">10.7356 -9.8397 4 0 -0 0</pose>
+      <link name="link">
+        <kinematic>0</kinematic>
+        <inertial>
+          <pose frame="">0 0 0 0 -0 0</pose>
+          <mass>0.113732804808</mass>
+          <inertia>
+            <ixz>0.0</ixz>
+            <ixx>0.000454931219231</ixx>
+            <ixy>0.0</ixy>
+            <izz>0.000454931219231</izz>
+            <iyy>0.000454931219231</iyy>
+            <iyz>0.0</iyz>
+          </inertia>
+        </inertial>
+        <pose frame="">0 0 0 0 -0 0</pose>
+        <gravity>1</gravity>
+        <self_collide>0</self_collide>
+        <collision name="collision">
+          <geometry>
+            <sphere>
+              <radius>0.1</radius>
+            </sphere>
+          </geometry>
+          <max_contacts>20</max_contacts>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <sphere>
+              <radius>0.1</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <diffuse>0.733333333333 0.247058823529 0.247058823529 1</diffuse>
+            <ambient>0.733333 0.247059 0.247059 1</ambient>
+          </material>
+          <cast_shadows>1</cast_shadows>
+          <transparency>0.0</transparency>
+          <pose frame="">0 0 0 0 -0 0</pose>
+        </visual>
+      </link>
+      <self_collide>0</self_collide>
+    </model>
+    <include>
+      <pose frame="">0 0 0 0 -0 0</pose>
+      <static>1</static>
+      <uri>model://ground_plane</uri>
+      <name>ground_plane</name>
+    </include>
+    <physics default="1" name="default_physics" type="ode">
+      <real_time_update_rate>1000.0</real_time_update_rate>
+      <real_time_factor>1.0</real_time_factor>
+      <max_step_size>0.001</max_step_size>
+      <max_contacts>20</max_contacts>
+      <ode>
+        <constraints>
+          <cfm>0.0</cfm>
+          <erp>0.2</erp>
+          <contact_max_correcting_vel>100.0</contact_max_correcting_vel>
+          <contact_surface_layer>0.001</contact_surface_layer>
+        </constraints>
+        <solver>
+          <friction_model>pyramid_model</friction_model>
+          <iters>50</iters>
+          <use_dynamic_moi_rescaling>0</use_dynamic_moi_rescaling>
+          <min_step_size>0.0001</min_step_size>
+          <sor>1.3</sor>
+          <precon_iters>0</precon_iters>
+          <type>quick</type>
+        </solver>
+      </ode>
+    </physics>
+    <wind>
+      <linear_velocity>0 0 0</linear_velocity>
+    </wind>
+  </world>
+</sdf>

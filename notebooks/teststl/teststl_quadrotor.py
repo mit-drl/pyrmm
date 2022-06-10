@@ -11,13 +11,14 @@ dt = pb.getPhysicsEngineParameters()['fixedTimeStep']
 
 # populate vehicle and surroundings as body in world
 quad_body_id = pb.loadURDF("meshes/quadrotor.urdf")
-bld_body_id = pb.loadURDF("samurai.urdf")
+# bld_body_id = pb.loadURDF("samurai.urdf")
+obs_body_id = pb.loadSDF("meshes/pcg_test_001.world")
 
 # check for collisions between objects
 print("Raycast001: ", pb.rayTest(rayFromPosition=(-1,0,-10), rayToPosition=(1,0,-10)))
 
 # enable gravity
-pb.setGravity(0,0,-1.0)
+# pb.setGravity(0,0,-1.0)
 
 while pb.isConnected():
   pb.stepSimulation()

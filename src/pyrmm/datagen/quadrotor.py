@@ -125,7 +125,7 @@ def task_function(cfg: Config):
         setattr(cur_cfg, U.N_SAMPLES, n_cur_samples)
 
         # call helper function to instantiate quad system setup and get risk data
-        prfx = 'Job {}/{}: '.format(wrkid,n_jobs)
+        prfx = 'Job {}/{}: '.format(wrkid+1,n_jobs)
         p = Process(target=sample_risk_metrics_worker, args=(wrkid, cur_cfg, return_dict, prfx))
         jobs[wrkid] = p
         p.start()

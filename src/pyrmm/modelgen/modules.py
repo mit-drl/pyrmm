@@ -1,5 +1,4 @@
 '''Pytorch Lightning modules for training risk metric models'''
-import yaml
 import torch
 import numpy as np
 import torch.nn as nn
@@ -20,7 +19,12 @@ def se2_to_numpy(se2):
     return np.array([se2.getX(), se2.getY(), se2.getYaw()])
 
 class RiskMetricDataModule(LightningDataModule):
-    def __init__(self, datapaths: List, val_percent: float, batch_size: int, num_workers: int):
+    def __init__(self,
+        datapaths: List, 
+        val_percent: float, 
+        batch_size: int, 
+        num_workers: int, 
+        data_verify_func:callable=None):
         '''loads data from torch save files
         Args:
             datapaths : list[str]
@@ -31,6 +35,8 @@ class RiskMetricDataModule(LightningDataModule):
                 size of training batches
             num_workers : int
                 number of workers to use for dataloader
+            data_verify_func : callable
+                function to call to verify consistency of data
         '''
         super().__init__()
 
@@ -44,7 +50,8 @@ class RiskMetricDataModule(LightningDataModule):
         dpaths = [Path(dp).expanduser().resolve() for dp in datapaths]
 
         # ensure that all data is consistent on critical configs
-        RiskMetricDataModule.verify_hydrazen_rmm_data(dpaths)
+        if data_verify_func is not None:
+            data_verify_func(dpaths)
 
         # load data objects
         raw_data = dict()
@@ -95,43 +102,6 @@ class RiskMetricDataModule(LightningDataModule):
 
     def val_dataloader(self):
         return DataLoader(self.val_dataset, num_workers=self.num_workers, batch_size=len(self.val_dataset), shuffle=True)
-
-    @staticmethod
-    def verify_hydrazen_rmm_data(datapaths: List):
-        '''check that data compatibility
-        Args:
-            datapaths : list[PosixPath]
-                list of paths to hydrazen outputs to be loaded
-        '''
-
-        for i, dp in enumerate(datapaths):
-            cfg_path = dp.parent.joinpath('.hydra','config.yaml')
-            with open(cfg_path, 'r') as cfg_file:
-                cfg = yaml.full_load(cfg_file)
-            
-            if i == 0:
-                # record system parameters
-                # ppm_file = cfg[U.SYSTEM_SETUP]['ppm_file']
-                speed = cfg[U.SYSTEM_SETUP]['speed']
-                turn_rad = cfg[U.SYSTEM_SETUP]['min_turn_radius']
-
-                # record risk metric estimation critical parameters
-                dur = cfg[U.DURATION]
-                depth = cfg[U.TREE_DEPTH]
-                policy = cfg[U.POLICY]
-                brnch = cfg[U.N_BRANCHES]
-            
-            else:
-                # check system parameters match
-                # assert ppm_file == cfg[U.SYSTEM_SETUP]['ppm_file']
-                assert np.isclose(speed, cfg[U.SYSTEM_SETUP]['speed'])
-                assert np.isclose(turn_rad, cfg[U.SYSTEM_SETUP]['min_turn_radius'])
-
-                # check risk metric estimation critical parameters
-                assert np.isclose(cfg[U.DURATION], dur)
-                assert cfg[U.TREE_DEPTH] == depth
-                assert cfg[U.POLICY] == policy
-                assert cfg[U.N_BRANCHES] == brnch
 
 
 class RiskMetricModule(LightningModule):

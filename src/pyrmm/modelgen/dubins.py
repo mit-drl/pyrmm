@@ -1,3 +1,4 @@
+import yaml
 import torch
 import hydra
 import numpy as np
@@ -5,6 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from pathlib import Path
+from typing import List
 from hydra.core.config_store import ConfigStore
 from pytorch_lightning import Trainer, seed_everything, Callback
 from hydra_zen import builds, make_custom_builds_fn, make_config, instantiate
@@ -80,6 +82,41 @@ def get_abs_data_paths(datadir):
     # convert path objects to strings
     return [str(pth) for pth in pathlist]
 
+def verify_hydrazen_rmm_data(datapaths: List):
+    '''check that data compatibility
+    Args:
+        datapaths : list[PosixPath]
+            list of paths to hydrazen outputs to be loaded
+    '''
+
+    for i, dp in enumerate(datapaths):
+        cfg_path = dp.parent.joinpath('.hydra','config.yaml')
+        with open(cfg_path, 'r') as cfg_file:
+            cfg = yaml.full_load(cfg_file)
+        
+        if i == 0:
+            # record system parameters
+            # ppm_file = cfg[U.SYSTEM_SETUP]['ppm_file']
+            speed = cfg[U.SYSTEM_SETUP]['speed']
+            turn_rad = cfg[U.SYSTEM_SETUP]['min_turn_radius']
+
+            # record risk metric estimation critical parameters
+            dur = cfg[U.DURATION]
+            depth = cfg[U.TREE_DEPTH]
+            policy = cfg[U.POLICY]
+            brnch = cfg[U.N_BRANCHES]
+        
+        else:
+            # check system parameters match
+            # assert ppm_file == cfg[U.SYSTEM_SETUP]['ppm_file']
+            assert np.isclose(speed, cfg[U.SYSTEM_SETUP]['speed'])
+            assert np.isclose(turn_rad, cfg[U.SYSTEM_SETUP]['min_turn_radius'])
+
+            # check risk metric estimation critical parameters
+            assert np.isclose(cfg[U.DURATION], dur)
+            assert cfg[U.TREE_DEPTH] == depth
+            assert cfg[U.POLICY] == policy
+            assert cfg[U.N_BRANCHES] == brnch
 
 
 ##############################################
@@ -88,7 +125,7 @@ def get_abs_data_paths(datadir):
 
 pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
-DataConf = pbuilds(RiskMetricDataModule, val_percent=0.15, batch_size=64, num_workers=4)
+DataConf = pbuilds(RiskMetricDataModule, val_percent=0.15, batch_size=64, num_workers=4, data_verify_func=verify_hydrazen_rmm_data)
 
 ModelConf = builds(single_layer_nn, num_inputs=_NUM_MODEL_INPUTS, num_neurons=64)
 

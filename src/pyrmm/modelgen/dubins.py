@@ -64,12 +64,6 @@ class CheckBatchGradient(Callback):
         if example_input.grad[zero_grad_inds].abs().sum().item() > 0:
             raise RuntimeError("Your model mixes data across the batch dimension!")
 
-
-def get_abs_path_str(rel_file_path):
-    '''get absolute path of path relative to repo head'''
-    repo_dir = U.get_repo_path()
-    return str(Path(repo_dir).joinpath(rel_file_path))
-
 def get_abs_data_paths(datadir):
     '''get list of absolute paths to .pt data fils in data_dir'''
 
@@ -77,7 +71,7 @@ def get_abs_data_paths(datadir):
         raise Exception('please enter valid data directory')
     
     # get list of path objects to .pt files
-    pathlist = list(Path(get_abs_path_str(datadir)).glob('*.pt'))
+    pathlist = list(Path(U.get_abs_path_str(datadir)).glob('*.pt'))
     
     # convert path objects to strings
     return [str(pth) for pth in pathlist]

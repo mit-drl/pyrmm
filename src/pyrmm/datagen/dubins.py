@@ -20,11 +20,6 @@ _CONFIG_NAME = "dubins_datagen_app"
 ##############################################
 
 _SAVE_FNAME = U.format_save_filename(Path(__file__), _HASH_LEN)
-_REPO_PATH = U.get_repo_path()
-
-def get_abs_path_str(rel_file_path):
-    '''get absolute path of path relative to repo head'''
-    return str(Path(_REPO_PATH).joinpath(rel_file_path))
 
 ##############################################
 ############# HYDARA-ZEN CONFIGS #############
@@ -89,7 +84,7 @@ def task_function(cfg: Config):
     U.update_pickler_se2stateinternal()
 
     # get path to all ppm files in ppm_dir
-    ppm_paths = list(Path(get_abs_path_str(obj.ppm_dir)).glob('*.ppm'))
+    ppm_paths = list(Path(U.get_abs_path_str(obj.ppm_dir)).glob('*.ppm'))
     
     # iterate through each ppm configuration file for data generation
     t_start = time.time()

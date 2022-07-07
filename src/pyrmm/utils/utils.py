@@ -73,6 +73,11 @@ def get_repo_path():
     repo_path = repo.git_dir[:-len('.git')]
     return repo_path
 
+def get_abs_path_str(rel_file_path):
+    '''get absolute path of path relative to repo head'''
+    repo_dir = get_repo_path()
+    return str(Path(repo_dir).joinpath(rel_file_path))
+
 def plot_dubins_data(datapath, desc, data=None, cmap='coolwarm'):
 
     # get hydra configuration file used for data gen

@@ -113,7 +113,7 @@ def verify_hydrazen_rmm_data(datapaths: List):
 pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
 DataConf = pbuilds(RiskMetricDataModule, 
-    validation_percent=0.15, 
+    val_percent=0.15, 
     batch_size=64, 
     num_workers=4)
 

@@ -61,21 +61,21 @@ class RiskMetricDataModule(LightningDataModule):
         state_samples_np: Tuple[np.ndarray],
         risk_metrics_np: Tuple[float],
         observations_np: Tuple[np.ndarray], 
-        validation_percent: float, 
+        val_percent: float, 
         batch_size: int, 
         num_workers: int):
         '''loads data from torch save files
         Args:
             state_samples_np : tuple(np.ndarray)
-                tuple (immutable) of state samples formatted into numpy arrays. 
+                tuple (immutable) of unscaled state samples formatted into numpy arrays. 
                 i-th element is i-th sampled state represented as a numpy array
             risk_metrics_np : tuple(float)
                 tuple (immutable) of risk metric as a floating point value. 
                 i-th element is risk metric evaluated at the i-th sampled state
             observations_np : tuple(np.ndarray)
-                tuple (immutable) of state observations formatted as numpy array 
+                tuple (immutable) of unscaled state observations formatted as numpy array 
                 i-th element is the obervation (see observeState) at the i-th sampled state
-            validation_percent : float
+            val_percent : float
                 percent of data to be used in validation set
             batch_size : int
                 size of training batches
@@ -84,7 +84,7 @@ class RiskMetricDataModule(LightningDataModule):
         '''
         super().__init__()
 
-        assert validation_percent >= 0 and validation_percent <= 1
+        assert val_percent >= 0 and val_percent <= 1
         assert batch_size > 0
 
         assert state_samples_np.shape[0] == risk_metrics_np.shape[0] == observations_np.shape[0]
@@ -94,7 +94,7 @@ class RiskMetricDataModule(LightningDataModule):
         self.num_workers = num_workers
 
         n_data = len(state_samples_np)
-        n_val = int(n_data*validation_percent)
+        n_val = int(n_data*val_percent)
         n_train = n_data - n_val
 
         # Create input and output data regularizers
@@ -107,20 +107,16 @@ class RiskMetricDataModule(LightningDataModule):
         # self.output_scaler.fit(rmetrics_np)
 
         # scale and convert to tensor
-        ssamples_scaled_pt = torch.from_numpy(self.state_scaler.transform(state_samples_np))
-        lidars_scaled_pt = torch.from_numpy(self.observation_scaler.transform(observations_np))
-        rmetrics_pt = torch.from_numpy(risk_metrics_np)
+        state_samples_scaled_pt = torch.from_numpy(self.state_scaler.transform(state_samples_np))
+        observations_scaled_pt = torch.from_numpy(self.observation_scaler.transform(observations_np))
+        risk_metrics_pt = torch.from_numpy(risk_metrics_np)
         
-        # format into dataset
-        # full_dataset = TensorDataset(ssamples_scaled_pt, rmetrics_pt)
-        full_dataset = TensorDataset(lidars_scaled_pt, rmetrics_pt)
+        # format scaled observations and risk metrics into training dataset
+        full_dataset = TensorDataset(observations_scaled_pt, risk_metrics_pt)
 
         # randomly split training and validation dataset
         self.train_dataset, self.val_dataset = random_split(full_dataset, [n_train, n_val])
 
-        # store for later visualization use
-        # self.raw_data = raw_data
-        # self.raw_data_paths = dpaths
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, num_workers=self.num_workers, batch_size=self.batch_size, shuffle=True)

@@ -64,18 +64,6 @@ class CheckBatchGradient(Callback):
         if example_input.grad[zero_grad_inds].abs().sum().item() > 0:
             raise RuntimeError("Your model mixes data across the batch dimension!")
 
-def get_abs_data_paths(datadir):
-    '''get list of absolute paths to .pt data fils in data_dir'''
-
-    if datadir is None:
-        raise Exception('please enter valid data directory')
-    
-    # get list of path objects to .pt files
-    pathlist = list(Path(U.get_abs_path_str(datadir)).glob('*.pt'))
-    
-    # convert path objects to strings
-    return [str(pth) for pth in pathlist]
-
 def verify_hydrazen_rmm_data(datapaths: List):
     '''check that data compatibility
     Args:
@@ -145,6 +133,10 @@ ExperimentConfig = make_config(
 cs = ConfigStore.instance()
 cs.store(_CONFIG_NAME, node=ExperimentConfig)
 
+##############################################
+############### TASK FUNCTIONS ###############
+##############################################
+
 @hydra.main(config_path=None, config_name=_CONFIG_NAME)
 def task_function(cfg: ExperimentConfig):
     seed_everything(cfg.seed)
@@ -156,7 +148,7 @@ def task_function(cfg: ExperimentConfig):
     obj = instantiate(cfg)
 
     # create data module
-    datapaths = get_abs_data_paths(obj.datadir)
+    datapaths = U.get_abs_pt_data_paths(obj.datadir)
     data_module = obj.data_module(datapaths=datapaths)
 
     # select pseudo-test data and visualize
@@ -182,10 +174,6 @@ def task_function(cfg: ExperimentConfig):
     pstest_data = zip(pstest_ssamples, pstest_pred_pt.detach().numpy(), pstest_lidars)
     U.plot_dubins_data(Path(pstest_dp), desc='Inferred', data=pstest_data)
 
-
-##############################################
-############### TASK FUNCTIONS ###############
-##############################################
 
 if __name__ == "__main__":
     task_function()

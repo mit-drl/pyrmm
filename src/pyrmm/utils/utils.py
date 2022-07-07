@@ -78,6 +78,18 @@ def get_abs_path_str(rel_file_path):
     repo_dir = get_repo_path()
     return str(Path(repo_dir).joinpath(rel_file_path))
 
+def get_abs_pt_data_paths(datadir):
+    '''get list of absolute paths to .pt data files in data_dir'''
+
+    if datadir is None:
+        raise Exception('please enter valid data directory')
+    
+    # get list of path objects to .pt files
+    pathlist = list(Path(U.get_abs_path_str(datadir)).glob('*.pt'))
+    
+    # convert path objects to strings
+    return [str(pth) for pth in pathlist]
+
 def plot_dubins_data(datapath, desc, data=None, cmap='coolwarm'):
 
     # get hydra configuration file used for data gen

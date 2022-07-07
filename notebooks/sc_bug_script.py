@@ -3,4 +3,5 @@ from ompl import control as oc
 sspace = ob.RealVectorStateSpace(1)
 cspace = oc.RealVectorControlSpace(sspace, 1)
 c = cspace.allocControl()
-c[0] = 1.0
+print(type(c))
+print(c[0])

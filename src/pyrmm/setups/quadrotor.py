@@ -437,6 +437,33 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
         if 'ret_true_duration' in kwargs and kwargs['ret_true_duration']:
             return cum_dur
 
+def ompl_to_numpy(omplState):
+    '''Represent a OMPL-defined quadrotor state as an numpy array
+    Args:
+        omplState : ob.CompoundState
+            ompl's state object for 6DoF with 
+            ordering (position, orientation, velocity, angular velocity)
+    
+    Returns:
+        state_np : np.ndarray
+            numpy array representation of ompl state with 
+            ordering (position, orientation, velocity, angular velocity)
+    '''
+    return np.array([
+        omplState[0][0],
+        omplState[0][1],
+        omplState[0][2],
+        omplState[1].x,
+        omplState[1].y,
+        omplState[1].z,
+        omplState[1].w,
+        omplState[2][0],
+        omplState[2][1],
+        omplState[2][2],
+        omplState[3][0],
+        omplState[3][1],
+        omplState[3][2],
+    ])
 
 def copy_state_ompl2pb(pbBodyId, pbClientId, omplState):
     '''Copy the 6DoF state from OMPL into PyBullet state in place

@@ -26,12 +26,15 @@ def compile_state_risk_obs_data(datapaths, data_verify_func:callable=None):
                 function to call to verify consistency of data
     
     Returns:
-        state_samples : tuple(state)
-            state samples in their native format (e.g. OMPL objects)
-        risk_metrics : tuple(state)
+        state_samples : tuple(ompl.base.State)
+            state samples in their native format (i.e. OMPL State objects)
+            i-th element is i-th sampled state represented as a numpy array
+        risk_metrics : tuple(float)
             risk metric evaluated at corresponding sampled state
-        observations : tuple(array)
+            i-th element is risk metric evaluated at the i-th sampled state
+        observations : tuple
             observeState outputs at each corresponding sampled state
+            i-th element is the obervation (see observeState) at the i-th sampled state
         raw_data : dict
             raw data separated by data files, useful for visualization
     '''
@@ -58,22 +61,22 @@ def compile_state_risk_obs_data(datapaths, data_verify_func:callable=None):
 
 class RiskMetricDataModule(LightningDataModule):
     def __init__(self,
-        state_samples_np: Tuple[np.ndarray],
-        risk_metrics_np: Tuple[float],
-        observations_np: Tuple[np.ndarray], 
+        state_samples_np: np.ndarray,
+        risk_metrics_np: np.ndarray,
+        observations_np: np.ndarray, 
         val_percent: float, 
         batch_size: int, 
         num_workers: int):
         '''loads data from torch save files
         Args:
-            state_samples_np : tuple(np.ndarray)
-                tuple (immutable) of unscaled state samples formatted into numpy arrays. 
+            state_samples_np : np.ndarray
+                array of unscaled state samples formatted into numpy arrays. 
                 i-th element is i-th sampled state represented as a numpy array
-            risk_metrics_np : tuple(float)
-                tuple (immutable) of risk metric as a floating point value. 
+            risk_metrics_np : np.ndarray
+                array of risk metric as a floating point value. 
                 i-th element is risk metric evaluated at the i-th sampled state
-            observations_np : tuple(np.ndarray)
-                tuple (immutable) of unscaled state observations formatted as numpy array 
+            observations_np : np.ndarray
+                array of unscaled state observations formatted as numpy array 
                 i-th element is the obervation (see observeState) at the i-th sampled state
             val_percent : float
                 percent of data to be used in validation set

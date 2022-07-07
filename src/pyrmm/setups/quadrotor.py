@@ -21,6 +21,7 @@ SystemSetup for Quadrotor vehicle
 
 '''
 
+import copyreg
 import pathlib
 import numpy as np
 import pybullet as pb
@@ -178,7 +179,7 @@ class QuadrotorPyBulletSetup(SystemSetup):
         '''
 
         # reset the pb body state based on propogation start state
-        QD.copy_state_ompl2pb(
+        copy_state_ompl2pb(
             pbBodyId=self.pbBodyId, 
             pbClientId=self.pbClientId, 
             omplState=state
@@ -221,7 +222,7 @@ class QuadrotorPyBulletSetup(SystemSetup):
 
         # update pybullet state with ompl state
         if state is not None:
-            QD.copy_state_ompl2pb(
+            copy_state_ompl2pb(
                 pbBodyId = self.pbBodyId, 
                 pbClientId = self.pbClientId,
                 omplState = state)
@@ -256,7 +257,7 @@ class QuadrotorPyBulletSetup(SystemSetup):
         '''
 
         # update pybullet state with ompl state
-        QD.copy_state_ompl2pb(
+        copy_state_ompl2pb(
             pbBodyId = self.pbBodyId, 
             pbClientId = self.pbClientId,
             omplState = state)
@@ -343,7 +344,7 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
             raise Exception("Duration of propagation is less than PyBullet's fixed timestep")
 
         # reset the pb body state based on propogation start state
-        QD.copy_state_ompl2pb(
+        copy_state_ompl2pb(
             pbBodyId=self.pbBodyId, 
             pbClientId=self.pbClientId, 
             omplState=state
@@ -362,7 +363,7 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
             t += dt
 
         # Extract state information from pb physics client and store in OMPL result
-        QD.copy_state_pb2ompl(
+        copy_state_pb2ompl(
             pbBodyId=self.pbBodyId, 
             pbClientId=self.pbClientId, 
             omplState=result)
@@ -436,4 +437,140 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
         if 'ret_true_duration' in kwargs and kwargs['ret_true_duration']:
             return cum_dur
 
-        
+
+def copy_state_ompl2pb(pbBodyId, pbClientId, omplState):
+    '''Copy the 6DoF state from OMPL into PyBullet state in place
+    Args:
+        pbBodyId : int
+            PyBullet unique object ID of quadrotor body associated with propagator
+        pbClientId : int
+            ID number of pybullet physics client
+        omplState : ob.CompoundState
+            ompl's state object for 6DoF with ordering (position, orientation, velocity, angular velocity)
+
+    Refs:
+        PyBullet quaternion ordering: https://docs.google.com/document/d/10sXEhzFRSnvFcl3XxNGhnD4N2SedqwdAvK3dsihxVUA/edit#heading=h.vy9p26bpc9ft
+        OMPL quaternion: https://ompl.kavrakilab.org/classompl_1_1base_1_1SO3StateSpace_1_1StateType.html
+    '''
+    # define position, orientation, velocity, and angular velocity lists
+    p_bu_wu__wu = 3*[None]
+    q_bu_wu = 4*[None]
+    v_bu_wu__wu = 3*[None]
+    w_bu_wu = 3*[None]
+
+    # position
+    p_bu_wu__wu[0] = omplState[0][0]
+    p_bu_wu__wu[1] = omplState[0][1]
+    p_bu_wu__wu[2] = omplState[0][2]
+
+    # orientation
+    q_bu_wu[0] = omplState[1].x
+    q_bu_wu[1] = omplState[1].y
+    q_bu_wu[2] = omplState[1].z
+    q_bu_wu[3] = omplState[1].w
+
+    # velocity
+    v_bu_wu__wu[0] = omplState[2][0]
+    v_bu_wu__wu[1] = omplState[2][1]
+    v_bu_wu__wu[2] = omplState[2][2]
+
+    # angular velocity
+    w_bu_wu[0] = omplState[3][0]
+    w_bu_wu[1] = omplState[3][1]
+    w_bu_wu[2] = omplState[3][2]
+
+    # update PyBullet State
+    pb.resetBasePositionAndOrientation(
+        bodyUniqueId=pbBodyId,
+        posObj=p_bu_wu__wu,
+        ornObj=q_bu_wu,
+        physicsClientId=pbClientId
+    )
+    pb.resetBaseVelocity(
+        objectUniqueId=pbBodyId,
+        linearVelocity=v_bu_wu__wu,
+        angularVelocity=w_bu_wu,
+        physicsClientId=pbClientId
+    )
+
+def copy_state_pb2ompl(pbBodyId, pbClientId, omplState):
+    '''Copy the 6DoF state from PyBullent into OMPL state in place
+    Args:
+        pbBodyId : int
+            PyBullet unique object ID of quadrotor body associated with propagator
+        pbClientId : int
+            ID number of pybullet physics client
+        omplState : ob.CompoundState
+            ompl's state object for 6DoF with ordering (position, orientation, velocity, angular velocity)
+
+    Refs:
+        PyBullet quaternion ordering: https://docs.google.com/document/d/10sXEhzFRSnvFcl3XxNGhnD4N2SedqwdAvK3dsihxVUA/edit#heading=h.vy9p26bpc9ft
+        OMPL quaternion: https://ompl.kavrakilab.org/classompl_1_1base_1_1SO3StateSpace_1_1StateType.html
+    '''
+    p_bu_wu__wu, q_bu_wu = pb.getBasePositionAndOrientation(
+        bodyUniqueId=pbBodyId,
+        physicsClientId=pbClientId)
+    v_bu_wu__wu, w_bu_wu = pb.getBaseVelocity(
+        bodyUniqueId=pbBodyId,
+        physicsClientId=pbClientId
+    )
+
+    # store state in OMPL CompoundState object in-place
+    # position
+    omplState[0][0] = p_bu_wu__wu[0]
+    omplState[0][1] = p_bu_wu__wu[1]
+    omplState[0][2] = p_bu_wu__wu[2]
+    # orientation
+    omplState[1].x = q_bu_wu[0]
+    omplState[1].y = q_bu_wu[1]
+    omplState[1].z = q_bu_wu[2]
+    omplState[1].w = q_bu_wu[3]
+    # velocity
+    omplState[2][0] = v_bu_wu__wu[0]
+    omplState[2][1] = v_bu_wu__wu[1]
+    omplState[2][2] = v_bu_wu__wu[2]
+    # angular velocity
+    omplState[3][0] = w_bu_wu[0]
+    omplState[3][1] = w_bu_wu[1]
+    omplState[3][2] = w_bu_wu[2]
+
+_DUMMY_QUADROTORSPACE = QD.QuadrotorStateSpace()
+
+def _pickle_QuadrotorState(state):
+    '''pickle QuadrotorState (OMPL compound state) object'''
+    px = state[0][0]
+    py = state[0][1]
+    pz = state[0][2]
+    qx = state[1].x
+    qy = state[1].y
+    qz = state[1].z
+    qw = state[1].w
+    vx = state[2][0]
+    vy = state[2][1]
+    vz = state[2][2]
+    wx = state[3][0]
+    wy = state[3][1]
+    wz = state[3][2]
+    return _unpickle_QuadrotorState, (px,py,pz,qx,qy,qz,qw,vx,vy,vz,wx,wy,wz)
+
+def _unpickle_QuadrotorState(px,py,pz,qx,qy,qz,qw,vx,vy,vz,wx,wy,wz):
+    '''unpickle QuadrotorState (OMPL compound state) object'''
+    state = _DUMMY_QUADROTORSPACE.allocState()
+    state[0][0] = px
+    state[0][1] = py
+    state[0][2] = pz
+    state[1].x = qx
+    state[1].y = qy
+    state[1].z = qz
+    state[1].w = qw
+    state[2][0] = vx
+    state[2][1] = vy
+    state[2][2] = vz
+    state[3][0] = wx
+    state[3][1] = wy
+    state[3][2] = wz
+    return state
+
+def update_pickler_quadrotorstate():
+    '''updates pickler to enable pickling and unpickling of ompl objects'''
+    copyreg.pickle(_DUMMY_QUADROTORSPACE.allocState().__class__, _pickle_QuadrotorState, _unpickle_QuadrotorState)

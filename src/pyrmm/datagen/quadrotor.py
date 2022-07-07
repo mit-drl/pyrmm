@@ -16,7 +16,7 @@ from hydra_zen import ZenField as zf
 import pyrmm.utils.utils as U
 import pyrmm.dynamics.quadrotor as QD
 from pyrmm.datagen.sampler import sample_risk_metrics
-from pyrmm.setups.quadrotor import QuadrotorPyBulletSetup
+from pyrmm.setups.quadrotor import QuadrotorPyBulletSetup, update_pickler_quadrotorstate
 
 
 _HASH_LEN = 5
@@ -107,7 +107,7 @@ def task_function(cfg: Config):
     ''' Instantiate QuadrotorPyBullet setup and sample risk metric data'''
 
     # update pickler to enable parallelization of OMPL objects
-    QD.update_pickler_quadrotorstate()
+    update_pickler_quadrotorstate()
 
     t_start = time.time()
 

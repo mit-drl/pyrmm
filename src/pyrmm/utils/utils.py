@@ -85,7 +85,7 @@ def get_abs_pt_data_paths(datadir):
         raise Exception('please enter valid data directory')
     
     # get list of path objects to .pt files
-    pathlist = list(Path(U.get_abs_path_str(datadir)).glob('*.pt'))
+    pathlist = list(Path(get_abs_path_str(datadir)).glob('*.pt'))
     
     # convert path objects to strings
     return [str(pth) for pth in pathlist]

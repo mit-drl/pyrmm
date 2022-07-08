@@ -85,7 +85,7 @@ PLModuleConf = pbuilds(RiskMetricModule,
 TrainerConf = pbuilds(Trainer, 
     max_epochs=2028, 
     precision=64, 
-    reload_dataloaders_every_epoch=True, 
+    reload_dataloaders_every_n_epochs=1, 
     progress_bar_refresh_rate=0)
 
 ExperimentConfig = make_config(

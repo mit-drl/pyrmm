@@ -1,8 +1,8 @@
 import yaml
 import torch
 import hydra
+import warnings
 import numpy as np
-import torch.nn as nn
 import torch.optim as optim
 
 from pathlib import Path
@@ -13,31 +13,50 @@ from hydra_zen import builds, make_custom_builds_fn, make_config, instantiate
 
 import pyrmm.utils.utils as U
 from pyrmm.modelgen.modules import RiskMetricDataModule, RiskMetricModule, \
-    compile_state_risk_obs_data
+    RiskMetricTrainingData, single_layer_nn
 
 _CONFIG_NAME = "dubins_modelgen_app"
-_NUM_MODEL_INPUTS = 8
+# _NUM_MODEL_INPUTS = 8
+
+##############################################
+### SYSTEM-SPECIFIC FUNCTSIONS AND CLASSES ###
+##############################################
 
 def se2_to_numpy(se2):
     '''convert OMPL SE2StateInternal object to numpy array'''
     return np.array([se2.getX(), se2.getY(), se2.getYaw()])
 
-##############################################
-################# MODEL DEF ##################
-##############################################
+class DubinsPPMDataModule(RiskMetricDataModule):
+    def __init__(self,
+        datapaths: List[str],
+        val_percent: float, 
+        batch_size: int, 
+        num_workers: int,
+        compile_verify_func: callable):
 
-def single_layer_nn(num_inputs: int, num_neurons: int) -> nn.Module:
-    """y = sum(V sigmoid(X W + b))"""
-    return nn.Sequential(
-        nn.Linear(num_inputs, num_neurons),
-        nn.Sigmoid(),
-        nn.Linear(num_neurons, 1, bias=False),
-    )
+        super().__init__(
+            datapaths=datapaths,
+            val_percent=val_percent,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            compile_verify_func=compile_verify_func)
 
-def linear_nn():
-    return nn.Sequential(
-        nn.Linear(3,1)
-    )
+    def raw_data_to_numpy(self, raw_data:RiskMetricTrainingData):
+        '''convert raw data (e.g. OMPL objects) to numpy arrays'''
+
+        # catch "ragged" array that would be caused by data with 
+        # inconsistent observation sizes
+        with warnings.catch_warnings():
+            warnings.filterwarnings('error')
+            state_samples= np.concatenate([se2_to_numpy(s).reshape(1,3) for s in raw_data.state_samples], axis=0)
+            risk_metrics = np.asarray(raw_data.risk_metrics).reshape(-1,1)
+            observations = np.asarray(raw_data.observations)
+
+        return RiskMetricTrainingData(
+            state_samples= state_samples,
+            risk_metrics = risk_metrics,
+            observations = observations,
+        )
 
 class InputMonitor(Callback):
     '''Ref: https://www.pytorchlightning.ai/blog/3-simple-tricks-that-will-change-the-way-you-debug-pytorch'''
@@ -112,20 +131,20 @@ def verify_hydrazen_rmm_data(datapaths: List):
 
 pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
-DataConf = pbuilds(RiskMetricDataModule, 
+DataConf = pbuilds(DubinsPPMDataModule, 
     val_percent=0.15, 
     batch_size=64, 
-    num_workers=4)
+    num_workers=4,
+    compile_verify_func=verify_hydrazen_rmm_data
+    )
 
-ModelConf = builds(single_layer_nn, 
-    num_inputs=_NUM_MODEL_INPUTS, 
+ModelConf = pbuilds(single_layer_nn,  
     num_neurons=64)
 
 OptimConf = pbuilds(optim.Adam)
 
-PLModuleConf = builds(RiskMetricModule, 
-    n_inputs=_NUM_MODEL_INPUTS, 
-    model=ModelConf, 
+PLModuleConf = pbuilds(RiskMetricModule,  
+    # model=ModelConf, 
     optimizer=OptimConf)
 
 TrainerConf = pbuilds(Trainer, 
@@ -137,6 +156,7 @@ TrainerConf = pbuilds(Trainer,
 ExperimentConfig = make_config(
     'datadir',
     data_module=DataConf,
+    pl_model=ModelConf,
     pl_module=PLModuleConf,
     trainer=TrainerConf,
     seed=1,
@@ -162,41 +182,36 @@ def task_function(cfg: ExperimentConfig):
 
     # compile all data in data directory
     datapaths = U.get_abs_pt_data_paths(obj.datadir)
-    compiled_data = compile_state_risk_obs_data(
-        datapaths=datapaths,
-        data_verify_func=verify_hydrazen_rmm_data)
 
-    # convert SE2StateInternal objects into numpy arrays
-    state_samples_np = np.concatenate([se2_to_numpy(s).reshape(1,3) for s in compiled_data[0]], axis=0)
-    risk_metrics_np = np.asarray(compiled_data[1]).reshape(-1,1)
-    observations_np = np.asarray(compiled_data[2])
+    # finish instantiating data module
+    data_module = obj.data_module(datapaths=datapaths)
 
-    # create data module
-    data_module = obj.data_module(
-        state_samples_np=state_samples_np,
-        risk_metrics_np=risk_metrics_np,
-        observations_np=observations_np)
+    # extract the trained model input size from the observation data
+    num_model_inputs = data_module.observation_shape[1]
 
     # select pseudo-test data and visualize
-    raw_data = compiled_data[3]
-    pstest_dp = np.random.choice(list(raw_data.keys()))
-    pstest_ssamples, pstest_rmetrics, pstest_lidars = tuple(zip(*raw_data[pstest_dp]))
-    U.plot_dubins_data(Path(pstest_dp), desc="Truth", data=raw_data[pstest_dp])
+    separated_raw_data = data_module.separated_raw_data
+    pstest_dp = np.random.choice(list(separated_raw_data.keys()))
+    pstest_ssamples, pstest_rmetrics, pstest_lidars = tuple(zip(*separated_raw_data[pstest_dp]))
+    U.plot_dubins_data(Path(pstest_dp), desc="Truth", data=separated_raw_data[pstest_dp])
 
     # finish instantiating the trainer
     trainer = obj.trainer(callbacks=[InputMonitor(), CheckBatchGradient()])
-    # trainer = obj.trainer(callbacks=[InputMonitor()])
+
+    # finish instantiating pytorch lightning model and module
+    pl_model = obj.pl_model(num_inputs=num_model_inputs)
+    pl_module = obj.pl_module(num_inputs=num_model_inputs, model=pl_model)
 
     # train the model
-    trainer.fit(obj.pl_module, data_module)
+    trainer.fit(pl_module, data_module)
 
     # randomly sample one of the datasets for pseudo-testing accuracy of model predictions
     # (i.e. not true testing because data is currently part of training)
     # convert SE2StateInternal objects into numpy arrays
-    obj.pl_module.eval()
+    pl_module.eval()
     pstest_lidars_np = np.asarray(pstest_lidars)
     pstest_lidars_scaled_pt = torch.from_numpy(data_module.observation_scaler.transform(pstest_lidars_np))
-    pstest_pred_pt = obj.pl_module(pstest_lidars_scaled_pt)
+    pstest_pred_pt = pl_module(pstest_lidars_scaled_pt)
     print('predicted data range: {} - {}'.format(torch.min(pstest_pred_pt), torch.max(pstest_pred_pt)))
     pstest_data = zip(pstest_ssamples, pstest_pred_pt.detach().numpy(), pstest_lidars)
     U.plot_dubins_data(Path(pstest_dp), desc='Inferred', data=pstest_data)

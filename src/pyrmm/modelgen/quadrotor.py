@@ -22,9 +22,16 @@ pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
 DataConf = pbuilds(RiskMetricDataModule, val_percent=0.15, batch_size=64, num_workers=4)
 
+TrainerConf = pbuilds(Trainer, 
+    max_epochs=2028, 
+    precision=64, 
+    reload_dataloaders_every_epoch=True, 
+    progress_bar_refresh_rate=0)
+
 ExperimentConfig = make_config(
     'datadir',
     data_module=DataConf,
+    trainer=TrainerConf,
     seed=1,
 )
 
@@ -65,6 +72,12 @@ def task_function(cfg: ExperimentConfig):
         state_samples_np=state_samples_np,
         risk_metrics_np=risk_metrics_np,
         observations_np=observations_np)
+
+    # finish instantiating the trainer
+    trainer = obj.trainer()
+
+    # train the model
+    # trainer.fit(obj.pl_module, data_module)
 
 if __name__ == "__main__":
     task_function()

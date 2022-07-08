@@ -88,10 +88,10 @@ class CheckBatchGradient(Callback):
         if example_input.grad[zero_grad_inds].abs().sum().item() > 0:
             raise RuntimeError("Your model mixes data across the batch dimension!")
 
-def verify_hydrazen_rmm_data(datapaths: List):
-    '''check that data compatibility
+def verify_hydrazen_rmm_data(datapaths: List[Path]):
+    '''check that data compatibility (e.g. datagen params) for raw data
     Args:
-        datapaths : list[PosixPath]
+        datapaths : List[Path]
             list of paths to hydrazen outputs to be loaded
     '''
 

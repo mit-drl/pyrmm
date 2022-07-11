@@ -1,0 +1,40 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <model name="pcg_walls_test_001_walls">
+    <allow_auto_disable>0</allow_auto_disable>
+    <link name="mesh">
+      <kinematic>0</kinematic>
+      <pose frame="">0 0 0 0 -0 0</pose>
+      <gravity>1</gravity>
+      <self_collide>0</self_collide>
+      <collision name="collision">
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>file:///home/ross/Projects/AIIA/risk_metric_maps/notebooks/teststl/meshes/pcg_walls_test_001_walls/meshes/VxxRdejytW.stl</uri>
+          </mesh>
+        </geometry>
+        <max_contacts>20</max_contacts>
+        <pose frame="">0.64343 -0.901918 -2.5 0 -0 0</pose>
+      </collision>
+      <visual name="visual">
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>file:///home/ross/Projects/AIIA/risk_metric_maps/notebooks/teststl/meshes/pcg_walls_test_001_walls/meshes/HPvLQoJhCV.stl</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <diffuse>0.0392156862745 0.372549019608 0.219607843137 1</diffuse>
+          <ambient>0.0392157 0.372549 0.219608 1</ambient>
+        </material>
+        <cast_shadows>1</cast_shadows>
+        <transparency>0.0</transparency>
+        <pose frame="">0.64343 -0.901918 -2.5 0 -0 0</pose>
+      </visual>
+    </link>
+    <pose frame="">0 0 2.5 0 -0 0</pose>
+    <static>1</static>
+    <self_collide>0</self_collide>
+  </model>
+</sdf>

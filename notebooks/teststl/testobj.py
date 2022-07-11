@@ -3,7 +3,8 @@ import time
 
 p.connect(p.GUI)
 dt = p.getPhysicsEngineParameters()['fixedTimeStep']
-mesh_file = "meshes/qUwYeQXbgT.obj"
+# mesh_file = "meshes/qUwYeQXbgT.obj"
+mesh_file = "meshes/pcg_walls_test_001_walls/meshes/HPvLQoJhCV.obj"
 
 col_shape_id = p.createCollisionShape(
     shapeType=p.GEOM_MESH,
@@ -23,7 +24,6 @@ body_id = p.createMultiBody(
     basePosition=(0, 0, 0),
     baseOrientation=(0, 0, 0, 1),
 )
-
 
 while p.isConnected():
   p.stepSimulation()

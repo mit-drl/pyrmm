@@ -8,6 +8,7 @@ import hydra
 import subprocess
 import numpy as np
 
+from pathlib import Path
 from numpy.random import rand, randint
 from hydra_zen import instantiate, make_config
 from hydra.core.config_store import ConfigStore
@@ -37,9 +38,41 @@ cs.store(_CONFIG_NAME, node=PCGRoomGenConfig)
 ############### TASK FUNCTIONS ###############
 ##############################################
 
+def pcg_world_to_pybullet_sdf(dirpath: str, world_name: str):
+    '''makes the pcg_gazebo generated room compatible with pybullet
+    
+    Args:
+        dir_path : str
+            absolute path to directory containing pcg-generated room .world
+        world_name : str
+            prefix of room's .world file to be converted
+    '''
+
+    # reconstruct paths and filenames and assert existence and type
+    abs_dirpath = Path(dirpath).expanduser().resolve()
+    assert abs_dirpath.exists()
+    assert abs_dirpath.is_dir()
+
+    abs_world_filepath = abs_dirpath.joinpath(world_name + '.world')
+    assert abs_world_filepath.exists()
+    assert abs_world_filepath.is_file()
+
+    abs_walls_dirpath = abs_dirpath.joinpath(world_name + '_walls')
+    assert abs_walls_dirpath.exists()
+    assert abs_walls_dirpath.is_dir()
+
+    # call blender conversion script to convert stl to obj
+    # TODO
+    
+    # modify walls model.sdf to point to obj instead of stl
+    # TODO
+
+
+
 # non-configurable, fixed parameters
 _WALL_THICKNESS = 0.5
-_N_RECTANGLES_RANGE = (1, 17)
+# _N_RECTANGLES_RANGE = (1, 17)
+_N_RECTANGLES_RANGE = (1, 5)
 _N_POINTS_RANGE = (3, 33)
 _WALL_HEIGHT_RANGE = (0.0, 20.0)
 
@@ -75,10 +108,12 @@ def task_function(cfg: PCGRoomGenConfig):
         pcg_cmd += " --n-spheres " + str(randint(obj.n_spheres_max))
 
         # randomize pitch and roll of shapes
-        #TODO
+        pcg_cmd += " --set-random-roll --set-random-pitch"
 
         # manage export directories
-        pcg_cmd += " --export-world-dir ./ --export-models-dir ./ "
+        world_name = "pcg_room_" + str(i).zfill(3)
+        pcg_cmd += " --export-world-dir ./ --export-models-dir ./"
+        pcg_cmd += " --world-name " + world_name
 
         # call generation command
         print("DEBUG {}: {}".format(i, pcg_cmd))
@@ -86,7 +121,7 @@ def task_function(cfg: PCGRoomGenConfig):
         output, error = pcg_proc.communicate()
 
         # convert stl wall meshes to obj
-        #TODO
+        pcg_world_to_pybullet_sdf(dirpath="./", world_name=world_name)
 
 
 if __name__ == "__main__":

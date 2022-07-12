@@ -13,6 +13,8 @@ gitpython
 hydra-zen
 scikit-image
 pybullet
+python-fcl
+pcg-gazebo
 git+https://github.com/AndrewWalker/pydubins.git
 # git+github:AndrewWalker/pydubins.git
 

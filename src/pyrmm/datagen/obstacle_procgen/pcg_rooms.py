@@ -5,6 +5,7 @@
 #   https://github.com/boschresearch/pcg_gazebo/blob/master/scripts/pcg-generate-sample-world-with-walls
 
 import hydra
+import subprocess
 import numpy as np
 
 from numpy.random import rand, randint
@@ -77,11 +78,12 @@ def task_function(cfg: PCGRoomGenConfig):
         #TODO
 
         # manage export directories
-        #TODO
+        pcg_cmd += " --export-world-dir ./ --export-models-dir ./ "
 
         # call generation command
         print("DEBUG {}: {}".format(i, pcg_cmd))
-        #TODO
+        pcg_proc = subprocess.Popen(pcg_cmd.split(), stdout=subprocess.PIPE)
+        output, error = pcg_proc.communicate()
 
         # convert stl wall meshes to obj
         #TODO

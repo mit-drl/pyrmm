@@ -1,4 +1,4 @@
-name: pyrmm
+name: pcg_sandbox2
 channels:
   - conda-forge
 dependencies:
@@ -8,11 +8,13 @@ dependencies:
   - libffi
   - cffi
   - ipython     # convenience
-  - pytest      # package testing
-  - hypothesis  # package testing
-  - nb_conda    # jupyter notebooks
   - git
   - pip
   - pip:
-    - -e . # this package
-    - -r requirements.txt
+    - python-fcl
+    - pcg-gazebo
+    - markupsafe==2.0.1  # set due to import error with pcg-gazebo. See https://github.com/aws/aws-sam-cli/issues/3661
+    - numpy
+    - pytorch-lightning
+    - hydra-zen
+    - pybullet

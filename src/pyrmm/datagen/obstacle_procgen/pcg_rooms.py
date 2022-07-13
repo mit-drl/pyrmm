@@ -7,6 +7,7 @@
 import hydra
 import subprocess
 import numpy as np
+import xml.etree.ElementTree as ET
 
 from pathlib import Path
 from numpy.random import rand, randint
@@ -40,7 +41,33 @@ cs.store(_CONFIG_NAME, node=PCGRoomGenConfig)
 ############### TASK FUNCTIONS ###############
 ##############################################
 
-def pcg_world_to_pybullet_sdf(dirpath: str, world_name: str):
+def overwrite_stl_in_model_sdf(modelsdf_filepath:str):
+    '''open model.sdf and overwrite the .stl uri to .obj'''
+
+    # parse xml tree from sdf file
+    sdf_tree = ET.parse(modelsdf_filepath)
+    sdf_root = sdf_tree.getroot()
+
+    # update the uri elements to point to obj files instead of stl
+    uri_prefix = 'file://'
+    for uri in sdf_root.iter('uri'):
+
+        # get uri string and strip the file:// prefix 
+        # for ease of using with pathlib.Path
+        stl_uri = uri.text
+        assert stl_uri.startswith(uri_prefix)
+        stl_path = Path(stl_uri[len(uri_prefix):])
+
+        # overwrite the text on the uri tag
+        # ensuring that you add back the uri file:// formatiing
+        if stl_path.suffix == '.stl':
+            uri.text = str(stl_path.with_suffix('.obj').as_uri())
+
+    # write the modified xml file back to the same sdf file
+    sdf_tree.write(modelsdf_filepath)
+
+
+def pcg_world_to_pybullet_sdf(dirpath:str, world_name:str, debug:bool=False):
     '''makes the pcg_gazebo generated room compatible with pybullet
     
     Args:
@@ -63,6 +90,10 @@ def pcg_world_to_pybullet_sdf(dirpath: str, world_name: str):
     assert abs_walls_dirpath.exists()
     assert abs_walls_dirpath.is_dir()
 
+    abs_model_filepath = abs_walls_dirpath.joinpath('model.sdf')
+    assert abs_model_filepath.exists()
+    assert abs_model_filepath.is_file()
+
     abs_meshes_dirpath = abs_walls_dirpath.joinpath('meshes')
     assert abs_walls_dirpath.exists()
     assert abs_walls_dirpath.is_dir()
@@ -77,17 +108,16 @@ def pcg_world_to_pybullet_sdf(dirpath: str, world_name: str):
     for stl_file in abs_mesh_stl_filepaths:
         obj_file = stl_file.with_suffix('.obj')
         blender_cmd = blender_cmd_part + str(stl_file) + ' ' + str(obj_file)
-        print("DEBUG: ", blender_cmd)
+        if debug:
+            print("DEBUG: Blender conversion command:\n", blender_cmd)
         subprocess.run(blender_cmd.split())
-        # blender_proc = subprocess.Popen(blender_cmd.split(), stdout=subprocess.PIPE)
-        # output, error = blender_proc.communicate()
         
         # check that .obj file was created
         assert obj_file.exists()
         assert obj_file.is_file()
 
     # modify walls model.sdf to point to obj instead of stl
-    # TODO
+    overwrite_stl_in_model_sdf(str(abs_model_filepath))
 
 
 # non-configurable, fixed parameters
@@ -105,6 +135,12 @@ def task_function(cfg: PCGRoomGenConfig):
 
     # iterate through each room to be generated
     for i in range(obj.n_rooms):
+
+        status_str = '{}/{}'.format(i+1,obj.n_rooms)
+        print(
+            '\n----------------------\n' +
+            'GENERATING ROOM ' + status_str + 
+            '\n----------------------\n')
 
         # instantiate pcg generator command to be constructed
         pcg_cmd = "pcg-generate-sample-world-with-walls"
@@ -138,12 +174,23 @@ def task_function(cfg: PCGRoomGenConfig):
         pcg_cmd += " --world-name " + world_name
 
         # call generation command
-        print("DEBUG {}: {}".format(i, pcg_cmd))
+        print(status_str,": pcg-gazebo room generation command:\n", pcg_cmd)
         pcg_proc = subprocess.Popen(pcg_cmd.split(), stdout=subprocess.PIPE)
         output, error = pcg_proc.communicate()
 
         # convert stl wall meshes to obj
-        pcg_world_to_pybullet_sdf(dirpath="./", world_name=world_name)
+        pcg_world_to_pybullet_sdf(dirpath="./", world_name=world_name, debug=True)
+
+        print(
+            '\n----------------------\n',
+            'ROOM {} COMPLETE'.format(status_str),
+            '\n----------------------\n',)
+
+        print(
+            '\n---------------------------------------------------\n'+
+            '---------------------------------------------------\n'+
+            '---------------------------------------------------\n'
+            )
 
 
 if __name__ == "__main__":

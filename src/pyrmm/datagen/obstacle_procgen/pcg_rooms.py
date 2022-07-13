@@ -13,6 +13,8 @@ from numpy.random import rand, randint
 from hydra_zen import instantiate, make_config
 from hydra.core.config_store import ConfigStore
 
+import pyrmm.utils.utils as U
+
 _CONFIG_NAME = "pcg_rooms_app"
 
 ##############################################
@@ -61,12 +63,31 @@ def pcg_world_to_pybullet_sdf(dirpath: str, world_name: str):
     assert abs_walls_dirpath.exists()
     assert abs_walls_dirpath.is_dir()
 
+    abs_meshes_dirpath = abs_walls_dirpath.joinpath('meshes')
+    assert abs_walls_dirpath.exists()
+    assert abs_walls_dirpath.is_dir()
+
+    # get list of all wall mesh stl files
+    abs_mesh_stl_filepaths = abs_meshes_dirpath.glob('*.stl')
+
     # call blender conversion script to convert stl to obj
-    # TODO
-    
+    blender_cmd_part = 'blender -b'
+    blender_cmd_part += ' --python ' + U.get_abs_path_str('src/pyrmm/utils/blender_convert_stl_to_obj.py')
+    blender_cmd_part += ' -- '
+    for stl_file in abs_mesh_stl_filepaths:
+        obj_file = stl_file.with_suffix('.obj')
+        blender_cmd = blender_cmd_part + str(stl_file) + ' ' + str(obj_file)
+        print("DEBUG: ", blender_cmd)
+        subprocess.run(blender_cmd.split())
+        # blender_proc = subprocess.Popen(blender_cmd.split(), stdout=subprocess.PIPE)
+        # output, error = blender_proc.communicate()
+        
+        # check that .obj file was created
+        assert obj_file.exists()
+        assert obj_file.is_file()
+
     # modify walls model.sdf to point to obj instead of stl
     # TODO
-
 
 
 # non-configurable, fixed parameters
@@ -90,7 +111,8 @@ def task_function(cfg: PCGRoomGenConfig):
 
         # randomly select if room is points or merged rectangles
         # and randomize number of points/rectangles to use
-        if rand() < 0.5:
+        # if rand() < 0.5:
+        if rand() < 1.0:
             pcg_cmd += " --n-rectangles " + str(randint(*_N_RECTANGLES_RANGE))
         else:
             pcg_cmd += " --n-points " + str(randint(*_N_POINTS_RANGE))

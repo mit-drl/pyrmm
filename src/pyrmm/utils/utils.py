@@ -67,14 +67,24 @@ def clip_control(controlSpace, control):
 
         return bounded_control
 
-def get_repo_path():
-    '''get full path to repo head'''
+def get_repo_path() -> str:
+    '''get full path to repo head
+
+    Returns:
+        repo_path : str
+            full, absolute path to repo head on local machine
+    '''
     repo = git.Repo(search_parent_directories=True)
     repo_path = repo.git_dir[:-len('.git')]
     return repo_path
 
-def get_abs_path_str(rel_file_path):
-    '''get absolute path of path relative to repo head'''
+def get_abs_path_str(rel_file_path) -> str:
+    '''get absolute path of path relative to repo head
+    
+    Returns:
+        str
+            full, absolute file path from relative file path
+    '''
     repo_dir = get_repo_path()
     return str(Path(repo_dir).joinpath(rel_file_path))
 

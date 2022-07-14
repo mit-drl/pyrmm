@@ -192,7 +192,7 @@ def task_function(cfg: PCGRoomGenConfig):
         x_range = rand()*(obj.x_room_range_max - obj.x_room_range_min) + obj.x_room_range_min
         y_range = rand()*(obj.y_room_range_max - obj.y_room_range_min) + obj.y_room_range_min
         pcg_cmd += " --x-room-range " + str(x_range)[:_INPUT_PREC]
-        pcg_cmd += " --y-room-range " + str(x_range)[:_INPUT_PREC]
+        pcg_cmd += " --y-room-range " + str(y_range)[:_INPUT_PREC]
 
         # add wall thickness command
         pcg_cmd += " --wall-thickness " + str(_WALL_THICKNESS)

@@ -22,15 +22,42 @@ _CONFIG_NAME = "pcg_rooms_app"
 ############# HYDARA-ZEN CONFIGS #############
 ##############################################
 
-_DEFAULT_N_ROOMS = 10   # total number of rooms to create
+# non-configurable, fixed parameters
+_WALL_THICKNESS = 0.5
+_INPUT_PREC = 5
+
+
+_DEFAULT_N_ROOMS = 32   # total number of rooms to create
+_DEFAULT_N_RECTANGLES_MIN = 1   # number of rectangles used to create rooms
+_DEFAULT_N_RECTANGLES_MAX = 32   # number of rectangles used to create rooms
+_DEFAULT_X_ROOM_RANGE_MIN = 5   # length scale of room in x-direction
+_DEFAULT_X_ROOM_RANGE_MAX = 50   # length scale of room in y-direction
+_DEFAULT_Y_ROOM_RANGE_MIN = 5   # length scale of room in x-direction
+_DEFAULT_Y_ROOM_RANGE_MAX = 50   # length scale of room in y-direction
+_DEFAULT_WALL_HEIGHT_MIN = 0.1  # minimum wall height
+_DEFAULT_WALL_HEIGHT_MAX = 5.0  # maximum wall height
+_DEFAULT_N_CUBES_MIN = 0    # number of cubes to populate in each room
 _DEFAULT_N_CUBES_MAX = 50   # number of cubes to populate in each room
+_DEFAULT_N_CYLINDERS_MIN = 0   # number of cubes to populate in each room
 _DEFAULT_N_CYLINDERS_MAX = 50   # number of cubes to populate in each room
+_DEFAULT_N_SPHERES_MIN = 0     # number of spheres to populate in each room
 _DEFAULT_N_SPHERES_MAX = 50     # number of spheres to populate in each room
 
 PCGRoomGenConfig = make_config(
     n_rooms = _DEFAULT_N_ROOMS,
+    n_rectangles_min = _DEFAULT_N_RECTANGLES_MIN,
+    n_rectangles_max = _DEFAULT_N_RECTANGLES_MAX,
+    x_room_range_min = _DEFAULT_X_ROOM_RANGE_MIN,
+    x_room_range_max = _DEFAULT_X_ROOM_RANGE_MAX,
+    y_room_range_min = _DEFAULT_Y_ROOM_RANGE_MIN,
+    y_room_range_max = _DEFAULT_Y_ROOM_RANGE_MAX,
+    wall_height_min = _DEFAULT_WALL_HEIGHT_MIN,
+    wall_height_max = _DEFAULT_WALL_HEIGHT_MAX,
+    n_cubes_min = _DEFAULT_N_CUBES_MIN,
     n_cubes_max = _DEFAULT_N_CUBES_MAX,
+    n_cylinders_min = _DEFAULT_N_CYLINDERS_MIN,
     n_cylinders_max = _DEFAULT_N_CYLINDERS_MAX,
+    n_spheres_min = _DEFAULT_N_SPHERES_MIN,
     n_spheres_max = _DEFAULT_N_SPHERES_MAX )
 
 # Store the top level config for command line interface
@@ -119,16 +146,29 @@ def pcg_world_to_pybullet_sdf(dirpath:str, world_name:str, debug:bool=False):
     # modify walls model.sdf to point to obj instead of stl
     overwrite_stl_in_model_sdf(str(abs_model_filepath))
 
-
-# non-configurable, fixed parameters
-_WALL_THICKNESS = 0.5
-# _N_RECTANGLES_RANGE = (1, 17)
-_N_RECTANGLES_RANGE = (1, 5)
-_N_POINTS_RANGE = (3, 33)
-_WALL_HEIGHT_RANGE = (0.0, 20.0)
+def check_config_inputs(cfg: PCGRoomGenConfig):
+    '''make sure config inputs are logical'''
+    assert cfg.n_rooms > 0
+    assert cfg.n_rectangles_min > 0
+    assert cfg.n_rectangles_max >= cfg.n_rectangles_min
+    assert cfg.x_room_range_min > 0
+    assert cfg.x_room_range_max >= cfg.x_room_range_min
+    assert cfg.y_room_range_min > 0
+    assert cfg.y_room_range_max >= cfg.y_room_range_min
+    assert cfg.wall_height_min > 0
+    assert cfg.wall_height_max >= cfg.wall_height_min
+    assert cfg.n_cubes_min >= 0
+    assert cfg.n_cubes_max >= cfg.n_cubes_min
+    assert cfg.n_cylinders_min >= 0
+    assert cfg.n_cylinders_max >= cfg.n_cylinders_min
+    assert cfg.n_spheres_min >= 0
+    assert cfg.n_spheres_max >= cfg.n_spheres_min
 
 @hydra.main(config_path=None, config_name=_CONFIG_NAME)
 def task_function(cfg: PCGRoomGenConfig):
+
+    # check inputs
+    check_config_inputs(cfg=cfg)
 
     # instantiate the config object
     obj = instantiate(cfg)
@@ -145,25 +185,26 @@ def task_function(cfg: PCGRoomGenConfig):
         # instantiate pcg generator command to be constructed
         pcg_cmd = "pcg-generate-sample-world-with-walls"
 
-        # randomly select if room is points or merged rectangles
-        # and randomize number of points/rectangles to use
-        # if rand() < 0.5:
-        if rand() < 1.0:
-            pcg_cmd += " --n-rectangles " + str(randint(*_N_RECTANGLES_RANGE))
-        else:
-            pcg_cmd += " --n-points " + str(randint(*_N_POINTS_RANGE))
+        # randomly generate number of rectangles to merge to make rooms
+        pcg_cmd += " --n-rectangles " + str(randint(obj.n_rectangles_min, obj.n_rectangles_max))
+
+        # radnomly generate dimensions of rooms
+        x_range = rand()*(obj.x_room_range_max - obj.x_room_range_min) + obj.x_room_range_min
+        y_range = rand()*(obj.y_room_range_max - obj.y_room_range_min) + obj.y_room_range_min
+        pcg_cmd += " --x-room-range " + str(x_range)[:_INPUT_PREC]
+        pcg_cmd += " --y-room-range " + str(x_range)[:_INPUT_PREC]
 
         # add wall thickness command
         pcg_cmd += " --wall-thickness " + str(_WALL_THICKNESS)
 
         # randomize wall height
-        wall_height = rand()*(_WALL_HEIGHT_RANGE[1] - _WALL_HEIGHT_RANGE[0]) + _WALL_HEIGHT_RANGE[0]
-        pcg_cmd += " --wall-height " + str(wall_height)
+        wall_height = rand()*(obj.wall_height_max - obj.wall_height_min) + obj.wall_height_min
+        pcg_cmd += " --wall-height " + str(wall_height)[:_INPUT_PREC]
 
         # get number of each shape to fill room
-        pcg_cmd += " --n-cubes " + str(randint(obj.n_cubes_max))
-        pcg_cmd += " --n-cylinders " + str(randint(obj.n_cylinders_max))
-        pcg_cmd += " --n-spheres " + str(randint(obj.n_spheres_max))
+        pcg_cmd += " --n-cubes " + str(randint(obj.n_cubes_min, obj.n_cubes_max))
+        pcg_cmd += " --n-cylinders " + str(randint(obj.n_cylinders_min, obj.n_cylinders_max))
+        pcg_cmd += " --n-spheres " + str(randint(obj.n_spheres_min, obj.n_spheres_max))
 
         # randomize pitch and roll of shapes
         pcg_cmd += " --set-random-roll --set-random-pitch"

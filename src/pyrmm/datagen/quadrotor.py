@@ -13,6 +13,10 @@ from hydra.core.config_store import ConfigStore
 from hydra_zen import make_config, instantiate, builds
 from hydra_zen import ZenField as zf
 
+import os
+import sys
+from contextlib import contextmanager
+
 import pyrmm.utils.utils as U
 import pyrmm.dynamics.quadrotor as QD
 from pyrmm.datagen.sampler import sample_risk_metrics
@@ -62,20 +66,42 @@ make_config_input = {
     U.N_CORES: zf(int, multiprocess.cpu_count()),
     'maxtasks': zf(int,_DEFAULT_MAXTASKS),
 }
-Config = make_config(**make_config_input)
+Config = make_config('pcg_rooms_dir', **make_config_input)
 ConfigStore.instance().store(_CONFIG_NAME,Config)
 
 ##############################################
 ############### TASK FUNCTIONS ###############
 ##############################################
 
-def sample_risk_metrics_worker(worker_id, ss_cfg, return_dict, prfx):
+@contextmanager
+def suppress_stdout():
+    '''used to suppress pybullet warnings from spamming stdout'''
+    fd = sys.stdout.fileno()
+
+    def _redirect_stdout(to):
+        sys.stdout.close()  # + implicit flush()
+        os.dup2(to.fileno(), fd)  # fd writes to 'to' file
+        sys.stdout = os.fdopen(fd, "w")  # Python writes to fd
+
+    with os.fdopen(os.dup(fd), "w") as old_stdout:
+        with open(os.devnull, "w") as file:
+            _redirect_stdout(to=file)
+        try:
+            yield  # allow code to be run with the redirected stdout
+        finally:
+            _redirect_stdout(to=old_stdout)  # restore stdout.
+            # buffering and flags such as
+            # CLOEXEC may be different
+
+def sample_risk_metrics_worker(worker_id, ss_cfg, pcg_room, return_dict, prfx):
     '''functionalized SystemSetup creation and risk metric eval for multiprocessing
     Args:
         worker_id : 
             a dictionary key to uniquely identify worker
         ss_cfg : 
             SystemSetup Config to instantiate SystemSetup
+        pcg_room : Path
+            path to procedurally generated room environment .world file
         return_dict : multiprocessing.Manager.dict
             dictionary shared between workers to store return values
         prfx : string
@@ -88,9 +114,12 @@ def sample_risk_metrics_worker(worker_id, ss_cfg, return_dict, prfx):
     # instantiate quadrotor pybullet setup object
     quadpb_setup = getattr(obj, U.SYSTEM_SETUP)
 
-    # load environment URDF
-    pb.setAdditionalSearchPath(pbd.getDataPath())
-    bld_body_id = pb.loadURDF("samurai.urdf")
+    # load environment
+    with suppress_stdout():
+        pb.loadSDF(str(pcg_room))
+        pb.loadSDF(str(pcg_room.with_suffix('')) + '_walls/model.sdf')
+    # pb.setAdditionalSearchPath(pbd.getDataPath())
+    # bld_body_id = pb.loadURDF("samurai.urdf")
 
     # sample states in environment and compute risk metrics
     # Note: don't run sample_risk_metric in multiprocess mode
@@ -111,34 +140,50 @@ def task_function(cfg: Config):
 
     t_start = time.time()
 
+    # get the proc gen room environments for state sampling
+    pcg_rooms = list(Path(U.get_abs_path_str(cfg.pcg_rooms_dir)).glob('*.world'))
+    n_pcg_rooms = len(pcg_rooms)
+
     # split processing into fixed number of parallel processes
-    manager = Manager()
-    return_dict = manager.dict()
     n_jobs = getattr(cfg, U.N_CORES)
-    jobs = n_jobs*[None]
     n_total_samples = getattr(cfg, U.N_SAMPLES)
     n_samples_per_job = U.min_linfinity_int_vector(n_jobs, n_total_samples)
-    for wrkid, n_cur_samples in enumerate(n_samples_per_job):
 
-        # create a config with subset of samples
-        cur_cfg = deepcopy(cfg)
-        setattr(cur_cfg, U.N_SAMPLES, n_cur_samples)
+    # iterate through all room environment sequentially, splitting the
+    # n_samples per environment into parallel tasks
+    for pcgr_num, pcgr in enumerate(pcg_rooms):
 
-        # call helper function to instantiate quad system setup and get risk data
-        prfx = 'Job {}/{}: '.format(wrkid+1,n_jobs)
-        p = Process(target=sample_risk_metrics_worker, args=(wrkid, cur_cfg, return_dict, prfx))
-        jobs[wrkid] = p
-        p.start()
+        # get save filename 
+        save_name = _SAVE_FNAME + '_' + pcgr.stem
 
-    # join processes once they complete
-    for proc in jobs:
-        proc.join()
+        print('\nStarting Room {} ({}/{}) DataGen\n'.format(pcgr.stem, pcgr_num+1, n_pcg_rooms))
 
-    # compile data and save
-    comp_risk_data = sum([list(dat) for dat in return_dict.values()], [])
-    # comp_risk_data = sum(list(return_dict.values()))
-    torch.save(comp_risk_data, open(_SAVE_FNAME+".pt", "wb"))
-    print("\nTotal elapsed time: {:.2f}".format(time.time()-t_start))
+        # split n_samples into parallel task
+        manager = Manager()
+        return_dict = manager.dict()
+        jobs = n_jobs*[None]
+        for wrkid, n_cur_samples in enumerate(n_samples_per_job):
+
+            # create a config with subset of samples
+            cur_cfg = deepcopy(cfg)
+            setattr(cur_cfg, U.N_SAMPLES, n_cur_samples)
+
+            # call helper function to instantiate quad system setup and get risk data
+            prfx = 'Env {}/{} | Job {}/{}: '.format(pcgr_num+1, n_pcg_rooms, wrkid+1,n_jobs)
+            p = Process(target=sample_risk_metrics_worker, args=(wrkid, cur_cfg, pcgr, return_dict, prfx))
+            jobs[wrkid] = p
+            p.start()
+
+        # join processes once they complete
+        for proc in jobs:
+            proc.join()
+
+        # compile data and save
+        print('\nRoom {} ({}/{}) DataGen Complete\n'.format(pcgr.stem, pcgr_num+1, n_pcg_rooms))
+        comp_risk_data = sum([list(dat) for dat in return_dict.values()], [])
+        torch.save(comp_risk_data, open(save_name+".pt", "wb"))
+    
+    print("\n\n~~~COMPLETE~~~\n\nTotal elapsed time: {:.2f}".format(time.time()-t_start))
 
 
 if __name__ == "__main__":

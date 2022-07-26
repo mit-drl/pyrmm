@@ -39,12 +39,6 @@ DubinsPPMSetupConfig = builds(DubinsPPMSetup,
     zen_partial=True
 )
 
-# Lidar config
-# _DEFUALT_LIDAR_NUM_RAYS = 8
-# _DEFAULT_LIDAR_RESOLUTION = 1.0
-# LidarConfig = pbuilds(Lidar, num_rays=_DEFUALT_LIDAR_NUM_RAYS, resolution=_DEFAULT_LIDAR_RESOLUTION)
-
-
 # Default sampler and risk estimator configs
 _DEFAULT_N_SAMPLES = 2048
 _DEFAULT_DURATION = 2.0
@@ -58,7 +52,7 @@ _DEFAULT_MAXTASKS = 16
 make_config_input = {
     # 'ppm_dir':'outputs/2022-03-10/19-31-52/',
     U.SYSTEM_SETUP: DubinsPPMSetupConfig,
-    U.N_SAMPLES: zf(int, _DEFAULT_N_SAMPLES),
+    U.N_SAMPLES: zf(int, _DEFAULT_N_SAMPLES),   # samples per environment
     U.DURATION: zf(float, _DEFAULT_DURATION),
     U.N_BRANCHES: zf(int, _DEFAULT_N_BRANCHES),
     U.TREE_DEPTH: zf(int,_DEFAULT_TREE_DEPTH),

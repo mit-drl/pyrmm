@@ -15,6 +15,7 @@ scikit-image
 pybullet
 python-fcl
 pcg-gazebo
+markupsafe<=2.0.1   # pinning due to error importing soft_unicode in pcg_gazebo
 git+https://github.com/AndrewWalker/pydubins.git
 # git+github:AndrewWalker/pydubins.git
 

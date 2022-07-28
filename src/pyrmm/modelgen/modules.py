@@ -4,6 +4,7 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+from torchmetrics.functional import mean_absolute_error, mean_squared_error
 
 from pathlib import Path
 from typing import List, Tuple, Optional
@@ -233,8 +234,21 @@ class RiskMetricModule(LightningModule):
 
     def validation_step(self, batch, batch_idx):
         print('\n------------------------------\nSTARTING VALIDATION STEP\n')
-        inputs, targets = batch
-        pred = self.model(inputs)
-        loss = F.mse_loss(pred, targets)
+        loss, mae, mse = self._shared_eval_step(batch, batch_idx)
+        metrics = {'val_loss': loss, 'val_mae': mae, 'val_mse': mse}
         self.print("\nvalidation loss:", loss.item())
-        self.log('validation_loss', loss)
+        self.log_dict(metrics)
+    
+    def test_step(self, batch, batch_idx):
+        print('\n------------------------------\nSTARTING TEST STEP\n')
+        loss, mae, mse = self._shared_eval_step(batch, batch_idx)
+        metrics = {'test_loss': loss, 'test_mae': mae, 'test_mse': mse}
+        self.log_dict(metrics)
+
+    def _shared_eval_step(self, batch, batch_idx):
+        inputs, targets = batch
+        predictions = self.model(inputs)
+        loss = F.mse_loss(predictions, targets)
+        mae = mean_absolute_error(predictions, targets)
+        mse = mean_squared_error(predictions, targets)
+        return loss, mae, mse

@@ -6,7 +6,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from types import SimpleNamespace
 from torch.utils.data import TensorDataset, DataLoader, random_split
 from pytorch_lightning import LightningDataModule, LightningModule
@@ -105,7 +105,7 @@ def compile_raw_data(datapaths, verify_func:callable=None):
 class RiskMetricDataModule(LightningDataModule):
     def __init__(self,
         datapaths: List[str],
-        val_percent: float, 
+        val_ratio: float, 
         batch_size: int, 
         num_workers: int,
         compile_verify_func: callable=None):
@@ -113,28 +113,31 @@ class RiskMetricDataModule(LightningDataModule):
         Args:
             datapaths : List[str]
                 list of paths to pytorch data files
-            val_percent : float
-                percent of data to be used in validation set
+            val_ratio : float
+                ratio of data to be used in validation set. 0=no validation data, 1=all validation data
             batch_size : int
                 size of training batches
             num_workers : int
                 number of workers to use for dataloader
         '''
         super().__init__()
-
-        assert val_percent >= 0 and val_percent <= 1
-        assert batch_size > 0
-
+        self.datapaths = datapaths
+        self.val_ratio = val_ratio
         self.batch_size = batch_size
         self.num_workers = num_workers
+        self.compile_verify_func = compile_verify_func
+
+        assert batch_size > 0
+
+    def setup(self, stage: Optional[str] = None):
 
         # compile raw data from pytorch files
-        raw_data, separated_raw_data = compile_raw_data(datapaths=datapaths, verify_func=compile_verify_func)
+        raw_data, separated_raw_data = compile_raw_data(
+            datapaths=self.datapaths, 
+            verify_func=self.compile_verify_func)
 
         # extract useful params
         n_data = len(raw_data.state_samples)
-        n_val = int(n_data*val_percent)
-        n_train = n_data - n_val
 
         # convert raw data to numpy arrays
         np_data = self.raw_data_to_numpy(raw_data)
@@ -159,15 +162,24 @@ class RiskMetricDataModule(LightningDataModule):
         # format scaled observations and risk metrics into training dataset
         full_dataset = TensorDataset(pt_scaled_data.observations, pt_scaled_data.risk_metrics)
 
-        # randomly split training and validation dataset
-        self.train_dataset, self.val_dataset = random_split(full_dataset, [n_train, n_val])
+        # handle training and testing separately
+        if stage == "fit":
+            # randomly split training and validation dataset
+            assert self.val_ratio >= 0 and self.val_ratio <= 1
+            n_val = int(n_data*self.val_ratio)
+            n_train = n_data - n_val
+            self.train_dataset, self.val_dataset = random_split(full_dataset, [n_train, n_val])
+
+        elif stage == "test":
+            self.test_dataset = full_dataset
+
+        else:
+            raise ValueError('Unexpected stage {}'.format(stage))
 
         # store high-level information about data in data module
-        # ret = SimpleNamespace()
         self.n_data = n_data # number of data points
         self.observation_shape = np_data.observations.shape
         self.separated_raw_data = separated_raw_data
-        # return ret
 
     def raw_data_to_numpy(self, raw_data: RiskMetricTrainingData):
         '''convert raw data (e.g. OMPL objects) to numpy arrays'''
@@ -183,6 +195,9 @@ class RiskMetricDataModule(LightningDataModule):
 
     def val_dataloader(self):
         return DataLoader(self.val_dataset, num_workers=self.num_workers, batch_size=len(self.val_dataset), shuffle=True)
+
+    def test_dataloader(self):
+        return DataLoader(self.test_dataloader, num_workers=self.num_workers, batch_size=self.batch_size)
 
 
 class RiskMetricModule(LightningModule):

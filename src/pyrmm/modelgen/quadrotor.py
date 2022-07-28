@@ -32,7 +32,7 @@ class QuadrotorPyBulletDataModule(RiskMetricDataModule):
 
         super().__init__(
             datapaths=datapaths,
-            val_percent=val_percent,
+            val_ratio=val_percent,
             batch_size=batch_size,
             num_workers=num_workers,
             compile_verify_func=compile_verify_func)
@@ -120,6 +120,7 @@ def task_function(cfg: ExperimentConfig):
 
     # finish instantiating data module
     data_module = obj.data_module(datapaths=datapaths)
+    data_module.setup(stage='fit')
 
     # extract the trained model input size from the observation data
     num_model_inputs = data_module.observation_shape[1]

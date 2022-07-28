@@ -29,14 +29,14 @@ def se2_to_numpy(se2):
 class DubinsPPMDataModule(RiskMetricDataModule):
     def __init__(self,
         datapaths: List[str],
-        val_percent: float, 
+        val_ratio: float, 
         batch_size: int, 
         num_workers: int,
         compile_verify_func: callable):
 
         super().__init__(
             datapaths=datapaths,
-            val_percent=val_percent,
+            val_ratio=val_ratio,
             batch_size=batch_size,
             num_workers=num_workers,
             compile_verify_func=compile_verify_func)
@@ -132,7 +132,7 @@ def verify_hydrazen_rmm_data(datapaths: List[Path]):
 pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
 DataConf = pbuilds(DubinsPPMDataModule, 
-    val_percent=0.15, 
+    val_ratio=0.15, 
     batch_size=64, 
     num_workers=4,
     compile_verify_func=verify_hydrazen_rmm_data
@@ -185,6 +185,7 @@ def task_function(cfg: ExperimentConfig):
 
     # finish instantiating data module
     data_module = obj.data_module(datapaths=datapaths)
+    data_module.setup(stage='fit')
 
     # extract the trained model input size from the observation data
     num_model_inputs = data_module.observation_shape[1]

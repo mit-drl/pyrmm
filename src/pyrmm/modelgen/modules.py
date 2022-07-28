@@ -16,12 +16,21 @@ from sklearn.preprocessing import MinMaxScaler
 
 import pyrmm.utils.utils as U
 
-def single_layer_nn(num_inputs: int, num_neurons: int) -> nn.Module:
+def single_layer_nn_bounded_output(num_inputs: int, num_neurons: int) -> nn.Module:
     """y = sum(V sigmoid(X W + b))"""
     return nn.Sequential(
         nn.Linear(num_inputs, num_neurons),
         nn.Sigmoid(),
         nn.Linear(num_neurons, 1, bias=False),
+    )
+
+def single_layer_nn_bounded_output(num_inputs: int, num_neurons: int) -> nn.Module:
+    """bounds the output to the range [0,1]"""
+    return nn.Sequential(
+        nn.Linear(num_inputs, num_neurons),
+        nn.Sigmoid(),
+        nn.Linear(num_neurons, 1, bias=False),
+        nn.Sigmoid(),
     )
 
 def linear_nn():

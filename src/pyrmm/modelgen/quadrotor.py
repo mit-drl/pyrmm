@@ -13,7 +13,7 @@ import pyrmm.utils.utils as U
 import pyrmm.dynamics.quadrotor as QD
 from pyrmm.setups.quadrotor import ompl_to_numpy, update_pickler_quadrotorstate
 from pyrmm.modelgen.modules import RiskMetricDataModule, RiskMetricModule, \
-    RiskMetricTrainingData, single_layer_nn
+    RiskMetricTrainingData, single_layer_nn_bounded_output
 
 
 _CONFIG_NAME = "quadrotor_modelgen_app"
@@ -73,7 +73,7 @@ DataConf = pbuilds(QuadrotorPyBulletDataModule,
     num_workers=4,
     compile_verify_func=verify_compiled_data)
 
-ModelConf = pbuilds(single_layer_nn, 
+ModelConf = pbuilds(single_layer_nn_bounded_output, 
     num_neurons=64)
 
 OptimConf = pbuilds(optim.Adam)

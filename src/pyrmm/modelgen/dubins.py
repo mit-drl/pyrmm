@@ -13,7 +13,7 @@ from hydra_zen import builds, make_custom_builds_fn, make_config, instantiate
 
 import pyrmm.utils.utils as U
 from pyrmm.modelgen.modules import RiskMetricDataModule, RiskMetricModule, \
-    RiskMetricTrainingData, single_layer_nn
+    RiskMetricTrainingData, single_layer_nn_bounded_output
 
 _CONFIG_NAME = "dubins_modelgen_app"
 # _NUM_MODEL_INPUTS = 8
@@ -138,7 +138,7 @@ DataConf = pbuilds(DubinsPPMDataModule,
     compile_verify_func=verify_hydrazen_rmm_data
     )
 
-ModelConf = pbuilds(single_layer_nn,  
+ModelConf = pbuilds(single_layer_nn_bounded_output,  
     num_neurons=64)
 
 OptimConf = pbuilds(optim.Adam)

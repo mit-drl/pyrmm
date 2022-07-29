@@ -156,6 +156,7 @@ TrainerConf = pbuilds(Trainer,
 ExperimentConfig = make_config(
     "train_data",
     test_data=None,
+    show_test_data=False,
     data_module=DataConf,
     pl_model=ModelConf,
     pl_module=PLModuleConf,
@@ -209,25 +210,34 @@ def task_function(cfg: ExperimentConfig):
         test_datapaths = U.get_abs_pt_data_paths(obj.test_data)
 
         # finish instantiating data module
-        test_data_module = obj.data_module(datapaths=test_datapaths)
+        # test_data_module = obj.data_module(datapaths=test_datapaths)
+        test_data_module = DubinsPPMDataModule(
+            datapaths=test_datapaths, 
+            val_ratio=None, 
+            batch_size=cfg.data_module.batch_size,
+            num_workers=cfg.data_module.num_workers, 
+            compile_verify_func=None)
         test_data_module.setup(stage='test')
+        # trainer.test(ckpt_path="best", datamodule=test_data_module)
+        trainer.test(ckpt_path="best", dataloaders=test_data_module.test_dataloader())
 
         # Visualize test data
-        separated_raw_test_data = data_module.separated_raw_data
+        separated_raw_test_data = test_data_module.separated_raw_data
         test_dp = np.random.choice(list(separated_raw_test_data.keys()))
         test_ssamples, test_rmetrics, test_observations = tuple(zip(*separated_raw_test_data[test_dp]))
-        U.plot_dubins_data(Path(test_dp), desc="Truth", data=separated_raw_test_data[test_dp])
+        U.plot_dubins_data(Path(test_dp), desc="Truth", data=separated_raw_test_data[test_dp], show=obj.show_test_data)
 
         # Evaluate model on test data and visualize
         pl_module.eval()
         test_observations_np = np.asarray(test_observations)
         test_observations_scaled_pt = torch.from_numpy(data_module.observation_scaler.transform(test_observations_np))
         test_pred_rmetrics_pt = pl_module(test_observations_scaled_pt)
-        test_targ_rmetrics_pt = torch.from_numpy(np.asarray(test_rmetrics))
+        test_targ_rmetrics_pt = torch.from_numpy(np.asarray(test_rmetrics)).unsqueeze(1)
+        assert test_pred_rmetrics_pt.shape == test_targ_rmetrics_pt.shape
         print('predicted data range: {} - {}'.format(torch.min(test_pred_rmetrics_pt), torch.max(test_pred_rmetrics_pt)))
         print('maximum absolute risk metric error: {}'.format(torch.max(torch.abs(test_pred_rmetrics_pt - test_targ_rmetrics_pt))))
         test_full_data = zip(test_ssamples, test_pred_rmetrics_pt.detach().numpy(), test_observations)
-        U.plot_dubins_data(Path(test_dp), desc='Inferred', data=test_full_data)
+        U.plot_dubins_data(Path(test_dp), desc='Inferred', data=test_full_data, show=obj.show_test_data)
 
 
 if __name__ == "__main__":

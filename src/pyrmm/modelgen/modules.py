@@ -16,7 +16,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 import pyrmm.utils.utils as U
 
-def single_layer_nn_bounded_output(num_inputs: int, num_neurons: int) -> nn.Module:
+def single_layer_nn(num_inputs: int, num_neurons: int) -> nn.Module:
     """y = sum(V sigmoid(X W + b))"""
     return nn.Sequential(
         nn.Linear(num_inputs, num_neurons),
@@ -97,6 +97,12 @@ def compile_raw_data(datapaths, verify_func:callable=None):
     concat_data = []
     for dp in dpaths:
         cur_data = torch.load(dp)
+
+        # need to convert zip object to list so that it can be 
+        # assigned in multiple places without "emptying the iterator"
+        if isinstance(cur_data, zip):
+            cur_data = list(cur_data)
+
         separated_raw_data[str(dp)] = cur_data
         concat_data.extend(cur_data)
 
@@ -207,7 +213,7 @@ class RiskMetricDataModule(LightningDataModule):
         return DataLoader(self.val_dataset, num_workers=self.num_workers, batch_size=len(self.val_dataset), shuffle=True)
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataloader, num_workers=self.num_workers, batch_size=self.batch_size)
+        return DataLoader(self.test_dataset, num_workers=self.num_workers, batch_size=self.batch_size)
 
 
 class RiskMetricModule(LightningModule):
@@ -236,7 +242,7 @@ class RiskMetricModule(LightningModule):
 
     def training_epoch_end(self, outputs):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
-        self.print("Completed epoch {} of {}".format(self.current_epoch, self.trainer.max_epochs))
+        self.print("Completed epoch {} of {}".format(self.current_epoch+1, self.trainer.max_epochs))
         self.log('avg_train_loss', avg_loss, prog_bar=True)
 
     def validation_step(self, batch, batch_idx):
@@ -247,7 +253,6 @@ class RiskMetricModule(LightningModule):
         self.log_dict(metrics)
     
     def test_step(self, batch, batch_idx):
-        print('\n------------------------------\nSTARTING TEST STEP\n')
         loss, mean_sqr_err, mean_abs_err, max_abs_err = self._shared_eval_step(batch, batch_idx)
         metrics = {'test_loss': loss, 'test_mean_sqr_err': mean_sqr_err, 'test_mean_abs_err': mean_abs_err, 'test_max_abs_err': max_abs_err}
         self.log_dict(metrics)

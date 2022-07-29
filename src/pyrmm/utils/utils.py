@@ -100,7 +100,14 @@ def get_abs_pt_data_paths(datadir):
     # convert path objects to strings
     return [str(pth) for pth in pathlist]
 
-def plot_dubins_data(datapath, desc, data=None, cmap='coolwarm'):
+def plot_dubins_data(
+    datapath, 
+    desc, 
+    data=None, 
+    show=False, 
+    save=True, 
+    savename=None, 
+    cmap='coolwarm'):
 
     # get hydra configuration file used for data gen
     cfg_path = datapath.parent.joinpath('.hydra','config.yaml')
@@ -147,8 +154,12 @@ def plot_dubins_data(datapath, desc, data=None, cmap='coolwarm'):
     ax.set_xlabel("x-position")
     ax.set_ylabel("y-position")
     fig.colorbar(cm.ScalarMappable(None, cmap), ax=ax, label='failure probability')
-    # fig.savefig('dubins_risk_estimation', bbox_inches='tight')
-    plt.show()
+    if save:
+        if savename is None:
+            savename = desc + '_dubins_risk_estimation'
+        fig.savefig(savename, bbox_inches='tight')
+    if show:
+        plt.show()
 
 def format_save_filename(src_file: Type[PosixPath], hash_len: int):
     '''create the save filename using timestamps and hashes

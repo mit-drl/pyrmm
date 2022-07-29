@@ -38,6 +38,15 @@ def linear_nn():
         nn.Linear(3,1)
     )
 
+class ResultSummary():
+    '''object from holding training and testing results most salient metrics.
+    Used for easy conversion to a human-readable yaml file
+    '''
+    def __init__(self):
+        self.training = None
+        self.testing = None
+
+
 class RiskMetricTrainingData():
     '''object to hold sampled states, risk metric values, and state observations
     in index-align, array-like objects

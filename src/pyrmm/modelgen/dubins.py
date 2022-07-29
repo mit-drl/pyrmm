@@ -1,4 +1,5 @@
 import yaml
+import time
 import torch
 import hydra
 import warnings
@@ -182,12 +183,17 @@ def task_function(cfg: ExperimentConfig):
     # instantiate the experiment objects
     obj = instantiate(cfg)
 
+    # instantiate results summary
+    result_summary = dict()
+    result_summary['training'] = dict()
+
     # compile all training data in data directory
     datapaths = U.get_abs_pt_data_paths(obj.train_data)
 
     # finish instantiating data module
     data_module = obj.data_module(datapaths=datapaths)
     data_module.setup(stage='fit')
+    result_summary['training']['n_data'] = data_module.n_data
 
     # extract the trained model input size from the observation data
     num_model_inputs = data_module.observation_shape[1]
@@ -200,11 +206,19 @@ def task_function(cfg: ExperimentConfig):
     pl_module = obj.pl_module(num_inputs=num_model_inputs, model=pl_model)
 
     # train the model
+    train_start_time = time.time()
     trainer.fit(pl_module, data_module)
+    result_summary['training']['elapsed_time'] = time.time() - train_start_time
+    result_summary['training']['metrics'] = dict()
+    for k, v in trainer.logged_metrics.items():
+        if k.startswith('val'):
+            result_summary['training']['metrics'][k] = v
 
     if obj.test_data is not None:
 
         print('\n\n~~~~TESTING AND VISUALIZATION~~~~\n\n')
+
+        result_summary['testing'] = dict()
 
         # compile all testing data
         test_datapaths = U.get_abs_pt_data_paths(obj.test_data)
@@ -218,8 +232,13 @@ def task_function(cfg: ExperimentConfig):
             num_workers=cfg.data_module.num_workers, 
             compile_verify_func=None)
         test_data_module.setup(stage='test')
-        # trainer.test(ckpt_path="best", datamodule=test_data_module)
+        result_summary['testing']['n_data'] = test_data_module.n_data
+
+        # run test data
+        testing_start_time = time.time()
         trainer.test(ckpt_path="best", dataloaders=test_data_module.test_dataloader())
+        result_summary['testing']['elapsed_time'] = time.time() - testing_start_time
+        result_summary['testing']['metrics'] = trainer.logged_metrics
 
         # Visualize test data
         separated_raw_test_data = test_data_module.separated_raw_data
@@ -238,6 +257,10 @@ def task_function(cfg: ExperimentConfig):
         print('maximum absolute risk metric error: {}'.format(torch.max(torch.abs(test_pred_rmetrics_pt - test_targ_rmetrics_pt))))
         test_full_data = zip(test_ssamples, test_pred_rmetrics_pt.detach().numpy(), test_observations)
         U.plot_dubins_data(Path(test_dp), desc='Inferred', data=test_full_data, show=obj.show_test_data)
+
+    # write result summary to file
+    with open('result_summary.yaml', 'w') as result_file:
+        yaml.dump(result_summary, result_file, default_flow_style=False)
 
 
 if __name__ == "__main__":

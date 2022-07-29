@@ -154,7 +154,8 @@ TrainerConf = pbuilds(Trainer,
     progress_bar_refresh_rate=0)
 
 ExperimentConfig = make_config(
-    'datadir',
+    "train_data",
+    test_data=None,
     data_module=DataConf,
     pl_model=ModelConf,
     pl_module=PLModuleConf,
@@ -180,8 +181,8 @@ def task_function(cfg: ExperimentConfig):
     # instantiate the experiment objects
     obj = instantiate(cfg)
 
-    # compile all data in data directory
-    datapaths = U.get_abs_pt_data_paths(obj.datadir)
+    # compile all training data in data directory
+    datapaths = U.get_abs_pt_data_paths(obj.train_data)
 
     # finish instantiating data module
     data_module = obj.data_module(datapaths=datapaths)
@@ -189,12 +190,6 @@ def task_function(cfg: ExperimentConfig):
 
     # extract the trained model input size from the observation data
     num_model_inputs = data_module.observation_shape[1]
-
-    # select pseudo-test data and visualize
-    separated_raw_data = data_module.separated_raw_data
-    pstest_dp = np.random.choice(list(separated_raw_data.keys()))
-    pstest_ssamples, pstest_rmetrics, pstest_lidars = tuple(zip(*separated_raw_data[pstest_dp]))
-    U.plot_dubins_data(Path(pstest_dp), desc="Truth", data=separated_raw_data[pstest_dp])
 
     # finish instantiating the trainer
     trainer = obj.trainer(callbacks=[InputMonitor(), CheckBatchGradient()])
@@ -206,16 +201,33 @@ def task_function(cfg: ExperimentConfig):
     # train the model
     trainer.fit(pl_module, data_module)
 
-    # randomly sample one of the datasets for pseudo-testing accuracy of model predictions
-    # (i.e. not true testing because data is currently part of training)
-    # convert SE2StateInternal objects into numpy arrays
-    pl_module.eval()
-    pstest_lidars_np = np.asarray(pstest_lidars)
-    pstest_lidars_scaled_pt = torch.from_numpy(data_module.observation_scaler.transform(pstest_lidars_np))
-    pstest_pred_pt = pl_module(pstest_lidars_scaled_pt)
-    print('predicted data range: {} - {}'.format(torch.min(pstest_pred_pt), torch.max(pstest_pred_pt)))
-    pstest_data = zip(pstest_ssamples, pstest_pred_pt.detach().numpy(), pstest_lidars)
-    U.plot_dubins_data(Path(pstest_dp), desc='Inferred', data=pstest_data)
+    if obj.test_data is not None:
+
+        print('\n\n~~~~TESTING AND VISUALIZATION~~~~\n\n')
+
+        # compile all testing data
+        test_datapaths = U.get_abs_pt_data_paths(obj.test_data)
+
+        # finish instantiating data module
+        test_data_module = obj.data_module(datapaths=test_datapaths)
+        test_data_module.setup(stage='test')
+
+        # Visualize test data
+        separated_raw_test_data = data_module.separated_raw_data
+        test_dp = np.random.choice(list(separated_raw_test_data.keys()))
+        test_ssamples, test_rmetrics, test_observations = tuple(zip(*separated_raw_test_data[test_dp]))
+        U.plot_dubins_data(Path(test_dp), desc="Truth", data=separated_raw_test_data[test_dp])
+
+        # Evaluate model on test data and visualize
+        pl_module.eval()
+        test_observations_np = np.asarray(test_observations)
+        test_observations_scaled_pt = torch.from_numpy(data_module.observation_scaler.transform(test_observations_np))
+        test_pred_rmetrics_pt = pl_module(test_observations_scaled_pt)
+        test_targ_rmetrics_pt = torch.from_numpy(np.asarray(test_rmetrics))
+        print('predicted data range: {} - {}'.format(torch.min(test_pred_rmetrics_pt), torch.max(test_pred_rmetrics_pt)))
+        print('maximum absolute risk metric error: {}'.format(torch.max(torch.abs(test_pred_rmetrics_pt - test_targ_rmetrics_pt))))
+        test_full_data = zip(test_ssamples, test_pred_rmetrics_pt.detach().numpy(), test_observations)
+        U.plot_dubins_data(Path(test_dp), desc='Inferred', data=test_full_data)
 
 
 if __name__ == "__main__":

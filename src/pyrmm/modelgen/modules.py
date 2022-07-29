@@ -229,11 +229,9 @@ class RiskMetricModule(LightningModule):
         return self.optimizer(self.parameters())
 
     def training_step(self, batch, batch_idx):
-        inputs, targets = batch
-        # print('\nDEBUG: inputs shape: {}, targets shape {}\n'.format(inputs.shape, targets.shape))
-        outputs = self.model(inputs)
-        loss = F.mse_loss(outputs, targets)
-        self.log('train_loss', loss)
+        loss, mean_sqr_err, mean_abs_err, max_abs_err = self._shared_eval_step(batch, batch_idx)
+        metrics = {'train_loss': loss, 'train_mean_sqr_err': mean_sqr_err, 'train_mean_abs_err': mean_abs_err, 'train_max_abs_err': max_abs_err}
+        self.log_dict(metrics)
         return loss
 
     def training_epoch_end(self, outputs):
@@ -243,21 +241,22 @@ class RiskMetricModule(LightningModule):
 
     def validation_step(self, batch, batch_idx):
         print('\n------------------------------\nSTARTING VALIDATION STEP\n')
-        loss, mae, mse = self._shared_eval_step(batch, batch_idx)
-        metrics = {'val_loss': loss, 'val_mae': mae, 'val_mse': mse}
+        loss, mean_sqr_err, mean_abs_err, max_abs_err = self._shared_eval_step(batch, batch_idx)
+        metrics = {'val_loss': loss, 'val_mean_sqr_err': mean_sqr_err, 'val_mean_abs_err': mean_abs_err, 'val_max_abs_err': max_abs_err}
         self.print("\nvalidation loss:", loss.item())
         self.log_dict(metrics)
     
     def test_step(self, batch, batch_idx):
         print('\n------------------------------\nSTARTING TEST STEP\n')
-        loss, mae, mse = self._shared_eval_step(batch, batch_idx)
-        metrics = {'test_loss': loss, 'test_mae': mae, 'test_mse': mse}
+        loss, mean_sqr_err, mean_abs_err, max_abs_err = self._shared_eval_step(batch, batch_idx)
+        metrics = {'test_loss': loss, 'test_mean_sqr_err': mean_sqr_err, 'test_mean_abs_err': mean_abs_err, 'test_max_abs_err': max_abs_err}
         self.log_dict(metrics)
 
     def _shared_eval_step(self, batch, batch_idx):
         inputs, targets = batch
         predictions = self.model(inputs)
         loss = F.mse_loss(predictions, targets)
-        mae = mean_absolute_error(predictions, targets)
-        mse = mean_squared_error(predictions, targets)
-        return loss, mae, mse
+        mean_sqr_err = mean_squared_error(predictions, targets)
+        mean_abs_err = mean_absolute_error(predictions, targets)
+        max_abs_err = torch.max(torch.abs(predictions - targets))
+        return loss, mean_sqr_err, mean_abs_err, max_abs_err

@@ -22,6 +22,7 @@ import pyrmm.dynamics.quadrotor as QD
 from pyrmm.datagen.sampler import sample_risk_metrics
 from pyrmm.setups.quadrotor import QuadrotorPyBulletSetup, update_pickler_quadrotorstate
 
+pb.setAdditionalSearchPath(pbd.getDataPath())
 
 _HASH_LEN = 5
 _CONFIG_NAME = "quadrotor_datagen_app"
@@ -113,18 +114,19 @@ def sample_risk_metrics_worker(worker_id, ss_cfg, pcg_room, return_dict, prfx):
     obj = instantiate(ss_cfg)
 
     # connect to pb physics client
-    pbClientID = pb.connect(pb.DIRECT)
+    pbClientId = pb.connect(pb.DIRECT)
 
     # load environment
     with suppress_stdout():
-        pbObstacleIDs = pb.loadSDF(str(pcg_room))
-        pbWallIDs = pb.loadSDF(str(pcg_room.with_suffix('')) + '_walls/model.sdf')
+        pbObstacleIds = pb.loadSDF(str(pcg_room))
+        pbWallIds = pb.loadSDF(str(pcg_room.with_suffix('')) + '_walls/model.sdf')
+        pbFloorId = pb.loadURDF("plane100.urdf")
 
     # extract axes-aligned bounding box from obstacle space
     aabb_min = np.zeros(3)
     aabb_max = np.zeros(3)
-    for wall_id in pbWallIDs:
-        cur_aabb_min, cur_aabb_max = pb.getAABB(bodyUniqueId=wall_id, physicsClientId=pbClientID)
+    for wall_id in pbWallIds:
+        cur_aabb_min, cur_aabb_max = pb.getAABB(bodyUniqueId=wall_id, physicsClientId=pbClientId)
         aabb_min = np.minimum(aabb_min, cur_aabb_min)
         aabb_max = np.maximum(aabb_max, cur_aabb_max)
     
@@ -139,7 +141,7 @@ def sample_risk_metrics_worker(worker_id, ss_cfg, pcg_room, return_dict, prfx):
 
     # finish instantiating quadrotor pybullet setup object with custom state bounds
     quadpb_setup = getattr(obj, U.SYSTEM_SETUP)(
-        pb_client_id = pbClientID,
+        pb_client_id = pbClientId,
         pxmin = pxmin,
         pxmax = pxmax,
         pymin = pymin,
@@ -158,7 +160,7 @@ def sample_risk_metrics_worker(worker_id, ss_cfg, pcg_room, return_dict, prfx):
     return_dict[worker_id] = risk_data
 
     # disconnect from physics client
-    pb.disconnect(pbClientID)
+    pb.disconnect(pbClientId)
 
 
 

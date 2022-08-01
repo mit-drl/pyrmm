@@ -22,8 +22,6 @@ import pyrmm.dynamics.quadrotor as QD
 from pyrmm.datagen.sampler import sample_risk_metrics
 from pyrmm.setups.quadrotor import QuadrotorPyBulletSetup, update_pickler_quadrotorstate
 
-pb.setAdditionalSearchPath(pbd.getDataPath())
-
 _HASH_LEN = 5
 _CONFIG_NAME = "quadrotor_datagen_app"
 _SPACE_EXPANSION_FACTOR = 0.15
@@ -117,6 +115,7 @@ def sample_risk_metrics_worker(worker_id, ss_cfg, pcg_room, return_dict, prfx):
     pbClientId = pb.connect(pb.DIRECT)
 
     # load environment
+    pb.setAdditionalSearchPath(pbd.getDataPath())
     with suppress_stdout():
         pbObstacleIds = pb.loadSDF(str(pcg_room))
         pbWallIds = pb.loadSDF(str(pcg_room.with_suffix('')) + '_walls/model.sdf')

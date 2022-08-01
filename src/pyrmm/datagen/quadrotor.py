@@ -10,7 +10,7 @@ from multiprocess import Manager, Process
 from copy import deepcopy
 from pathlib import Path
 from hydra.core.config_store import ConfigStore
-from hydra_zen import make_config, instantiate, builds
+from hydra_zen import make_config, instantiate, builds, make_custom_builds_fn
 from hydra_zen import ZenField as zf
 
 import os
@@ -25,12 +25,14 @@ from pyrmm.setups.quadrotor import QuadrotorPyBulletSetup, update_pickler_quadro
 
 _HASH_LEN = 5
 _CONFIG_NAME = "quadrotor_datagen_app"
-
+_SPACE_EXPANSION_FACTOR = 0.15
 _SAVE_FNAME = U.format_save_filename(Path(__file__), _HASH_LEN)
 
 ##############################################
 ############# HYDARA-ZEN CONFIGS #############
 ##############################################
+
+pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
 _DEFAULT_LIDAR_RANGE = 100.0
 _DEFAULT_LIDAR_ANGLES = [
@@ -41,7 +43,8 @@ _DEFAULT_LIDAR_ANGLES = [
         (0,0),
         (np.pi,0)
     ]
-QuadrotorPyBulletSetupConfig = builds(QuadrotorPyBulletSetup,
+
+QuadrotorPyBulletSetupConfig = pbuilds(QuadrotorPyBulletSetup,
     lidar_range = _DEFAULT_LIDAR_RANGE,
     lidar_angles = _DEFAULT_LIDAR_ANGLES
 )
@@ -53,7 +56,6 @@ _DEFAULT_N_BRANCHES = 32
 _DEFAULT_TREE_DEPTH = 2
 _DEFAULT_N_STEPS = 8
 _DEFAULT_POLICY = 'uniform_random'
-_DEFAULT_MAXTASKS = 16
 
 make_config_input = {
     U.SYSTEM_SETUP: QuadrotorPyBulletSetupConfig,
@@ -64,7 +66,6 @@ make_config_input = {
     U.N_STEPS: zf(int,_DEFAULT_N_STEPS),
     U.POLICY: zf(str,_DEFAULT_POLICY),
     U.N_CORES: zf(int, multiprocess.cpu_count()),
-    'maxtasks': zf(int,_DEFAULT_MAXTASKS),
 }
 Config = make_config('pcg_rooms_dir', **make_config_input)
 ConfigStore.instance().store(_CONFIG_NAME,Config)
@@ -111,15 +112,41 @@ def sample_risk_metrics_worker(worker_id, ss_cfg, pcg_room, return_dict, prfx):
     # instantiate config object to create system setup object
     obj = instantiate(ss_cfg)
 
-    # instantiate quadrotor pybullet setup object
-    quadpb_setup = getattr(obj, U.SYSTEM_SETUP)
+    # connect to pb physics client
+    pbClientID = pb.connect(pb.DIRECT)
 
     # load environment
     with suppress_stdout():
-        pb.loadSDF(str(pcg_room))
-        pb.loadSDF(str(pcg_room.with_suffix('')) + '_walls/model.sdf')
-    # pb.setAdditionalSearchPath(pbd.getDataPath())
-    # bld_body_id = pb.loadURDF("samurai.urdf")
+        pbObstacleIDs = pb.loadSDF(str(pcg_room))
+        pbWallIDs = pb.loadSDF(str(pcg_room.with_suffix('')) + '_walls/model.sdf')
+
+    # extract axes-aligned bounding box from obstacle space
+    aabb_min = np.zeros(3)
+    aabb_max = np.zeros(3)
+    for wall_id in pbWallIDs:
+        cur_aabb_min, cur_aabb_max = pb.getAABB(bodyUniqueId=wall_id, physicsClientId=pbClientID)
+        aabb_min = np.minimum(aabb_min, cur_aabb_min)
+        aabb_max = np.maximum(aabb_max, cur_aabb_max)
+    
+    # create quadrotor setup state space bounds by expanding obstacle space
+    xrange, yrange, zrange = aabb_max - aabb_min
+    pxmin = aabb_min[0] - xrange * _SPACE_EXPANSION_FACTOR
+    pxmax = aabb_max[0] + xrange * _SPACE_EXPANSION_FACTOR
+    pymin = aabb_min[1] - yrange * _SPACE_EXPANSION_FACTOR
+    pymax = aabb_max[1] + yrange * _SPACE_EXPANSION_FACTOR
+    pzmin = aabb_min[2] - zrange * _SPACE_EXPANSION_FACTOR
+    pzmax = aabb_max[2] + zrange * _SPACE_EXPANSION_FACTOR
+
+    # finish instantiating quadrotor pybullet setup object with custom state bounds
+    quadpb_setup = getattr(obj, U.SYSTEM_SETUP)(
+        pb_client_id = pbClientID,
+        pxmin = pxmin,
+        pxmax = pxmax,
+        pymin = pymin,
+        pymax = pymax,
+        pzmin = pzmin,
+        pzmax = pzmax,
+    )
 
     # sample states in environment and compute risk metrics
     # Note: don't run sample_risk_metric in multiprocess mode
@@ -129,6 +156,10 @@ def sample_risk_metrics_worker(worker_id, ss_cfg, pcg_room, return_dict, prfx):
     # store result, check for collision in key
     assert worker_id not in return_dict
     return_dict[worker_id] = risk_data
+
+    # disconnect from physics client
+    pb.disconnect(pbClientID)
+
 
 
 @hydra.main(config_path=None, config_name=_CONFIG_NAME)

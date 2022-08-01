@@ -73,6 +73,8 @@ class QuadrotorPyBulletSetup(SystemSetup):
                 tuples give (polar,azimuth) angles.
                 See physics spherical coord convention: https://en.wikipedia.org/wiki/Spherical_coordinate_system#/media/File:3D_Spherical.svg
             kwargs : dict (Optional)
+                pb_client_id : int
+                    pybullet client ID number for existing connection, if it exists
                 quad_urdf : str
                     path to quadrotor urdf robot description file
                 fzmax : float
@@ -94,7 +96,11 @@ class QuadrotorPyBulletSetup(SystemSetup):
 
         # generate configuration space
         # connect to headless physics engine
-        self.pbClientId = pb.connect(pb.DIRECT)
+        if 'pb_client_id' in kwargs:
+            self.pbClientId = kwargs['pb_client_id']
+        else:
+            self.pbClientId = pb.connect(pb.DIRECT)
+        assert pb.isConnected(self.pbClientId)
 
         # create pybullet instance of quadrotor
         self.pbBodyId = pb.loadURDF(_DEFAULT_QUAD_URDF)

@@ -1,3 +1,6 @@
 [submodule "mazegenerator"]
 	path = mazegenerator
 	url = git@github.com:razimantv/mazegenerator.git
+[submodule "v-hacd"]
+	path = v-hacd
+	url = git@github.com:kmammou/v-hacd.git

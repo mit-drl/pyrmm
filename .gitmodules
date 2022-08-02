@@ -4,3 +4,4 @@
 [submodule "v-hacd"]
 	path = v-hacd
 	url = git@github.com:kmammou/v-hacd.git
+    ignore = untracked

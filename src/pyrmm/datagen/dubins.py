@@ -2,6 +2,7 @@ import hydra
 import multiprocess
 import time
 import torch
+import logging
 import numpy as np
 from pathlib import Path
 from hydra.core.config_store import ConfigStore
@@ -68,6 +69,9 @@ ConfigStore.instance().store(_CONFIG_NAME,Config)
 ############### TASK FUNCTIONS ###############
 ##############################################
 
+# a logger for this file
+log = logging.getLogger(__name__)
+
 @hydra.main(config_path=None, config_name=_CONFIG_NAME)
 def task_function(cfg: Config):
     '''Instantiate Dubins setup and generate risk metric data'''
@@ -81,8 +85,11 @@ def task_function(cfg: Config):
     ppm_paths = list(Path(U.get_abs_path_str(obj.ppm_dir)).glob('*.ppm'))
     
     # iterate through each ppm configuration file for data generation
+    log.info("Starting Dubins Risk Data Generation for Obstacle Sets: {}".format(obj.ppm_dir))
     t_start = time.time()
     for i, pp in enumerate(ppm_paths):
+
+        t_start_i = time.time()
 
         # instantiate dubins ppm object from partial object and ppm file
         dubins_ppm_setup = getattr(obj, U.SYSTEM_SETUP)(ppm_file=str(pp))
@@ -91,12 +98,22 @@ def task_function(cfg: Config):
         save_name = _SAVE_FNAME + '_' + pp.stem
 
         # sample states in ppm config and compute risk metrics
-        print("\nRISK DATA GENERATION {} OF {}\nDUBINS VEHICLE IN OBSTACLE SPACE {}\n".format(i+1, len(ppm_paths), pp.name))
+        log.info("Starting obstacle set {} datagen ({} of {})".format(pp.name, i+1, len(ppm_paths)))
         risk_data = sample_risk_metrics(sysset=dubins_ppm_setup, cfg_obj=obj)
         torch.save(risk_data, open(save_name+".pt", "wb"))
-        print("\n===================================")
+        log.info(
+            "Completed obstacle set {} ({} of {})".format(pp.name, i+1, len(ppm_paths)) +
+            "\n---> elapsed time: {:.4f}".format(time.time() - t_start_i) + 
+            "\n---> data samples: {}".format(getattr(obj, U.N_SAMPLES)) + 
+            "\n---> data file: {}".format(save_name+".pt")
+        )
 
-    print("\nTotal elapsed time: {:.2f}".format(time.time()-t_start))
+    log.info(
+            "DUBINS RISK DATA GENERATION COMPLETE" +
+            "\n---> Total Elapsed Time: {:.4f}".format(time.time() - t_start) + 
+            "\n---> Total Obstacle Sets: {}".format(len(ppm_paths)) + 
+            "\n---> Total Data Samples: {}".format(getattr(obj, U.N_SAMPLES)*len(ppm_paths))
+        )
 
 if __name__ == "__main__":
     task_function()

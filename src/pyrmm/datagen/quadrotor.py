@@ -2,6 +2,7 @@ import hydra
 import multiprocess
 import time
 import torch
+import logging
 import numpy as np
 import pybullet as pb
 import pybullet_data as pbd
@@ -161,7 +162,8 @@ def sample_risk_metrics_worker(worker_id, ss_cfg, pcg_room, return_dict, prfx):
     # disconnect from physics client
     pb.disconnect(pbClientId)
 
-
+# a logger for this file
+log = logging.getLogger(__name__)
 
 @hydra.main(config_path=None, config_name=_CONFIG_NAME)
 def task_function(cfg: Config): 
@@ -170,25 +172,27 @@ def task_function(cfg: Config):
     # update pickler to enable parallelization of OMPL objects
     update_pickler_quadrotorstate()
 
-    t_start = time.time()
-
     # get the proc gen room environments for state sampling
     pcg_rooms = list(Path(U.get_abs_path_str(cfg.pcg_rooms_dir)).glob('*.world'))
     n_pcg_rooms = len(pcg_rooms)
 
     # split processing into fixed number of parallel processes
     n_jobs = getattr(cfg, U.N_CORES)
-    n_total_samples = getattr(cfg, U.N_SAMPLES)
-    n_samples_per_job = U.min_linfinity_int_vector(n_jobs, n_total_samples)
+    n_samples_per_room = getattr(cfg, U.N_SAMPLES)
+    n_samples_per_job = U.min_linfinity_int_vector(n_jobs, n_samples_per_room)
 
     # iterate through all room environment sequentially, splitting the
     # n_samples per environment into parallel tasks
+    log.info("Starting Quadrotor Risk Data Generation for Obstacle Sets: {}".format(cfg.pcg_rooms_dir))
+    t_start = time.time()
     for pcgr_num, pcgr in enumerate(pcg_rooms):
+
+        t_start_i = time.time()
 
         # get save filename 
         save_name = _SAVE_FNAME + '_' + pcgr.stem
 
-        print('\nStarting Room {} ({}/{}) DataGen\n'.format(pcgr.stem, pcgr_num+1, n_pcg_rooms))
+        log.info('Starting obstacle set {} datagen ({} of {})'.format(pcgr.stem, pcgr_num+1, n_pcg_rooms))
 
         # split n_samples into parallel task
         manager = Manager()
@@ -211,11 +215,21 @@ def task_function(cfg: Config):
             proc.join()
 
         # compile data and save
-        print('\nRoom {} ({}/{}) DataGen Complete\n'.format(pcgr.stem, pcgr_num+1, n_pcg_rooms))
         comp_risk_data = sum([list(dat) for dat in return_dict.values()], [])
         torch.save(comp_risk_data, open(save_name+".pt", "wb"))
+        log.info(
+            "Completed obstacle set {} ({} of {})".format(pcgr.stem, pcgr_num+1, n_pcg_rooms) +
+            "\n---> elapsed time: {:.4f}".format(time.time() - t_start_i) + 
+            "\n---> data samples: {}".format(getattr(cfg, U.N_SAMPLES)) + 
+            "\n---> data file: {}".format(save_name+".pt")
+        )
     
-    print("\n\n~~~COMPLETE~~~\n\nTotal elapsed time: {:.2f}".format(time.time()-t_start))
+    log.info(
+            "QUADROTOR RISK DATA GENERATION COMPLETE" +
+            "\n---> Total Elapsed Time: {:.4f}".format(time.time() - t_start) + 
+            "\n---> Total Obstacle Sets: {}".format(n_pcg_rooms) + 
+            "\n---> Total Data Samples: {}".format(n_samples_per_room * n_pcg_rooms)
+        )
 
 
 if __name__ == "__main__":

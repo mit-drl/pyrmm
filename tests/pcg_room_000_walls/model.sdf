@@ -1,0 +1,39 @@
+<sdf version="1.6">
+  <model name="pcg_room_000_walls">
+    <pose frame="">0 0 2.17 0 -0 0</pose>
+    <static>1</static>
+    <self_collide>0</self_collide>
+    <allow_auto_disable>0</allow_auto_disable>
+    <link name="mesh">
+      <kinematic>0</kinematic>
+      <gravity>1</gravity>
+      <self_collide>0</self_collide>
+      <collision name="collision">
+        <geometry>
+          <mesh>
+            <uri>file:///home/ross/Projects/AIIA/risk_metric_maps/outputs/2022-08-02/12-41-19/pcg_room_000_walls/meshes/fHMPZsDOAm.obj</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+        </geometry>
+        <pose frame="">-0 -0 -2.17 0 -0 0</pose>
+        <max_contacts>20</max_contacts>
+      </collision>
+      <visual name="visual">
+        <geometry>
+          <mesh>
+            <uri>file:///home/ross/Projects/AIIA/risk_metric_maps/outputs/2022-08-02/12-41-19/pcg_room_000_walls/meshes/evJtKDQxVO.obj</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.447059 0.52549 0.223529 1</ambient>
+          <diffuse>0.4470588235294118 0.5254901960784314 0.2235294117647059 1</diffuse>
+        </material>
+        <pose frame="">-0 -0 -2.17 0 -0 0</pose>
+        <cast_shadows>1</cast_shadows>
+        <transparency>0.0</transparency>
+      </visual>
+      <pose frame="">0 0 0 0 -0 0</pose>
+    </link>
+  </model>
+</sdf>

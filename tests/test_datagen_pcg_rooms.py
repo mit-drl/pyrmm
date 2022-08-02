@@ -5,7 +5,8 @@ import pybullet_data as pbd
 from pathlib import Path
 
 QUAD_URDF = str(Path(__file__).parent.absolute().joinpath("quadrotor.urdf"))
-PCG_ROOM = Path(__file__).parent.absolute().joinpath("pcg_room_test000.world")
+PCG_ROOM = Path(__file__).parent.absolute().joinpath("pcg_room_000.world")
+# PCG_ROOM = Path("~/Projects/AIIA/risk_metric_maps/outputs/2022-08-02/12-41-19/pcg_room_000.world").expanduser()
 
 def test_quadrotor_wall_contact_0():
     '''check that quadrotor does not contact walls'''
@@ -13,6 +14,7 @@ def test_quadrotor_wall_contact_0():
 
     # connect to pybullet physics server
     pbClientId = pb.connect(pb.DIRECT)
+    # pbClientId = pb.connect(pb.GUI)
     pb.setAdditionalSearchPath(pbd.getDataPath())
 
     # load pcg room, floor, and quadrotor

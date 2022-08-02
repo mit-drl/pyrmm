@@ -132,6 +132,7 @@ def pcg_world_to_pybullet_sdf(dirpath:str, world_name:str, debug:bool=False):
     blender_cmd_part = 'blender -b'
     blender_cmd_part += ' --python ' + U.get_abs_path_str('src/pyrmm/utils/blender_convert_stl_to_obj.py')
     blender_cmd_part += ' -- '
+    vhacd_cmd_part = U.get_repo_path() + '/v-hacd/app/TestVHACD ' 
     for stl_file in abs_mesh_stl_filepaths:
         obj_file = stl_file.with_suffix('.obj')
         blender_cmd = blender_cmd_part + str(stl_file) + ' ' + str(obj_file)
@@ -142,6 +143,21 @@ def pcg_world_to_pybullet_sdf(dirpath:str, world_name:str, debug:bool=False):
         # check that .obj file was created
         assert obj_file.exists()
         assert obj_file.is_file()
+
+        # create convex decomposition of walls
+        vhacd_cmd = vhacd_cmd_part + str(obj_file)
+        subprocess.run(vhacd_cmd.split())
+
+        # overwrite old, non decomposed obj file
+        print("Overwriting {} with decomp.obj and removing decomp.stl".format(obj_file.name))
+        decomp_file = Path.cwd().joinpath('decomp.obj')
+        decomp_file.replace(obj_file)
+        Path.cwd().joinpath('decomp.stl').unlink()
+
+        # check that .obj file was created
+        assert obj_file.exists()
+        assert obj_file.is_file()
+
 
     # modify walls model.sdf to point to obj instead of stl
     overwrite_stl_in_model_sdf(str(abs_model_filepath))
@@ -186,7 +202,7 @@ def task_function(cfg: PCGRoomGenConfig):
         pcg_cmd = "pcg-generate-sample-world-with-walls"
 
         # randomly generate number of rectangles to merge to make rooms
-        pcg_cmd += " --n-rectangles " + str(randint(obj.n_rectangles_min, obj.n_rectangles_max))
+        pcg_cmd += " --n-rectangles " + str(randint(obj.n_rectangles_min, obj.n_rectangles_max+1))
 
         # radnomly generate dimensions of rooms
         x_range = rand()*(obj.x_room_range_max - obj.x_room_range_min) + obj.x_room_range_min
@@ -202,9 +218,9 @@ def task_function(cfg: PCGRoomGenConfig):
         pcg_cmd += " --wall-height " + str(wall_height)[:_INPUT_PREC]
 
         # get number of each shape to fill room
-        pcg_cmd += " --n-cubes " + str(randint(obj.n_cubes_min, obj.n_cubes_max))
-        pcg_cmd += " --n-cylinders " + str(randint(obj.n_cylinders_min, obj.n_cylinders_max))
-        pcg_cmd += " --n-spheres " + str(randint(obj.n_spheres_min, obj.n_spheres_max))
+        pcg_cmd += " --n-cubes " + str(randint(obj.n_cubes_min, obj.n_cubes_max+1))
+        pcg_cmd += " --n-cylinders " + str(randint(obj.n_cylinders_min, obj.n_cylinders_max+1))
+        pcg_cmd += " --n-spheres " + str(randint(obj.n_spheres_min, obj.n_spheres_max+1))
 
         # randomize pitch and roll of shapes
         pcg_cmd += " --set-random-roll --set-random-pitch"

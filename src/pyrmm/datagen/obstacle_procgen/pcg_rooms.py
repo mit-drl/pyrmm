@@ -6,7 +6,7 @@
 
 import hydra
 import subprocess
-import numpy as np
+import logging
 import xml.etree.ElementTree as ET
 
 from pathlib import Path
@@ -180,6 +180,10 @@ def check_config_inputs(cfg: PCGRoomGenConfig):
     assert cfg.n_spheres_min >= 0
     assert cfg.n_spheres_max >= cfg.n_spheres_min
 
+
+# a logger for this file managed by hydra
+hlog = logging.getLogger(__name__)
+
 @hydra.main(config_path=None, config_name=_CONFIG_NAME)
 def task_function(cfg: PCGRoomGenConfig):
 
@@ -231,7 +235,7 @@ def task_function(cfg: PCGRoomGenConfig):
         pcg_cmd += " --world-name " + world_name
 
         # call generation command
-        print(status_str,": pcg-gazebo room generation command:\n", pcg_cmd)
+        hlog.info("{}: pcg-gazebo room generation command:\n{}".format(status_str, pcg_cmd))
         pcg_proc = subprocess.Popen(pcg_cmd.split(), stdout=subprocess.PIPE)
         output, error = pcg_proc.communicate()
 

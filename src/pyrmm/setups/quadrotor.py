@@ -443,6 +443,57 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
         if 'ret_true_duration' in kwargs and kwargs['ret_true_duration']:
             return cum_dur
 
+def proportional_angular_rate_controller_0(omg, omg_sp, kp):
+    '''Compute moment control inputs from angular rates based on proportional control
+
+    Args:
+        omg : array-like (len=3)
+            current angular rates in body x, y, z axes
+        omg_sp : array-like (len=3)
+            desired (setpoint) angular rates in body x, y, z axes
+        kp : array-like (len=3) 
+            proportional gains to convert angular rate error to torque
+
+    Returns:
+        M : array-like (len=3)
+            control moments in body x, y, z axes
+
+    Ref: 
+        + http://docs.px4.io/main/en/flight_stack/controller_diagrams.html#multicopter-angular-rate-controller
+        + http://docs.px4.io/main/en/config_mc/pid_tuning_guide_multicopter.html#rate-controller
+    '''
+    # compute rate error
+    omg_err = omg_sp - omg
+
+    # return control moments
+    return np.multiply(omg_err, kp)
+
+def proportional_quaternion_controller_0(q, q_sp, kp):
+    '''Compute angular rate setpoint from quaternion based on proportional control
+    
+    Args:
+        q : array-like (len=4)
+            current orientation quaternion in x, y, z, w format
+        q_sp : array-like (len=4)
+            desired (setpoint) orientation quaternion in x, y, z, w format
+        kp : float
+            proportional gain to convert quaternion error to angular rate setpoints
+
+    Returns:
+        omg_sp : array-like (len=3)
+            desired (setpoint) angular rates in body x, y, z axes
+
+    Ref:
+        + http://docs.px4.io/main/en/flight_stack/controller_diagrams.html#multicopter-attitude-controller
+        + https://www.research-collection.ethz.ch/bitstream/handle/20.500.11850/154099/eth-7387-01.pdf
+    '''
+
+    # compute quaternion error
+    q_err = pb.getDifferenceQuaternion(q, q_sp)
+
+    # return angural rate setpoint
+    return 2*kp * np.sign(q_err[3]) * np.array(q_err[0:3])
+
 def ompl_to_numpy(omplState):
     '''Represent a OMPL-defined quadrotor state as an numpy array
     Args:

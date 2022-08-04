@@ -10,6 +10,7 @@ import git
 import copyreg
 import yaml
 import torch
+import pickle
 import ompl.base
 import numpy as np
 import matplotlib.pyplot as plt
@@ -157,6 +158,11 @@ def plot_dubins_data(
     if save:
         if savename is None:
             savename = desc + '_dubins_risk_estimation'
+
+        # save editable
+        pickle.dump(fig, open(savename+'.fig.pickle', 'wb'))
+
+        # save png
         fig.savefig(savename, bbox_inches='tight')
     if show:
         plt.show()

@@ -1,5 +1,7 @@
+import time
 import hydra
 import warnings
+import logging
 import numpy as np
 import torch.optim as optim
 
@@ -60,6 +62,7 @@ def verify_compiled_data(datapaths: List[Path]):
         datapaths : List[Path]
             list of paths to hydrazen outputs to be loaded
     '''
+    pass
 
 ##############################################
 ############# HYDARA-ZEN CONFIGS #############
@@ -89,7 +92,8 @@ TrainerConf = pbuilds(Trainer,
     progress_bar_refresh_rate=0)
 
 ExperimentConfig = make_config(
-    'datadir',
+    'train_data',
+    test_data=None,
     data_module=DataConf,
     pl_model=ModelConf,
     pl_module=PLModuleConf,
@@ -105,6 +109,9 @@ cs.store(_CONFIG_NAME, node=ExperimentConfig)
 ############### TASK FUNCTIONS ###############
 ##############################################
 
+# a logger for this file managed by hydra
+hlog = logging.getLogger(__name__)
+
 @hydra.main(config_path=None, config_name=_CONFIG_NAME)
 def task_function(cfg: ExperimentConfig):
     seed_everything(cfg.seed)
@@ -116,11 +123,12 @@ def task_function(cfg: ExperimentConfig):
     obj = instantiate(cfg)
 
     # compile all data in data directory
-    datapaths = U.get_abs_pt_data_paths(obj.datadir)
+    datapaths = U.get_abs_pt_data_paths(obj.train_data)
 
     # finish instantiating data module
     data_module = obj.data_module(datapaths=datapaths)
     data_module.setup(stage='fit')
+    hlog.info("training:n_data:{}".format(data_module.n_data))
 
     # extract the trained model input size from the observation data
     num_model_inputs = data_module.observation_shape[1]
@@ -133,7 +141,36 @@ def task_function(cfg: ExperimentConfig):
     pl_module = obj.pl_module(num_inputs=num_model_inputs, model=pl_model)
 
     # train the model
+    train_start_time = time.time()
     trainer.fit(pl_module, data_module)
+    hlog.info("training:elapsed_time:{:.4f}".format(time.time()-train_start_time))
+    for k, v in trainer.logged_metrics.items():
+        hlog.info("trianing:metrics:{}:{}".format(k,v))
+
+    if obj.test_data is not None:
+
+        hlog.info("Starting testing and visualization")
+
+        # compile all testing data
+        test_datapaths = U.get_abs_pt_data_paths(obj.test_data)
+
+        # finish instantiating data module
+        # test_data_module = obj.data_module(datapaths=test_datapaths)
+        test_data_module = QuadrotorPyBulletDataModule(
+            datapaths=test_datapaths, 
+            val_ratio=None, 
+            batch_size=cfg.data_module.batch_size,
+            num_workers=cfg.data_module.num_workers, 
+            compile_verify_func=None)
+        test_data_module.setup(stage='test')
+        hlog.info("testing:n_data:{}".format(test_data_module.n_data))
+
+        # run test data
+        testing_start_time = time.time()
+        trainer.test(ckpt_path="best", dataloaders=test_data_module.test_dataloader())
+        hlog.info("testing:elapsed_time:{:.4f}".format(time.time()-testing_start_time))
+        for k, v in trainer.logged_metrics.items():
+            hlog.info("testing:metrics:{}:{}".format(k,v))
 
 if __name__ == "__main__":
     task_function()

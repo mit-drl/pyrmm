@@ -30,7 +30,11 @@ def cbf_clf_qp(
     state:ArrayLike, 
     target:ArrayLike, 
     obstacles:List[CircleRegion],
-    p1, p2, q1, q2) -> ArrayLike:
+    vmin, vmax,
+    u1min, u1max,
+    u2min, u2max,
+    alpha_p1, alpha_p2, alpha_q1, alpha_q2,
+    gamma_vmin, gamma_vmax) -> ArrayLike:
     '''Defines and solves quadratic program for dubins4d CBF+CLF with circular obstacles
     
     Args:
@@ -40,10 +44,19 @@ def cbf_clf_qp(
             desired [x,y,v] to steer system toward (note desired theta inferred)
         obstacles : List[CircleRegion]
             list of circular obstacles
-        p1, p2 : float
+        vmin, vmax  : float
+            min and max constraint on speed state variable
+        u1min, u1max : float
+            min and max constraint on turning rate control variable
+        u2min, u2max : float
+            min and max constraint on linear acceleration control variable
+        alpha_p1, alpha_p2 : float
             penalty value for 2nd order parameterized method of HOCBF
-        q1, q2 : float
+        alpha_q1, alpha_q2 : float
             powers of 2nd order parameterized method of HOCBF
+        gamma_vmax, gamma_vmin : float
+            parameter lower-bounding evolution of speed barrier function
+
         
     Returns:
         ctrl : ArrayLike
@@ -62,6 +75,16 @@ def cbf_clf_qp(
 
     assert len(state) == 4
     assert len(target) == 3
+    assert vmin > 0
+    assert vmax >= vmin
+    assert u1max >= u1min
+    assert u2max >= u2min
+    assert alpha_p1 > 0
+    assert alpha_p2 > 0
+    assert alpha_q1 >= 1
+    assert alpha_q2 >= 1
+    assert gamma_vmax > 0
+    assert gamma_vmin > 0
 
     # unpack state vars for simple handling
     x, y, theta, v = state
@@ -90,8 +113,8 @@ def cbf_clf_qp(
         LgLfbu2 = 2*((x-obs.xc)*np.cos(theta) + (y-obs.yc)*np.sin(theta))
 
         # Higher order terms
-        Lfa1p0 = q1*p1*Lfb * b**(q1-1)
-        a2p1 = p2 * (Lfb + p1 * b**q1)**q2
+        Lfa1p0 = alpha_q1*alpha_p1*Lfb * b**(alpha_q1-1)
+        a2p1 = alpha_p2 * (Lfb + alpha_p1 * b**alpha_q1)**alpha_q2
 
         # form QP inequality matrices and vectors
         cur_G_safety = np.reshape([-LgLfbu1, -LgLfbu2, 0, 0], (1,4))   # 4 vector because slack variables
@@ -100,10 +123,17 @@ def cbf_clf_qp(
         h_safety = np.concatenate((h_safety,cur_h_safety), axis=0)
 
     ### STATE BOUNDS CONSTRAINTS (control barrier func) ###
-    pass
+    b_vmax = vmax - v
+    G_vmax = np.reshape([0, -1, 0, 0], (1,4))
+    h_vmax = np.reshape(gamma_vmax * b_vmax, (1,1))
+    b_vmin = v - vmin
+    G_vmin = np.reshape([0, 1, 0, 0], (1,4))
+    h_vmin = np.reshape(gamma_vmin * b_vmin, (1,1))
 
     ### CONTROL BOUNDS CONSTRAINTS ###
     pass
 
     ### STABILIZATION (relaxed) CONSTRAINTS (control lyapunov func) ###
     pass
+
+    ### COMPILE CONSTRAINTS ###

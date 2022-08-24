@@ -5,7 +5,7 @@ Source code for defining control barrier functions (CBF) and control lyapunov fu
 """
 
 import numpy as np
-
+from cvxopt import solvers, matrix
 from numpy.typing import ArrayLike
 from typing import List
 
@@ -26,6 +26,16 @@ class CircleRegion:
         self.yc = yc
         self.r = r
 
+def cvx_qp_solver(P, q, G, h):
+    mat_P = matrix(P)
+    mat_q = matrix(q)
+    mat_G = matrix(G)
+    mat_h = matrix(h)
+
+    solvers.options['show_progress'] = False
+    sol = solvers.qp(mat_P, mat_q, mat_G, mat_h)
+    return sol['x']
+
 def cbf_clf_qp(
     state:ArrayLike, 
     target:ArrayLike, 
@@ -34,13 +44,15 @@ def cbf_clf_qp(
     u1min, u1max,
     u2min, u2max,
     alpha_p1, alpha_p2, alpha_q1, alpha_q2,
-    gamma_vmin, gamma_vmax) -> ArrayLike:
+    gamma_vmin, gamma_vmax,
+    lambda_Vtheta, lambda_Vspeed,
+    p_Vtheta, p_Vspeed) -> ArrayLike:
     '''Defines and solves quadratic program for dubins4d CBF+CLF with circular obstacles
     
     Args:
-        state : ArrayLike
+        state : ArrayLike (len=4)
             state of dubins4d system [x, y, theta, v]
-        target : ArrayLike
+        target : ArrayLike (len=3)
             desired [x,y,v] to steer system toward (note desired theta inferred)
         obstacles : List[CircleRegion]
             list of circular obstacles
@@ -56,11 +68,17 @@ def cbf_clf_qp(
             powers of 2nd order parameterized method of HOCBF
         gamma_vmax, gamma_vmin : float
             parameter lower-bounding evolution of speed barrier function
+        lambda_Vtheta, lambda_Vspeed : float
+            parameter upper-bounding evolution of headding and speed lyapunov functions
+        p_Vtheta, p_Vspeed : float
+            penalty in objective function on heading and speed slack variables that relax stability constraints
 
         
     Returns:
-        ctrl : ArrayLike
-            control variables for dubins4d from solution to QP
+        ctrl_del : ArrayLike (len=4)
+            control variables for dubins4d and slack variables [u1, u2, del_Vtheta, del_Vspeed]
+            where del_Vtheta and del_Vspeed are slack variables to relax heading and 
+            speed stability constraints (lyapunov functions), respectively
 
     Notes:
         Assumes dubins-like control-affine system with 
@@ -75,7 +93,7 @@ def cbf_clf_qp(
 
     assert len(state) == 4
     assert len(target) == 3
-    assert vmin > 0
+    assert vmin >= 0
     assert vmax >= vmin
     assert u1max >= u1min
     assert u2max >= u2min
@@ -85,12 +103,19 @@ def cbf_clf_qp(
     assert alpha_q2 >= 1
     assert gamma_vmax > 0
     assert gamma_vmin > 0
+    assert lambda_Vtheta > 0
+    assert lambda_Vspeed > 0
+    assert p_Vtheta > 0
+    assert p_Vspeed > 0
 
     # unpack state vars for simple handling
     x, y, theta, v = state
     xd, yd, vd = target
 
-    
+    # init QP inequality matrices and vector
+    G_all = np.empty((0,4))
+    h_all = np.empty((0,1))
+
     ### OBSTACLE SAFETY CONSTRAINTS (control barrier func) ###
 
     # init QP inequality matrices and vector for safety constraints
@@ -122,18 +147,100 @@ def cbf_clf_qp(
         G_safety = np.concatenate((G_safety,cur_G_safety), axis=0)
         h_safety = np.concatenate((h_safety,cur_h_safety), axis=0)
 
+    # compile with other constraints
+    G_all = np.concatenate((G_all, G_safety), axis=0)
+    h_all = np.concatenate((h_all, h_safety), axis=0)
+
     ### STATE BOUNDS CONSTRAINTS (control barrier func) ###
+
     b_vmax = vmax - v
-    G_vmax = np.reshape([0, -1, 0, 0], (1,4))
+    Lgbvmaxu1 = 0
+    Lgbvmaxu2 = -1
+    G_vmax = np.reshape([-Lgbvmaxu1, -Lgbvmaxu2, 0, 0], (1,4))
     h_vmax = np.reshape(gamma_vmax * b_vmax, (1,1))
+
+    # compile with other constraints
+    G_all = np.concatenate((G_all, G_vmax), axis=0)
+    h_all = np.concatenate((h_all, h_vmax), axis=0)
+
     b_vmin = v - vmin
-    G_vmin = np.reshape([0, 1, 0, 0], (1,4))
+    Lgbvminu1 = 0
+    Lgbvminu2 = 1
+    G_vmin = np.reshape([-Lgbvminu1, -Lgbvminu2, 0, 0], (1,4))
     h_vmin = np.reshape(gamma_vmin * b_vmin, (1,1))
 
+    # compile with other constraints
+    G_all = np.concatenate((G_all, G_vmin), axis=0)
+    h_all = np.concatenate((h_all, h_vmin), axis=0)
+
     ### CONTROL BOUNDS CONSTRAINTS ###
-    pass
+    G_ctrl = np.array([
+        [   1,  0,  0,  0],
+        [   -1, 0,  0,  0],
+        [   0,  1,  0,  0],
+        [   0,  -1, 0,  0]
+    ])
+    h_ctrl = np.reshape([u1max, -u1min, u2max, -u2min], (4,1))
 
-    ### STABILIZATION (relaxed) CONSTRAINTS (control lyapunov func) ###
-    pass
+    # compile with other constraints
+    G_all = np.concatenate((G_all, G_ctrl), axis=0)
+    h_all = np.concatenate((h_all, h_ctrl), axis=0)
 
-    ### COMPILE CONSTRAINTS ###
+    ### Vtheta: Control Lyapunov Function for heading stabilization (relaxed) constraint ###
+
+    xhat = xd - x
+    yhat = yd - y
+    thetad = np.arctan2(yhat,xhat)
+    Vtheta = (theta - thetad)**2
+
+    # Lie derivative of Vtheta along f(x)
+    LfVtheta = 2*v*(theta - thetad)*(xhat*np.sin(theta)-yhat*np.cos(theta))/(xhat*xhat + yhat*yhat)
+
+    # Lie derivative of Vtheta along g(x)
+    LgVthetau1 = 2*(theta - thetad)
+    LgVthetau2 = 0
+
+    # formatted for inequality constraints
+    G_Vtheta = np.reshape([LgVthetau1, LgVthetau2, -1, 0], (1,4))   # 4-vector because slack vars. -1 on first slack var
+    h_Vtheta = np.reshape(-LfVtheta - lambda_Vtheta*Vtheta, (1,1))
+
+    # compile with other constraints
+    G_all = np.concatenate((G_all, G_Vtheta), axis=0)
+    h_all = np.concatenate((h_all, h_Vtheta), axis=0)
+
+    ### Vspeed: Control Lyapunov Function for speed stabilization (relaxed) constraint ###
+
+    Vspeed = (v -vd)*82
+
+    # Lie derivative of Vspeed along f(x)
+    LfVspeed = 0
+
+    # Lie derivative of Vspeed along g(x)
+    LgVspeedu1 = 0
+    LgVspeedu2 = 2*(v-vd)
+
+    # formatted for inequality constraints
+    G_Vspeed = np.reshape([LgVspeedu1, LgVspeedu2, 0, -1], (1,4)) # 4-vector because slack vars. -1 on second slack var
+    h_Vspeed = np.reshape(-LfVspeed - lambda_Vspeed*Vspeed, (1,1))
+
+    # compile with other constraints
+    G_all = np.concatenate((G_all, G_Vspeed), axis=0)
+    h_all = np.concatenate((h_all, h_Vspeed), axis=0)
+    
+    ### OBJECTIVE FUNCTION ###
+
+    P_objective = 2*np.array([
+        [   1,  0,  0,  0],
+        [   0,  1,  0,  0],
+        [   0,  0,  p_Vtheta,   0],
+        [   0,  0,  0,  p_Vspeed]
+    ],dtype='float')
+
+    q_objective = np.zeros((4,1))
+
+    ### SOLVE QUADRATIC PROGRAM ###
+
+    # solve for control variable and slack variables
+    ctrl_del = cvx_qp_solver(P=P_objective, q=q_objective, G=G_all, h=h_all)
+
+    return ctrl_del

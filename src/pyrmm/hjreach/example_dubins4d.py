@@ -33,7 +33,7 @@ goal = CylinderShape(g, [2,3], np.zeros(4), 0.5)
 obstacle = CylinderShape(g, [2,3], np.array([1.0, 1.0, 0.0, 0.0]), 0.5)
 
 # Look-back length and time step
-lookback_length = 0.5
+lookback_length = 0.25
 t_step = 0.05
 small_number = 1e-5
 tau = np.arange(start=0, stop=lookback_length + small_number, step=t_step)
@@ -86,72 +86,69 @@ def avg_spa_derivX2_4d(V, i, j, k, l):
     dV_dx2_R = hcl.scalar(0, "dV_dx2_R")
     dV_dx2_L[0], dV_dx2_R[0] = spa_derivX2_4d(i, j, k, l, V, g)
     return (dV_dx2_L + dV_dx2_R) / 2
+def avg_spa_derivX3_4d(V, i, j, k, l):
+    dV_dx3_L = hcl.scalar(0, "dV_dx3_L")
+    dV_dx3_R = hcl.scalar(0, "dV_dx3_R")
+    dV_dx3_L[0], dV_dx3_R[0] = spa_derivX3_4d(i, j, k, l, V, g)
+    return (dV_dx3_L + dV_dx3_R) / 2
+def avg_spa_derivX4_4d(V, i, j, k, l):
+    dV_dx4_L = hcl.scalar(0, "dV_dx4_L")
+    dV_dx4_R = hcl.scalar(0, "dV_dx4_R")
+    dV_dx4_L[0], dV_dx4_R[0] = spa_derivX4_4d(i, j, k, l, V, g)
+    return (dV_dx4_L + dV_dx4_R) / 2
 def compute_spa_deriv_4d(V):
     dV_dx1 = hcl.compute(V.shape, lambda i, j, k, l: avg_spa_derivX1_4d(V,i,j,k,l), dtype=hcl.Float())
     dV_dx2 = hcl.compute(V.shape, lambda i, j, k, l: avg_spa_derivX2_4d(V,i,j,k,l), dtype=hcl.Float())
-    return dV_dx1, dV_dx2
-
-# def compute_spatial_deriv(V_obj, dV_dx1, dV_dx2, dV_dx3, dV_dx4):
-#     with hcl.for_(0, V_obj.shape[0], name="i") as i:
-#         with hcl.for_(0, V_obj.shape[1], name="j") as j:
-#             with hcl.for_(0, V_obj.shape[2], name="k") as k:
-#                 with hcl.for_(0, V_obj.shape[3], name="l") as l:
-#                     # Variables to calculate dV_dx
-#                     dV_dx1_L = hcl.scalar(0, "dV_dx1_L")
-#                     dV_dx1_R = hcl.scalar(0, "dV_dx1_R")
-#                     # dV_dx1 = hcl.scalar(0, "dV_dx1")
-#                     dV_dx2_L = hcl.scalar(0, "dV_dx2_L")
-#                     dV_dx2_R = hcl.scalar(0, "dV_dx2_R")
-#                     # dV_dx2 = hcl.scalar(0, "dV_dx2")
-#                     dV_dx3_L = hcl.scalar(0, "dV_dx3_L")
-#                     dV_dx3_R = hcl.scalar(0, "dV_dx3_R")
-#                     # dV_dx3 = hcl.scalar(0, "dV_dx3")
-#                     dV_dx4_L = hcl.scalar(0, "dV_dx4_L")
-#                     dV_dx4_R = hcl.scalar(0, "dV_dx4_R")
-#                     # dV_dx4 = hcl.scalar(0, "dV_dx4")
-
-#                     # First order gradient estimates
-#                     dV_dx1_L[0], dV_dx1_R[0] = spa_derivX1_4d(i, j, k, l, V_obj, g)
-#                     dV_dx2_L[0], dV_dx2_R[0] = spa_derivX2_4d(i, j, k, l, V_obj, g)
-#                     dV_dx3_L[0], dV_dx3_R[0] = spa_derivX3_4d(i, j, k, l, V_obj, g)
-#                     dV_dx4_L[0], dV_dx4_R[0] = spa_derivX4_4d(i, j, k, l, V_obj, g)
-
-#                     # Calculate average gradient
-#                     dV_dx1[i, j, k, l] = (dV_dx1_L + dV_dx1_R) / 2
-#                     dV_dx2[i, j, k, l] = (dV_dx2_L + dV_dx2_R) / 2
-#                     dV_dx3[i, j, k, l] = (dV_dx3_L + dV_dx3_R) / 2
-#                     dV_dx4[i, j, k, l] = (dV_dx4_L + dV_dx4_R) / 2
-
-#                     #probe[i,j,k,l] = dV_dx2[0]
-#                     # Find optimal control
-#                     # uOpt = my_car.opt_ctrl(t, (x1[i], x2[j], x3[k], x4[l]),
-#                     #                             (dV_dx1[0], dV_dx2[0], dV_dx3[0], dV_dx4[0]))
-#     return dV_dx1, dV_dx2, dV_dx3, dV_dx4
+    dV_dx3 = hcl.compute(V.shape, lambda i, j, k, l: avg_spa_derivX3_4d(V,i,j,k,l), dtype=hcl.Float())
+    dV_dx4 = hcl.compute(V.shape, lambda i, j, k, l: avg_spa_derivX4_4d(V,i,j,k,l), dtype=hcl.Float())
+    return dV_dx1, dV_dx2, dV_dx3, dV_dx4
+# def compute_opt_ctrl(V):
+#     dV_dx1, dV_dx2, dV_dx3, dV_dx4 = compute_spa_deriv_4d(V)
+#     opt_ctrl = hcl.compute(
+#         V.shape, 
+#         lambda i, j, k, l: my_car.opt_ctrl(None, None, (dV_dx1[i,j,k,l], dV_dx2[i,j,k,l], dV_dx3[i,j,k,l], dV_dx4[i,j,k,l])))
+#     return opt_ctrl
+def get_opt_ctrl_at_pt(V,i,j,k,l):
+    dV_dx1_pt = avg_spa_derivX1_4d(V,i,j,k,l)
+    dV_dx2_pt = avg_spa_derivX2_4d(V,i,j,k,l)
+    dV_dx3_pt = avg_spa_derivX3_4d(V,i,j,k,l)
+    dV_dx4_pt = avg_spa_derivX4_4d(V,i,j,k,l)
+    return my_car.opt_ctrl(None, None, (dV_dx1_pt[0], dV_dx2_pt[0], dV_dx3_pt[0], dV_dx4_pt[0]))[0]
+def compute_opt_ctrl(V):
+    opt_ctrl = hcl.compute(V.shape, lambda i,j,k,l: get_opt_ctrl_at_pt(V,i,j,k,l), dtype=hcl.Float())
+    return opt_ctrl
 
 # define inputs
 hclph_V = hcl.placeholder(V.shape, dtype=hcl.Float())
-# hclph_dV_dx1 = hcl.placeholder(V.shape, name='dV_dx1', dtype=hcl.Float())
-# hclph_dV_dx2 = hcl.placeholder(V.shape, name='dV_dx1', dtype=hcl.Float())
-# hclph_dV_dx3 = hcl.placeholder(V.shape, name='dV_dx1', dtype=hcl.Float())
-# hclph_dV_dx4 = hcl.placeholder(V.shape, name='dV_dx1', dtype=hcl.Float())
-# dV_dx1 = hcl.asarray(np.zeros(tuple(g.pts_each_dim)))
-# dV_dx2 = hcl.asarray(np.zeros(tuple(g.pts_each_dim)))
-# dV_dx3 = hcl.asarray(np.zeros(tuple(g.pts_each_dim)))
-# dV_dx4 = hcl.asarray(np.zeros(tuple(g.pts_each_dim)))
 
 # create scheduler
-sched = hcl.create_schedule([hclph_V], compute_spa_deriv_4d)
+spa_deriv_sched = hcl.create_schedule([hclph_V], compute_spa_deriv_4d)
+# sched = hcl.create_schedule([hclph_V], compute_opt_ctrl)
 
 # create executable function
-compute_spa_derivX1_4d_func = hcl.build(schedule=sched)
+compute_spa_derivX1_4d_func = hcl.build(schedule=spa_deriv_sched)
+# compute_opt_ctrl_func = hcl.build(schedule=sched)
 
-# prepare inputs
+# prepare inputs and outputs
 hcl_V = hcl.asarray(V)
 hcl_dV_dx1 = hcl.asarray(np.zeros(V.shape))
 hcl_dV_dx2 = hcl.asarray(np.zeros(V.shape))
+hcl_dV_dx3 = hcl.asarray(np.zeros(V.shape))
+hcl_dV_dx4 = hcl.asarray(np.zeros(V.shape))
+# hcl_opt_ctrl_u1 = hcl.asarray(np.zeros(V.shape))
+# hcl_opt_ctrl_u2 = hcl.asarray(np.zeros(V.shape))
 
 # run executable
-compute_spa_derivX1_4d_func(hcl_V, hcl_dV_dx1, hcl_dV_dx2)
+compute_spa_derivX1_4d_func(hcl_V, hcl_dV_dx1, hcl_dV_dx2, hcl_dV_dx3, hcl_dV_dx4)
+# compute_opt_ctrl_func(hcl_V, hcl_opt_ctrl_u1, hcl_opt_ctrl_u2)
+
+# convert to numpy
+dV_dx1 = hcl_dV_dx1.asnumpy()
+dV_dx2 = hcl_dV_dx2.asnumpy()
+dV_dx3 = hcl_dV_dx3.asnumpy()
+dV_dx4 = hcl_dV_dx4.asnumpy()
+# opt_ctrl_u1 = hcl_opt_ctrl_u1.asnumpy()
+# opt_ctrl_u2 = hcl_opt_ctrl_u2.asnumpy()
 
 # sched = hcl.create_schedule([hclph_V, hclph_dV_dx1, hclph_dV_dx2, hclph_dV_dx3, hclph_dV_dx4], compute_spatial_deriv)
 # compute_spatial_deriv_func = hcl.build(schedule=sched)
@@ -161,14 +158,48 @@ compute_spa_derivX1_4d_func(hcl_V, hcl_dV_dx1, hcl_dV_dx2)
 x0 = -0.5
 y0 = -0.5
 v0 = 1.0
-th0 = -3*math.pi/4
+th0 = math.pi/4
 X0 = [x0,y0,v0,th0]
 V_X0 = interpn(g.grid_points, V, X0)
-print("Value function at X={}: {}".format(X0, V_X0))
+print("Value function V at X={}: {}".format(X0, V_X0))
 
 # Compute spacial derivatives at location
+dV_dx1_X0 = interpn(g.grid_points, dV_dx1, X0)
+dV_dx2_X0 = interpn(g.grid_points, dV_dx2, X0)
+dV_dx3_X0 = interpn(g.grid_points, dV_dx3, X0)
+dV_dx4_X0 = interpn(g.grid_points, dV_dx4, X0)
+print("Spacial Derivative of value function V at X0={}: ({},{},{},{})".format(X0, dV_dx1_X0, dV_dx2_X0, dV_dx3_X0, dV_dx4_X0))
 
-# compute optimal control at location
+# # define inputs
+# # hclph_dV_dx1_X0 = hcl.placeholder((), "hclph_dV_dx1_X0")
+# # hclph_dV_dx2_X0 = hcl.placeholder((), "hclph_dV_dx2_X0")
+# # hclph_dV_dx3_X0 = hcl.placeholder((), "hclph_dV_dx3_X0")
+# # hclph_dV_dx4_X0 = hcl.placeholder((), "hclph_dV_dx4_X0")
+
+# # create scheduler
+# # opt_ctrl_sched = hcl.create_schedule([hclph_dV_dx1_X0, hclph_dV_dx2_X0, hclph_dV_dx3_X0, hclph_dV_dx4_X0], compute_opt_ctrl)
+# opt_ctrl_sched = hcl.create_schedule([hclph_V], compute_opt_ctrl)
+
+# # create executable function
+# compute_opt_ctrl_func = hcl.build(schedule=opt_ctrl_sched)
+
+# # prepare inputs and outputs
+# # hcl_opt_ctrl_X0 = hcl.asarray(np.zeros(4,))
+# hcl_opt_ctrl_u1 = hcl.asarray(np.zeros(V.shape))
+
+# # run executable
+# compute_opt_ctrl_func(hcl_V, hcl_opt_ctrl_u1)
+
+# # compute optimal control at location
+# hcl_dV_dx1_X0 = hcl.scalar(0)
+# hcl_dV_dx1_X0[0] = dV_dx1_X0
+# opt_ctrl_X0 = my_car.opt_ctrl(
+#     0, X0, 
+#     (dV_dx1_X0, dV_dx2_X0, dV_dx3_X0, dV_dx4_X0))
+# print("Control at X0={}: ({},{})".format(X0, opt_ctrl_X0))
+# opt_ctrl_u1_X0 = interpn(g.grid_points, opt_ctrl_u1, X0)
+# opt_ctrl_u2_X0 = interpn(g.grid_points, opt_ctrl_u2, X0)
+# print("Control at X0={}: ({},{})".format(X0, opt_ctrl_u1_X0, opt_ctrl_u2_X0))
 
 # get V at particular state
 print("DONE!")

@@ -25,20 +25,32 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         # randomize goal, obstacle, and vehicle params (speed and control constraints)
 
+        # reset sim clock
+
+        # return initial observation and information
+
         raise NotImplementedError()
 
     def step(self, action):
         raise NotImplementedError
 
-    def _get_observation(self):
-        raise NotImplementedError
-
-    def _get_info(self):
-        '''Get information about the environment that is constant through episode (e.g. control bounds)
+    def observe_system(self):
+        ''' Advance sim time and propagate dynamics based on elapsed time since last observation
         '''
         raise NotImplementedError
 
+    def _get_observation(self):
+        '''formats observation of system according to observation space'''
+        raise NotImplementedError
+
+    def _get_info(self):
+        raise NotImplementedError
+
+    def check_collisions(self):
+        '''check if propagated states path collide with obstacle'''
+        raise NotImplementedError
+
     def close(self):
-        '''Cleanup open resources (e.g. renderer, threads, etc'''
+        '''Cleanup open resources (e.g. renderer, threads, etc)'''
         raise NotImplementedError
 

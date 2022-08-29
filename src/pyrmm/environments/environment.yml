@@ -7,4 +7,5 @@ dependencies:
   - pip:
     - gym
     - scipy
+    - cvxopt
     - pytest

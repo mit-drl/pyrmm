@@ -3,7 +3,7 @@ import pytest
 import time
 import numpy as np
 
-from .dubins4d_reachavoid import Dubins4dReachAvoidEnv
+from .dubins4d_reachavoid import Dubins4dReachAvoidEnv, CircleRegion
 from scipy.integrate import odeint
 
 def get_dubins4d_reachavoid_env_undisturbed():
@@ -103,7 +103,7 @@ def test_ode_dubins4d_truth_undisturbed_ctrl_dtheta_1(dubins4d_reachavoid_env_un
     assert np.isclose(sol[-1, 3], exp_v)
 
 def test_propagate_realtime_system_undisturbed_zero_ctrl(dubins4d_reachavoid_env_undisturbed):
-    '''Propagate system with wall-clock time stepping with no disturbances or control'''
+    '''Propagate system with wall-clock time stepping with no disturbances and active-yet-zero control'''
 
     # ~~ ARRANGE ~~
     # used for debugging purposes
@@ -137,5 +137,40 @@ def test_propagate_realtime_system_undisturbed_zero_ctrl(dubins4d_reachavoid_env
     assert np.isclose(env._Dubins4dReachAvoidEnv__state[2], exp_theta)
     assert np.isclose(env._Dubins4dReachAvoidEnv__state[3], exp_v)
 
+def test_propagate_realtime_system_undisturbed_inactive_ctrl(dubins4d_reachavoid_env_undisturbed):
+    '''Propagate system with wall-clock time stepping with no disturbances and inactive control (thus controlled by passive CLF)'''
+
+    # ~~ ARRANGE ~~
+    # used for debugging purposes
+    if dubins4d_reachavoid_env_undisturbed is None:
+        dubins4d_reachavoid_env_undisturbed = get_dubins4d_reachavoid_env_undisturbed()
+    env = dubins4d_reachavoid_env_undisturbed
+
+    # specify initial state and goal
+    s0 = np.array([0, 0, 0, 0])
+    goal = CircleRegion(5, 5, 1)
+
+    # reset environment to capture precise timing
+    t_start = time.time()
+    env.reset()
+    env._Dubins4dReachAvoidEnv__state = s0  # (x [m], y [m], theta [rad], v [m/s])
+    env.goal = goal
+
+    # ~~ ACT ~~
+    # wait a fixed amount of time and then propagate system
+    time.sleep(0.5785567)
+    t_elapsed = time.time() - t_start
+    env._propagate_realtime_system(ctrl=None)
+
+    # ~~ ASSERT ~~
+    # exp_x = s0[3] * np.cos(s0[2]) * t_elapsed
+    exp_y = s0[1]
+    exp_theta = s0[2]
+    # exp_v = s0[3]
+    assert np.greater(env._Dubins4dReachAvoidEnv__state[0], 0.0)
+    assert np.isclose(env._Dubins4dReachAvoidEnv__state[1], exp_y)
+    assert np.isclose(env._Dubins4dReachAvoidEnv__state[2], exp_theta)
+    assert np.greater(env._Dubins4dReachAvoidEnv__state[3], 0.0)
+
 if __name__ == "__main__":
-    test_ode_dubins4d_truth_undisturbed_zero_ctrl(None)
+    test_propagate_realtime_system_undisturbed_inactive_ctrl(None)

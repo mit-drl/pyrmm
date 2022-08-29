@@ -6,6 +6,7 @@ but because it offers a convienent, standardized interface for all algorithms
 '''
 
 import gym
+import time
 import numpy as np
 
 from scipy.integrate import odeint
@@ -29,6 +30,8 @@ CB_DTHETAMAX = 0.2  # [rad/s]
 CB_DVMIN = -0.5     # [m/s/s]
 CB_DVMAX = 0.5      # [m/s/s]
 
+# number of time steps to analyze per system propagation
+PROPAGATE_TIMESTEPS = 16
 
 class Dubins4dReachAvoidEnv(gym.Env):
 
@@ -43,7 +46,6 @@ class Dubins4dReachAvoidEnv(gym.Env):
         # define observation space (state space distinct but related to observation space)
 
         # define action space
-
 
         # control and observaiton disturbances 
         # (private because solution algorithms should not know them)
@@ -61,22 +63,26 @@ class Dubins4dReachAvoidEnv(gym.Env):
         # setup renderer
         # TODO: see https://www.gymlibrary.dev/content/environment_creation/
 
-        # raise NotImplementedError()
-        pass
+        # reset env to generate all instance attributes
+        self.reset()
 
     def reset(self, seed=None):
         # seed random number generator self.np_random
         super().reset(seed=seed)
 
-        # randomize initial state
+        # randomize initial state (x [m], y [m], theta [rad], v [m/s])
+        # (private because solution algs should not know this explicitly)
+        self.__state = np.array([0, 0, 0, 0])
 
         # randomize goal, obstacle, and vehicle params (speed and control constraints)
 
-        # reset sim clock
+        # reset sim clock and sim-to-wall clock sync point
+        self.sim_time = 0.0
+        # self.sim_lap_time = 0.0
+        self.wall_clock_sync_time = time.time()
 
         # return initial observation and information
-
-        raise NotImplementedError()
+        # TODO
 
     def step(self, action):
         raise NotImplementedError
@@ -85,7 +91,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
         '''Cleanup open resources (e.g. renderer, threads, etc)'''
         raise NotImplementedError
 
-    def _realtime_system_propagate(self, ctrl):
+    def _propagate_realtime_system(self, ctrl:ArrayLike):
         ''' Advance sim time and propagate dynamics based on elapsed time since last propagation
 
         Args:
@@ -94,7 +100,28 @@ class Dubins4dReachAvoidEnv(gym.Env):
                 dtheta = turn rate [rad/sec]
                 dv = linear acceleration [m/s/s]
         '''
-        raise NotImplementedError
+
+        # accumulate simulation time since last update
+        sim_lap_time = time.time() - self.wall_clock_sync_time
+
+        # formulate lap time vector for physics propagation
+        tvec = np.linspace(0, sim_lap_time, PROPAGATE_TIMESTEPS, endpoint=True)
+
+        # perform physics propagation
+        state_traj = odeint(self.__ode_dubins4d_truth, self.__state, tvec, args=(ctrl,))
+
+        # check for episode termination conditions (goal or obstacle intersection)
+        # TODO
+
+        # update system state
+        self.__state = state_traj[-1,:]
+
+        # updtate sim clock time 
+        self.sim_time += sim_lap_time
+
+        # reset wall clock sync time for next loop
+        self.wall_clock_sync_time = time.time()
+        
 
     def _get_observation(self):
         '''formats observation of system according to observation space, adding observation noise'''

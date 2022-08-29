@@ -1,5 +1,6 @@
 # Pytests for dubins4d_reachavoid environment
 import pytest
+import time
 import numpy as np
 
 from .dubins4d_reachavoid import Dubins4dReachAvoidEnv
@@ -101,6 +102,40 @@ def test_ode_dubins4d_truth_undisturbed_ctrl_dtheta_1(dubins4d_reachavoid_env_un
     assert np.isclose(sol[-1, 2], exp_theta)
     assert np.isclose(sol[-1, 3], exp_v)
 
+def test_propagate_realtime_system_undisturbed_zero_ctrl(dubins4d_reachavoid_env_undisturbed):
+    '''Propagate system with wall-clock time stepping with no disturbances or control'''
+
+    # ~~ ARRANGE ~~
+    # used for debugging purposes
+    if dubins4d_reachavoid_env_undisturbed is None:
+        dubins4d_reachavoid_env_undisturbed = get_dubins4d_reachavoid_env_undisturbed()
+    env = dubins4d_reachavoid_env_undisturbed
+
+    # reset environment to capture precise timing
+    t_start = time.time()
+    env.reset()
+
+    # specify initial state and control
+    s0 = np.array([0, 0, 0, 1])
+    env._Dubins4dReachAvoidEnv__state = s0  # (x [m], y [m], theta [rad], v [m/s])
+    u = [0, 0]
+
+    # ~~ ACT ~~
+    # wait a fixed amount of time and then propagate system
+    time.sleep(0.1434317)
+    t_elapsed = time.time() - t_start
+    env._propagate_realtime_system(ctrl=u)
+
+
+    # ~~ ASSERT ~~
+    exp_x = s0[3] * np.cos(s0[2]) * t_elapsed
+    exp_y = s0[3] * np.sin(s0[2]) * t_elapsed
+    exp_theta = s0[2]
+    exp_v = s0[3]
+    assert np.isclose(env._Dubins4dReachAvoidEnv__state[0], exp_x, rtol=1e-4)
+    assert np.isclose(env._Dubins4dReachAvoidEnv__state[1], exp_y)
+    assert np.isclose(env._Dubins4dReachAvoidEnv__state[2], exp_theta)
+    assert np.isclose(env._Dubins4dReachAvoidEnv__state[3], exp_v)
 
 if __name__ == "__main__":
     test_ode_dubins4d_truth_undisturbed_zero_ctrl(None)

@@ -50,6 +50,8 @@ OBST_R_MAX = 1.0
 
 # number of time steps to analyze per system propagation
 PROPAGATE_TIMESTEPS = 16
+MAX_EPISODE_SIM_TIME = 100.0    # [s] simulated time
+TIME_ACCEL_FACTOR = 1.0         # [s-sim-time/s-wall-clock-time] acceleration of simulation time
 
 class CircleRegion:
     '''Object describes circular region in 2D space of specified radius'''
@@ -124,8 +126,10 @@ class CircleRegion:
 
         n_pts = len(traj)
         any_collision = False
-        pt_collision = np.zeros(n_pts)
-        edge_collision = np.zeros(n_pts-1)
+        pt_collision = n_pts*[False]
+        edge_collision = (n_pts-1)*[False]
+        # pt_collision = np.zeros(n_pts)
+        # edge_collision = np.zeros(n_pts-1)
 
         for i in range(n_pts):
 
@@ -210,6 +214,10 @@ class Dubins4dReachAvoidEnv(gym.Env):
         self.__dist.ctrl.v_mean = 0.0
         self.__dist.ctrl.v_std = 0.01
 
+        # Timing parameters
+        self._max_episode_sim_time = MAX_EPISODE_SIM_TIME   # [s] sim time until termination of episode
+        self._time_accel_factor = TIME_ACCEL_FACTOR         # [s-sim-time/s-wall-time] sim-time accleration factor relative to wall clock
+
         # setup renderer
         # TODO: see https://www.gymlibrary.dev/content/environment_creation/
 
@@ -241,7 +249,6 @@ class Dubins4dReachAvoidEnv(gym.Env):
         # reset sim clock and sim-to-wall clock sync point
         self.sim_time = 0.0
         self.wall_clock_sync_time = time.time()
-        self.is_episode_done = False
 
         # return initial observation and information
         # TODO
@@ -324,7 +331,8 @@ class Dubins4dReachAvoidEnv(gym.Env):
         '''
 
         # accumulate simulation time since last update
-        sim_lap_time = time.time() - self.wall_clock_sync_time
+        assert self._time_accel_factor >= 1.0
+        sim_lap_time = (time.time() - self.wall_clock_sync_time)*self._time_accel_factor
 
         # formulate lap time vector for physics propagation
         tvec = np.linspace(0, sim_lap_time, PROPAGATE_TIMESTEPS, endpoint=True)
@@ -346,19 +354,37 @@ class Dubins4dReachAvoidEnv(gym.Env):
         # perform physics propagation
         state_traj = odeint(self.__ode_dubins4d_truth, self.__state, tvec, args=(ctrl,))
 
-        # check for episode termination conditions (goal or obstacle intersection)
-        goal_collision, _, _ = self.goal.check_traj_intersection(state_traj)
-        obst_collision, _, _ = self.obstacle.check_traj_intersection(state_traj)
-        done = goal_collision or obst_collision
+        # check goal and obstacle collisions
+        gcol_any, _, gcol_edge = self.goal.check_traj_intersection(state_traj)
+        ocol_any, _, ocol_edge = self.obstacle.check_traj_intersection(state_traj)
 
-        # reward is sparse binary if goal is reached
-        rew = 1 if goal_collision else 0
+        # reward is sparse [-1,0,1] if goal is reached before obstacle
+        rew = 0
+        if gcol_any:
+            if not ocol_any:
+                rew = 1
+            else:
+                # inspect which was encountered first: goal or obstacle
+                first_goal_edge = np.where(gcol_edge)[0][0]
+                first_obst_edge = np.where(ocol_edge)[0][0]
+                if first_goal_edge < first_obst_edge:
+                    rew = 1
+                else:
+                    rew = -1
+        elif not gcol_any and ocol_any:
+            rew = -1
+        else:
+            rew = 0
 
         # update system state
         self.__state = state_traj[-1,:]
 
         # updtate sim clock time 
         self.sim_time += sim_lap_time
+
+        # check for episode termination conditions (goal or obstacle intersection)
+        timeout = self.sim_time >= self._max_episode_sim_time
+        done = gcol_any or ocol_any or timeout
 
         # get observation
         obs = self._get_observation()

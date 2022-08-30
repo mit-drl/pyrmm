@@ -286,6 +286,49 @@ def test_step_to_now_active_ctrl_0(dubins4d_reachavoid_env_undisturbed):
     assert np.isclose(env._Dubins4dReachAvoidEnv__state[2], exp_theta)
     assert np.isclose(env._Dubins4dReachAvoidEnv__state[3], exp_v)
 
+def test_step_to_now_active_ctrl_rew_and_done_0(dubins4d_reachavoid_env_undisturbed):
+    '''Propagate system with step-to-now function and check termination and reward'''
+
+    # ~~ ARRANGE ~~
+    # used for debugging purposes
+    if dubins4d_reachavoid_env_undisturbed is None:
+        dubins4d_reachavoid_env_undisturbed = get_dubins4d_reachavoid_env_undisturbed()
+    env = dubins4d_reachavoid_env_undisturbed
+    env._max_episode_sim_time = 0.5
+
+    # specify initial state and control
+    s0 = np.array([0, 0, 0, 2])
+    c0 = env.action_space.sample()
+    c0['active_ctrl'] = True
+    c0['turnrate_ctrl'][0] = 0
+    c0['accel_ctrl'][0] = 0
+
+    # sequence of goals, obstacles, and timings to be tested
+    goals = [CircleRegion(2, 0, 1.5), CircleRegion(1, 0, 0.5), CircleRegion(2, 0, 0.5), CircleRegion(-1, 0, 0.99)]
+    obstacles = [CircleRegion(2, 0, 1), CircleRegion(0.5, 0, 0.2), CircleRegion(3, 0, 0.5), CircleRegion(-2, 0, 0.5)]
+    times = [0.350, 0.2, 0.1, 0.51]
+    exp_rews = [1, -1, 0, 0]
+    exp_dones = [True, True, False, True]
+
+    for i in range(len(goals)):
+        # reset environment to capture precise timing
+        env.reset()
+        env._Dubins4dReachAvoidEnv__state = s0  # (x [m], y [m], theta [rad], v [m/s])
+        env._cur_action = c0
+        env.goal = goals[i]
+        env.obstacle = obstacles[i]
+
+        # ~~ ACT ~~
+        # wait a fixed amount of time and then propagate system
+        time.sleep(times[i])
+        _, rew, done, _ = env.step_to_now(env.action_space.sample())
+
+        # ~~ ASSERT ~~
+        assert rew == exp_rews[i]
+        assert done == exp_dones[i]
+
+
+
 def test_check_traj_intersection_0():
     '''check that a known intersection is identified'''
 
@@ -363,4 +406,5 @@ def test_check_traj_intersection_2():
 
 
 if __name__ == "__main__":
-    test_propagate_realtime_system_undisturbed_inactive_ctrl(None)
+    # test_propagate_realtime_system_undisturbed_inactive_ctrl(None)
+    test_step_to_now_active_ctrl_rew_and_done_0(None)

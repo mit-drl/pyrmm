@@ -18,7 +18,7 @@ from shapely.geometry import Point, LineString
 from types import SimpleNamespace
 from copy import deepcopy
 
-# state space constants (e.g. vector indexes, bounds)
+# state space (SS) constants (e.g. vector indexes, bounds)
 SS_XIND = 0     # index in state vector for x-positon
 SS_YIND = 1     # # index in state vector for y-positon
 SS_THETAIND = 2 # index in state vector for theta (heading)
@@ -32,7 +32,7 @@ SS_THETAMAX = np.inf    # [rad]
 SS_VMIN = 0.0       # [m/s]
 SS_VMAX = 2.0       # [m/s]
 
-# control bounds
+# control space (CS) parameters
 ACTIVE_CTRL = "active_ctrl"
 TURNRATE_CTRL = "turnrate_ctrl"
 ACCEL_CTRL = "accel_ctrl"
@@ -47,6 +47,10 @@ GOAL_R_MIN = 0.1
 GOAL_R_MAX = 1.0
 OBST_R_MIN = 0.1
 OBST_R_MAX = 1.0
+
+# observation space (OS) parameters
+OS_N_RAYS = 12      # number of rays to cast
+OS_RAY_MAX = 5.0    # [m] maximum length of ray
 
 # number of time steps to analyze per system propagation
 PROPAGATE_TIMESTEPS = 16
@@ -182,16 +186,39 @@ def cvx_qp_solver(P, q, G, h):
 
 class Dubins4dReachAvoidEnv(gym.Env):
 
-    def __init__(self):
+    def __init__(self, n_rays:int=OS_N_RAYS, ray_length:float=OS_RAY_MAX):
+        '''
+        Args
+            n_rays : int
+                number of rays to cast for observations, evenly spaced
+            ray_length : float
+                maximum extent of ray if no collision with obstacle
+        '''
+
+        # Timing parameters
+        self._max_episode_sim_time = MAX_EPISODE_SIM_TIME   # [s] sim time until termination of episode
+        self._time_accel_factor = TIME_ACCEL_FACTOR         # [s-sim-time/s-wall-time] sim-time accleration factor relative to wall clock
 
         # define state space bounds
+        # [x [m], y [m], theta [rad], v [m/s]]
         self.state_space = gym.spaces.Box(
             low = np.array((SS_XMIN, SS_YMIN, SS_THETAMIN, SS_VMIN)),
             high =  np.array((SS_XMAX, SS_YMAX, SS_THETAMAX, SS_VMAX))
         )
 
         # define observation space (state space distinct but related to observation space)
-        # TODO
+        # sim-time [s]
+        # x-rel-to-goal [m]
+        # y-rel-to-goal [m]
+        # heading [rad]
+        # speed [m/s]
+        # ray-casts to obstacles [m]
+        self._n_rays = n_rays
+        self._max_ray_length = ray_length
+        self.observation_space = gym.spaces.Box(
+            low = np.concatenate(([0], 2*[-np.inf], [SS_THETAMIN, SS_VMIN], np.zeros(self._n_rays))),
+            high = np.concatenate((3*[np.inf], [SS_THETAMAX, SS_VMAX], self._max_ray_length*np.ones(self._n_rays))),
+        )
 
         # define action space
         self.action_space = gym.spaces.Dict({
@@ -213,10 +240,6 @@ class Dubins4dReachAvoidEnv(gym.Env):
         self.__dist.ctrl.theta_std = 0.001
         self.__dist.ctrl.v_mean = 0.0
         self.__dist.ctrl.v_std = 0.01
-
-        # Timing parameters
-        self._max_episode_sim_time = MAX_EPISODE_SIM_TIME   # [s] sim time until termination of episode
-        self._time_accel_factor = TIME_ACCEL_FACTOR         # [s-sim-time/s-wall-time] sim-time accleration factor relative to wall clock
 
         # setup renderer
         # TODO: see https://www.gymlibrary.dev/content/environment_creation/
@@ -249,8 +272,8 @@ class Dubins4dReachAvoidEnv(gym.Env):
         self._obstacle = CircleRegion(xc=obst_xc, yc=obst_yc, r=obst_r)
 
         # reset sim clock and sim-to-wall clock sync point
-        self.sim_time = 0.0
-        self.wall_clock_sync_time = time.time()
+        self._sim_time = 0.0
+        self._wall_clock_sync_time = time.time()
 
         # return initial observation and information
         # TODO
@@ -298,6 +321,9 @@ class Dubins4dReachAvoidEnv(gym.Env):
             self.action_space[ACCEL_CTRL].low,
             self.action_space[ACCEL_CTRL].high)
 
+        if not self.action_space.contains(self._cur_action):
+            raise ValueError("Action {} outside of action space {}".format(self._cur_action, self.action_space))
+
         # return 
         return obs, rew, done, info
 
@@ -334,7 +360,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         # accumulate simulation time since last update
         assert self._time_accel_factor >= 1.0
-        sim_lap_time = (time.time() - self.wall_clock_sync_time)*self._time_accel_factor
+        sim_lap_time = (time.time() - self._wall_clock_sync_time)*self._time_accel_factor
 
         # formulate lap time vector for physics propagation
         tvec = np.linspace(0, sim_lap_time, PROPAGATE_TIMESTEPS, endpoint=True)
@@ -382,10 +408,10 @@ class Dubins4dReachAvoidEnv(gym.Env):
         self.__state = state_traj[-1,:]
 
         # updtate sim clock time 
-        self.sim_time += sim_lap_time
+        self._sim_time += sim_lap_time
 
         # check for episode termination conditions (goal or obstacle intersection)
-        timeout = self.sim_time >= self._max_episode_sim_time
+        timeout = self._sim_time >= self._max_episode_sim_time
         done = gcol_any or ocol_any or timeout
 
         # get observation
@@ -395,13 +421,61 @@ class Dubins4dReachAvoidEnv(gym.Env):
         info = self._get_info()
 
         # reset wall clock sync time for next loop
-        self.wall_clock_sync_time = time.time()
+        self._wall_clock_sync_time = time.time()
 
         return obs, rew, done, info
 
     def _get_observation(self):
-        '''formats observation of system according to observation space, adding observation noise'''
-        return None
+        '''formats observation of system according to observation space
+
+        Returns:
+            [0] sim-time [s]
+            [1] x-rel-to-goal [m]
+            [2] y-rel-to-goal [m]
+            [3] heading [rad]
+            [4] speed [m/s]
+            [5:5+N_RAYS] ray-casts to obstacles [m]
+        '''
+        obs = [
+            self._sim_time,
+            self._goal.xc - self.__state[SS_XIND],
+            self._goal.yc - self.__state[SS_YIND],
+            self.__state[SS_THETAIND],
+            self.__state[SS_VIND],
+            ]
+
+        obs_ray = self._n_rays*[None]
+        for i in range(self._n_rays):
+            # get evenly spaced angles relative to vehicle heading
+            rel_angle = 2*np.pi/self._n_rays * i
+            abs_angle = rel_angle + self.__state[SS_THETAIND]
+
+            # create start point of ray at vehicle location
+            abs_start_pt = Point(self.__state[SS_XIND], self.__state[SS_YIND])
+
+            # get endpoints of ray if no collision in abs coords
+            abs_end_x = self._max_ray_length*np.cos(abs_angle) + self.__state[SS_XIND]
+            abs_end_y = self._max_ray_length*np.sin(abs_angle) + self.__state[SS_YIND]
+            abs_end_pt = Point(abs_end_x, abs_end_y)
+
+            # create Linestring from start to end to represent ray
+            ray = LineString([abs_start_pt, abs_end_pt])
+
+            # intersect LineString with obstacle Polygon
+            if ray.intersects(self._obstacle.polygon):
+                ray_obst_inter = ray.intersection(self._obstacle.polygon)
+
+                # get distance from point to intersection
+                obs_ray[i] = abs_start_pt.distance(ray_obst_inter)
+
+            else:
+                obs_ray[i] = self._max_ray_length
+
+        observation = np.concatenate((obs, obs_ray), dtype=self.observation_space.dtype)
+        assert self.observation_space.contains(observation)
+
+        return observation
+
 
     def _get_info(self):
         return dict()

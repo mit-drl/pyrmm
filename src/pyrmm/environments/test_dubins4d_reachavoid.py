@@ -327,6 +327,48 @@ def test_step_to_now_active_ctrl_rew_and_done_0(dubins4d_reachavoid_env_undistur
         assert rew == exp_rews[i]
         assert done == exp_dones[i]
 
+def test_get_observation_obstacle_0():
+    '''test observation ray casting'''
+
+    # ~~ ARRANGE ~~
+    # used for debugging purposes
+    n_rays = 4
+    ray_length = 5.0
+    env = Dubins4dReachAvoidEnv(n_rays=n_rays, ray_length=ray_length)
+    assert env.observation_space.shape == (5+n_rays,)
+
+    # sequence of init states and obstacles to be tested
+    states = [
+        np.array([0, 0, 0, 1]),
+        np.array([0, 0, -np.pi/2, 0]),
+    ]
+    obstacles = [
+        CircleRegion(2, 0, 1),
+        CircleRegion(2, 0, 1),
+    ]
+    exp_len_5 = [
+        1.0,
+        ray_length
+    ]
+    exp_len_6 = [
+        ray_length,
+        1.0
+    ]
+
+    for i in range(len(obstacles)):
+        # reset environment to capture precise timing
+        env.reset()
+        env._Dubins4dReachAvoidEnv__state = states[i]  # (x [m], y [m], theta [rad], v [m/s])
+        env._obstacle = obstacles[i]
+
+        # ~~ ACT ~~
+        # wait a fixed amount of time and then propagate system
+        obs = env._get_observation()
+
+        # ~~ ASSERT ~~
+        assert np.isclose(obs[5], exp_len_5[i])
+        assert np.isclose(obs[6], exp_len_6[i])
+
 
 
 def test_check_traj_intersection_0():
@@ -407,4 +449,5 @@ def test_check_traj_intersection_2():
 
 if __name__ == "__main__":
     # test_propagate_realtime_system_undisturbed_inactive_ctrl(None)
-    test_step_to_now_active_ctrl_rew_and_done_0(None)
+    # test_step_to_now_active_ctrl_rew_and_done_0(None)
+    test_get_observation_obstacle_0(None)

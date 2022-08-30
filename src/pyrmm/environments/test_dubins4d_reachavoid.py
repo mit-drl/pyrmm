@@ -132,7 +132,7 @@ def test_propagate_realtime_system_undisturbed_zero_ctrl(dubins4d_reachavoid_env
     exp_y = s0[3] * np.sin(s0[2]) * t_elapsed
     exp_theta = s0[2]
     exp_v = s0[3]
-    assert np.isclose(env._Dubins4dReachAvoidEnv__state[0], exp_x, rtol=1e-4)
+    assert np.isclose(env._Dubins4dReachAvoidEnv__state[0], exp_x, rtol=1e-2)
     assert np.isclose(env._Dubins4dReachAvoidEnv__state[1], exp_y)
     assert np.isclose(env._Dubins4dReachAvoidEnv__state[2], exp_theta)
     assert np.isclose(env._Dubins4dReachAvoidEnv__state[3], exp_v)
@@ -212,6 +212,82 @@ def test_propagate_realtime_system_undisturbed_inactive_ctrl(dubins4d_reachavoid
     assert np.isclose(env._Dubins4dReachAvoidEnv__state[1], exp_y)
     assert np.isclose(env._Dubins4dReachAvoidEnv__state[2], exp_theta)
     assert np.greater(env._Dubins4dReachAvoidEnv__state[3], 0.0)
+
+def test_check_traj_intersection_0():
+    '''check that a known intersection is identified'''
+
+    # ~~ ARRANGE ~~
+
+    # Construct trajectory
+    traj = np.array([
+        [-0.5, 0, np.pi/4, 1],
+        [10, 10, 0, 10]
+    ])
+
+    # create circular region
+    circ = CircleRegion(0, 0, 1.0)
+
+    # ~~ ACT ~~
+    any_col, pt_col, edge_col = circ.check_traj_intersection(traj)
+
+    # ~~ ASSERT ~~
+    assert any_col
+    assert pt_col[0]
+    assert not pt_col[1]
+    assert edge_col[0]
+
+def test_check_traj_intersection_1():
+    '''check that non-intersections are not mistakenly identified'''
+
+    # ~~ ARRANGE ~~
+
+    # Construct trajectory
+    traj = np.array([
+        [2, 0, np.pi/4, 1],
+        [10, 10, 0, 10]
+    ])
+
+    # create circular region
+    circ = CircleRegion(0, 0, 1.0)
+
+    # ~~ ACT ~~
+    any_col, pt_col, edge_col = circ.check_traj_intersection(traj)
+
+    # ~~ ASSERT ~~
+    assert not any_col
+    assert not pt_col[0]
+    assert not pt_col[1]
+    assert not edge_col[0]
+
+def test_check_traj_intersection_2():
+    '''check longer, randomized trajectory'''
+
+    # ~~ ARRANGE ~~
+
+    # Construct trajectory
+    traj = np.array([
+        [-10, 1, *np.random.normal(size=2)],
+        [-5.98247, -2, *np.random.normal(size=2)],
+        [-2.5, -0.9, *np.random.normal(size=2)],
+        [2.3, 1.0, *np.random.normal(size=2)],
+        [10, 10, 0, 10]
+    ])
+
+    # create circular region
+    circ = CircleRegion(0, 0, 2.0)
+
+    # ~~ ACT ~~
+    any_col, pt_col, edge_col = circ.check_traj_intersection(traj)
+
+    # ~~ ASSERT ~~
+    assert any_col
+    assert not any(pt_col)
+    assert not edge_col[0]
+    assert not edge_col[1]
+    assert not edge_col[3]
+    assert edge_col[2]
+
+
 
 if __name__ == "__main__":
     test_propagate_realtime_system_undisturbed_inactive_ctrl(None)

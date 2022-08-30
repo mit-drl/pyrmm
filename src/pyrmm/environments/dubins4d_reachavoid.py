@@ -11,8 +11,10 @@ import numpy as np
 
 from scipy.integrate import odeint
 from cvxopt import solvers, matrix
-from numpy.random import normal
+from numpy.random import normal, uniform
+from typing import List, Tuple
 from numpy.typing import ArrayLike
+from shapely.geometry import Point, LineString, Polygon
 from types import SimpleNamespace
 
 # state space constants (e.g. vector indexes, bounds)
@@ -34,14 +36,16 @@ ACTIVE_CTRL = "active_ctrl"
 TURNRATE_CTRL = "turnrate_ctrl"
 ACCEL_CTRL = "accel_ctrl"
 DURATION_CTRL = "duration_ctrl"
-# CS_ACTCTRLIND = 0   # index in control space for active control boolean
-# CS_DTHETAIND = 1    # index in control space for turn rate
-# CS_DVIND = 2        # index in control space for linear accel
-# CS_DT = 3           # index in control space for control application time
 CS_DTHETAMIN = -0.2 # [rad/s]    
 CS_DTHETAMAX = 0.2  # [rad/s]
 CS_DVMIN = -0.5     # [m/s/s]
 CS_DVMAX = 0.5      # [m/s/s]
+
+# goal and obstacle params
+GOAL_R_MIN = 0.1
+GOAL_R_MAX = 1.0
+OBST_R_MIN = 0.1
+OBST_R_MAX = 1.0
 
 # number of time steps to analyze per system propagation
 PROPAGATE_TIMESTEPS = 16
@@ -58,10 +62,92 @@ class CircleRegion:
             r : float
                 radius of circle [m]
         '''
-        assert r > 0
-        self.xc = xc
-        self.yc = yc
+        # assert r > 0
+        self._xc = xc
+        self._yc = yc
         self.r = r
+        self._polygon = None
+        self._update_polygon()
+
+    def _update_polygon(self):
+        self._polygon = Point(self._xc, self._yc).buffer(self._r)
+
+    @property
+    def polygon(self):
+        # NOTe: no setter for polygon; 
+        # it should always be inferred from updates to other properties
+        return self._polygon
+
+    @property
+    def xc(self):
+        return self._xc
+
+    @xc.setter
+    def xc(self, val):
+        self._xc = val
+        self._update_polygon()
+
+    @property
+    def yc(self):
+        return self._yc
+
+    @yc.setter
+    def yc(self, val):
+        self._yc = val
+        self._update_polygon()
+
+    @property
+    def r(self):
+        return self._r
+
+    @r.setter
+    def r(self, val):
+        if np.less_equal(val, 0):
+            raise ValueError("expected radius greater than 0, got {}".format(val))
+        self._r = val
+        self._update_polygon
+
+    def check_traj_intersection(self, traj: ArrayLike) -> Tuple:
+        '''check if propagated states path collide with circular region (e.g. goal or obstacle)
+        
+        Args:
+            traj : ArrayLike (mx4)
+                trajectory of m states to be checked for collision with obstacle
+
+        Returns:
+            : Tuple(bool, ArrayLike (m,), ArrayLike (m-1,)
+                boolean whether any collision exists, True if any collision
+                array of booleans, one for each state node, True if node in collision
+                array of booleans, one for each state-to-state edge, True if edge in collision
+        '''
+
+        n_pts = len(traj)
+        any_collision = False
+        pt_collision = np.zeros(n_pts)
+        edge_collision = np.zeros(n_pts-1)
+
+        for i in range(n_pts):
+
+            # check point collisions
+            distsqr = np.square(traj[i][SS_XIND]-self._xc) + np.square(traj[i][SS_YIND]-self._yc)
+            if np.less_equal(distsqr, np.square(self._r)):
+                pt_collision[i] = True
+                any_collision = True
+
+            # check edge collisions
+            if i == n_pts-1:
+                break
+            else:
+                # create line string for edge
+                edge = LineString([
+                    (traj[i][SS_XIND], traj[i][SS_YIND]), 
+                    (traj[i+1][SS_XIND], traj[i+1][SS_YIND])
+                ])
+                if self._polygon.intersects(edge):
+                    edge_collision[i] = True
+                    any_collision = True
+
+        return any_collision, pt_collision, edge_collision
 
 def cvx_qp_solver(P, q, G, h):
     '''Solves quadratic programming using cvxopt
@@ -135,14 +221,18 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         # randomize initial state (x [m], y [m], theta [rad], v [m/s])
         # (private because solution algs should not know this explicitly)
-        self.__state = np.array([0, 0, 0, 0])
+        self.__state = self.state_space.sample()
 
-        # randomize goal, obstacle, and vehicle params (speed and control constraints)
-        self.goal = CircleRegion(5.0, 0.0, 1.0)
+        # randomize goal, obstacle
+        goal_xc, goal_yc = self.state_space.sample()[:2]
+        goal_r = uniform(GOAL_R_MIN, GOAL_R_MAX)
+        self.goal = CircleRegion(xc=goal_xc, yc=goal_yc, r=goal_r)
+        obst_xc, obst_yc = self.state_space.sample()[:2]
+        obst_r = uniform(GOAL_R_MIN, GOAL_R_MAX)
+        self.obstacle = CircleRegion(xc=obst_xc, yc=obst_yc, r=obst_r)
 
         # reset sim clock and sim-to-wall clock sync point
         self.sim_time = 0.0
-        # self.sim_lap_time = 0.0
         self.wall_clock_sync_time = time.time()
 
         # return initial observation and information
@@ -212,9 +302,6 @@ class Dubins4dReachAvoidEnv(gym.Env):
     def _get_info(self):
         raise NotImplementedError
 
-    def _check_collisions(self):
-        '''check if propagated states path collide with obstacle'''
-        raise NotImplementedError
 
     def _solve_default_ctrl_clf_qp(self,
         state:ArrayLike, 

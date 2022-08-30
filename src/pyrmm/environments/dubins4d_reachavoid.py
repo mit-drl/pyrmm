@@ -276,7 +276,9 @@ class Dubins4dReachAvoidEnv(gym.Env):
         self._wall_clock_sync_time = time.time()
 
         # return initial observation and information
-        # TODO
+        observation = self._get_observation()
+        info = self._get_info()
+        return observation, info
 
     def step(self, action):
         '''Unused in real-time paradigm
@@ -478,6 +480,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
 
     def _get_info(self):
+        # TODO
         return dict()
 
     def _solve_default_ctrl_clf_qp(self,

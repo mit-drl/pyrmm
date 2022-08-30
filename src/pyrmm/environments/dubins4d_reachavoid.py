@@ -178,17 +178,17 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         # compute CLF control if no external control given
         if ctrl is None:
-            ctrl_del = self._solve_passive_ctrl_clf_qp(
+            ctrl_n_del = self._solve_default_ctrl_clf_qp(
                 state=self.__state,
                 target=[self.goal.xc, self.goal.yc, 0.0],
                 vmin=self.state_space.low[SS_VIND], vmax=self.state_space.high[SS_VIND],
                 u1min=self.action_space[TURNRATE_CTRL].low[0], u1max=self.action_space[TURNRATE_CTRL].high[0],
-                u2min=self.action_space[ACCEL_CTRL].low[0], u2max=self.action_space[ACCEL_CTRL].low[0],
+                u2min=self.action_space[ACCEL_CTRL].low[0], u2max=self.action_space[ACCEL_CTRL].high[0],
                 gamma_vmin=1, gamma_vmax=1,
                 lambda_Vtheta=1, lambda_Vspeed=1,
                 p_Vtheta=1, p_Vspeed=1
             )
-            ctrl = np.array(ctrl_del[:2]).reshape(2,)
+            ctrl = np.array(ctrl_n_del[:2]).reshape(2,)
 
         # perform physics propagation
         state_traj = odeint(self.__ode_dubins4d_truth, self.__state, tvec, args=(ctrl,))
@@ -216,7 +216,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
         '''check if propagated states path collide with obstacle'''
         raise NotImplementedError
 
-    def _solve_passive_ctrl_clf_qp(self,
+    def _solve_default_ctrl_clf_qp(self,
         state:ArrayLike, 
         target:ArrayLike, 
         vmin, vmax,
@@ -384,9 +384,9 @@ class Dubins4dReachAvoidEnv(gym.Env):
         ### SOLVE QUADRATIC PROGRAM ###
 
         # solve for control variable and slack variables
-        ctrl_del = cvx_qp_solver(P=P_objective, q=q_objective, G=G_all, h=h_all)
+        ctrl_n_del = cvx_qp_solver(P=P_objective, q=q_objective, G=G_all, h=h_all)
 
-        return ctrl_del
+        return ctrl_n_del
 
     def __ode_dubins4d_truth(self, X:ArrayLike, t:ArrayLike, u:ArrayLike) -> ArrayLike:
         '''dubins vehicle ordinary differential equations

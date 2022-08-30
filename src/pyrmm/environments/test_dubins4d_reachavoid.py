@@ -137,6 +137,47 @@ def test_propagate_realtime_system_undisturbed_zero_ctrl(dubins4d_reachavoid_env
     assert np.isclose(env._Dubins4dReachAvoidEnv__state[2], exp_theta)
     assert np.isclose(env._Dubins4dReachAvoidEnv__state[3], exp_v)
 
+def test_solve_default_ctrl_clf_qp_0(dubins4d_reachavoid_env_undisturbed):
+    '''solve inactive/default control lyapunov quadratic program and check control outputs'''
+
+    # ~~ ARRANGE ~~
+    # used for debugging purposes
+    if dubins4d_reachavoid_env_undisturbed is None:
+        dubins4d_reachavoid_env_undisturbed = get_dubins4d_reachavoid_env_undisturbed()
+    env = dubins4d_reachavoid_env_undisturbed
+
+    # specify initial state and goal and state constriants
+    s0 = np.array([0, 0, 0, 0])
+    goal = CircleRegion(5, 0, 1)
+    v_min = 0.0
+    v_max = 2.0
+
+    # specify control constraints
+    turnrate_min = -0.1
+    turnrate_max = 0.1
+    acc_min = -0.5
+    acc_max = 0.5
+
+
+    # ~~ ACT ~~
+    # wait a fixed amount of time and then propagate system
+    ctrl_n_del = env._solve_default_ctrl_clf_qp(
+                state=s0,
+                target=[goal.xc, goal.yc, 0.0],
+                vmin=v_min, vmax=v_max,
+                u1min=turnrate_min, u1max=turnrate_max,
+                u2min=acc_min, u2max=acc_max,
+                gamma_vmin=1, gamma_vmax=1,
+                lambda_Vtheta=1, lambda_Vspeed=1,
+                p_Vtheta=1, p_Vspeed=1
+            )
+
+    # ~~ ASSERT ~~
+    assert np.isclose(ctrl_n_del[0], 0.0)   # turnrate control solution
+    assert np.greater(ctrl_n_del[1], 0.0) # acceleration control solution
+    # assert np.isclose(env._Dubins4dReachAvoidEnv__state[2], exp_theta)
+    # assert np.greater(env._Dubins4dReachAvoidEnv__state[3], 0.0)
+
 def test_propagate_realtime_system_undisturbed_inactive_ctrl(dubins4d_reachavoid_env_undisturbed):
     '''Propagate system with wall-clock time stepping with no disturbances and inactive control (thus controlled by passive CLF)'''
 
@@ -148,7 +189,7 @@ def test_propagate_realtime_system_undisturbed_inactive_ctrl(dubins4d_reachavoid
 
     # specify initial state and goal
     s0 = np.array([0, 0, 0, 0])
-    goal = CircleRegion(5, 5, 1)
+    goal = CircleRegion(5, 0, 1)
 
     # reset environment to capture precise timing
     t_start = time.time()

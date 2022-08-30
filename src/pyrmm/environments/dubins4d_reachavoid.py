@@ -12,10 +12,11 @@ import numpy as np
 from scipy.integrate import odeint
 from cvxopt import solvers, matrix
 from numpy.random import normal, uniform
-from typing import List, Tuple
+from typing import Tuple
 from numpy.typing import ArrayLike
-from shapely.geometry import Point, LineString, Polygon
+from shapely.geometry import Point, LineString
 from types import SimpleNamespace
+from copy import deepcopy
 
 # state space constants (e.g. vector indexes, bounds)
 SS_XIND = 0     # index in state vector for x-positon
@@ -35,7 +36,7 @@ SS_VMAX = 2.0       # [m/s]
 ACTIVE_CTRL = "active_ctrl"
 TURNRATE_CTRL = "turnrate_ctrl"
 ACCEL_CTRL = "accel_ctrl"
-DURATION_CTRL = "duration_ctrl"
+# DURATION_CTRL = "duration_ctrl"
 CS_DTHETAMIN = -0.2 # [rad/s]    
 CS_DTHETAMAX = 0.2  # [rad/s]
 CS_DVMIN = -0.5     # [m/s/s]
@@ -193,7 +194,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
             ACTIVE_CTRL: gym.spaces.Discrete(2),
             TURNRATE_CTRL: gym.spaces.Box(low=CS_DTHETAMIN, high=CS_DTHETAMAX),    # [rad/s]
             ACCEL_CTRL: gym.spaces.Box(low=CS_DVMIN, high=CS_DVMAX),         # [m/s/s]
-            DURATION_CTRL: gym.spaces.Box(low=0, high=np.inf)
+            # DURATION_CTRL: gym.spaces.Box(low=0, high=np.inf)
         })
 
         # control and observaiton disturbances 
@@ -223,6 +224,12 @@ class Dubins4dReachAvoidEnv(gym.Env):
         # (private because solution algs should not know this explicitly)
         self.__state = self.state_space.sample()
 
+        # specify zero action for environment init
+        self._cur_action = self.action_space.sample()
+        self._cur_action[ACTIVE_CTRL] = 0
+        self._cur_action[TURNRATE_CTRL][0] = 0.0
+        self._cur_action[ACCEL_CTRL][0] = 0.0
+
         # randomize goal, obstacle
         goal_xc, goal_yc = self.state_space.sample()[:2]
         goal_r = uniform(GOAL_R_MIN, GOAL_R_MAX)
@@ -234,16 +241,56 @@ class Dubins4dReachAvoidEnv(gym.Env):
         # reset sim clock and sim-to-wall clock sync point
         self.sim_time = 0.0
         self.wall_clock_sync_time = time.time()
+        self.is_episode_done = False
 
         # return initial observation and information
         # TODO
 
     def step(self, action):
-        raise NotImplementedError
+        '''Unused in real-time paradigm
+        '''
+        raise NotImplementedError('Alternative paradigm for real-time environment. See step_to_now function ')
+    
+    def step_to_now(self, next_action):
+        '''Advance system to current time, take observation, and specify action for next time interval
 
-    def close(self):
-        '''Cleanup open resources (e.g. renderer, threads, etc)'''
-        raise NotImplementedError
+        Note: this is an alternative paradigm for stepping a decision process. 
+        In standard paradigm, you apply an action at time t, propagate the system to time t+dt, 
+        and return the observation at time t+dt.
+
+        In this paradigm, you propagate the system from time t-dt to time t based on action
+        set at time t-dt, return the observation at time t, and then specify 
+        the action that will be applied from t to t+dt
+
+        Args
+            next_action : gym.spaces.Dict
+                action to be applied during subsequent time step
+                active_ctrl: boolean True if agent is taking active control of vehicle
+                turnrate_ctrl: float rate of change of vehcile heading [rad/s]
+                accel_ctrl: float linear acceleration of vehicle [m/s/s]
+                ## duration_ctrl: float length of time to apply control
+        '''
+
+        # propagate system from t-dt to t based on action set at t-dt
+        ctrl = None
+        if self._cur_action[ACTIVE_CTRL]:
+            ctrl = np.concatenate((self._cur_action[TURNRATE_CTRL], self._cur_action[ACCEL_CTRL]))
+
+        obs, rew, done, info = self._propagate_realtime_system(ctrl=ctrl)
+
+        # clip next action to action space bounds
+        self._cur_action = deepcopy(next_action)
+        self._cur_action[TURNRATE_CTRL] = np.clip(
+            next_action[TURNRATE_CTRL], 
+            self.action_space[TURNRATE_CTRL].low,
+            self.action_space[TURNRATE_CTRL].high)
+        self._cur_action[ACCEL_CTRL] = np.clip(
+            next_action[ACCEL_CTRL], 
+            self.action_space[ACCEL_CTRL].low,
+            self.action_space[ACCEL_CTRL].high)
+
+        # return 
+        return obs, rew, done, info
 
     def _propagate_realtime_system(self, ctrl:ArrayLike):
         ''' Advance sim time and propagate dynamics based on elapsed time since last propagation
@@ -252,12 +299,28 @@ class Dubins4dReachAvoidEnv(gym.Env):
         part of the environment. If no explicit control is given, then the environments CLF
         takes control
 
+        Note that, by design, this function should do most of the "heavy lifting" of compute in
+        the environment. This is because the real-time nature of this environment is such that
+        we don't want to chew up compute on the environment side; instead allowing maximum
+        utilization of compute by the agent. This function "pauses" sim time while it 
+        does it's compute, thus minimizing the impact on agent metrics
+
         Args:
             ctrl : ArrayLike or None (len=2)
                 control vector [dtheta, dv]
                 dtheta = turn rate [rad/sec]
                 dv = linear acceleration [m/s/s]
                 if ctrl is None, then solve control lyapunov QP for stabilizing control
+
+        Returns:
+            obs : gym.spaces.?
+                observation of state of system
+            rew : float
+                reward value for current timestep
+            done : boolean
+                True if episode is done
+            info : dict
+                dictionary of auxillary information
         '''
 
         # accumulate simulation time since last update
@@ -284,7 +347,12 @@ class Dubins4dReachAvoidEnv(gym.Env):
         state_traj = odeint(self.__ode_dubins4d_truth, self.__state, tvec, args=(ctrl,))
 
         # check for episode termination conditions (goal or obstacle intersection)
-        # TODO
+        goal_collision, _, _ = self.goal.check_traj_intersection(state_traj)
+        obst_collision, _, _ = self.obstacle.check_traj_intersection(state_traj)
+        done = goal_collision or obst_collision
+
+        # reward is sparse binary if goal is reached
+        rew = 1 if goal_collision else 0
 
         # update system state
         self.__state = state_traj[-1,:]
@@ -292,16 +360,23 @@ class Dubins4dReachAvoidEnv(gym.Env):
         # updtate sim clock time 
         self.sim_time += sim_lap_time
 
+        # get observation
+        obs = self._get_observation()
+
+        # get auxillary information
+        info = self._get_info()
+
         # reset wall clock sync time for next loop
         self.wall_clock_sync_time = time.time()
 
+        return obs, rew, done, info
+
     def _get_observation(self):
         '''formats observation of system according to observation space, adding observation noise'''
-        raise NotImplementedError
+        return None
 
     def _get_info(self):
-        raise NotImplementedError
-
+        return dict()
 
     def _solve_default_ctrl_clf_qp(self,
         state:ArrayLike, 
@@ -506,3 +581,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
         dXdt[2] = u[0] + normal(self.__dist.ctrl.theta_mean, self.__dist.ctrl.theta_std)
         dXdt[3] = u[1] + normal(self.__dist.ctrl.v_mean, self.__dist.ctrl.v_std)
         return dXdt
+
+    def close(self):
+        '''Cleanup open resources (e.g. renderer, threads, etc)'''
+        raise NotImplementedError

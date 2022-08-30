@@ -213,6 +213,79 @@ def test_propagate_realtime_system_undisturbed_inactive_ctrl(dubins4d_reachavoid
     assert np.isclose(env._Dubins4dReachAvoidEnv__state[2], exp_theta)
     assert np.greater(env._Dubins4dReachAvoidEnv__state[3], 0.0)
 
+def test_step_to_now_inactive_ctrl_0(dubins4d_reachavoid_env_undisturbed):
+    '''Propagate system with step-to-now function and inactive control (thus CLF "driver")'''
+
+    # ~~ ARRANGE ~~
+    # used for debugging purposes
+    if dubins4d_reachavoid_env_undisturbed is None:
+        dubins4d_reachavoid_env_undisturbed = get_dubins4d_reachavoid_env_undisturbed()
+    env = dubins4d_reachavoid_env_undisturbed
+
+    # specify initial state and goal
+    s0 = np.array([0, 0, 0, 0])
+    goal = CircleRegion(5, 0, 1)
+
+    # reset environment to capture precise timing
+    t_start = time.time()
+    env.reset()
+    env._Dubins4dReachAvoidEnv__state = s0  # (x [m], y [m], theta [rad], v [m/s])
+    env.goal = goal
+
+    # ~~ ACT ~~
+    # wait a fixed amount of time and then propagate system
+    time.sleep(0.53599)
+    t_elapsed = time.time() - t_start
+    env.step_to_now(env.action_space.sample())
+
+    # ~~ ASSERT ~~
+    # exp_x = s0[3] * np.cos(s0[2]) * t_elapsed
+    exp_y = s0[1]
+    exp_theta = s0[2]
+    # exp_v = s0[3]
+    assert np.greater(env._Dubins4dReachAvoidEnv__state[0], 0.0)
+    assert np.isclose(env._Dubins4dReachAvoidEnv__state[1], exp_y)
+    assert np.isclose(env._Dubins4dReachAvoidEnv__state[2], exp_theta)
+    assert np.greater(env._Dubins4dReachAvoidEnv__state[3], 0.0)
+
+def test_step_to_now_active_ctrl_0(dubins4d_reachavoid_env_undisturbed):
+    '''Propagate system with step-to-now function with a specified action'''
+
+    # ~~ ARRANGE ~~
+    # used for debugging purposes
+    if dubins4d_reachavoid_env_undisturbed is None:
+        dubins4d_reachavoid_env_undisturbed = get_dubins4d_reachavoid_env_undisturbed()
+    env = dubins4d_reachavoid_env_undisturbed
+
+    # specify initial state and control
+    s0 = np.array([0, 0, 0, 1])
+    c0 = env.action_space.sample()
+    c0['active_ctrl'] = True
+    c0['turnrate_ctrl'][0] = 0
+    c0['accel_ctrl'][0] = 0
+
+    # reset environment to capture precise timing
+    t_start = time.time()
+    env.reset()
+    env._Dubins4dReachAvoidEnv__state = s0  # (x [m], y [m], theta [rad], v [m/s])
+    env._cur_action = c0
+
+    # ~~ ACT ~~
+    # wait a fixed amount of time and then propagate system
+    time.sleep(0.580)
+    t_elapsed = time.time() - t_start
+    env.step_to_now(env.action_space.sample())
+
+    # ~~ ASSERT ~~
+    exp_x = s0[3] * np.cos(s0[2]) * t_elapsed
+    exp_y = s0[3] * np.sin(s0[2]) * t_elapsed
+    exp_theta = s0[2]
+    exp_v = s0[3]
+    assert np.isclose(env._Dubins4dReachAvoidEnv__state[0], exp_x, rtol=1e-2)
+    assert np.isclose(env._Dubins4dReachAvoidEnv__state[1], exp_y)
+    assert np.isclose(env._Dubins4dReachAvoidEnv__state[2], exp_theta)
+    assert np.isclose(env._Dubins4dReachAvoidEnv__state[3], exp_v)
+
 def test_check_traj_intersection_0():
     '''check that a known intersection is identified'''
 

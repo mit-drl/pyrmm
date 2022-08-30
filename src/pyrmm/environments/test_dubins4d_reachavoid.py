@@ -195,7 +195,7 @@ def test_propagate_realtime_system_undisturbed_inactive_ctrl(dubins4d_reachavoid
     t_start = time.time()
     env.reset()
     env._Dubins4dReachAvoidEnv__state = s0  # (x [m], y [m], theta [rad], v [m/s])
-    env.goal = goal
+    env._goal = goal
 
     # ~~ ACT ~~
     # wait a fixed amount of time and then propagate system
@@ -230,7 +230,7 @@ def test_step_to_now_inactive_ctrl_0(dubins4d_reachavoid_env_undisturbed):
     t_start = time.time()
     env.reset()
     env._Dubins4dReachAvoidEnv__state = s0  # (x [m], y [m], theta [rad], v [m/s])
-    env.goal = goal
+    env._goal = goal
 
     # ~~ ACT ~~
     # wait a fixed amount of time and then propagate system
@@ -315,8 +315,8 @@ def test_step_to_now_active_ctrl_rew_and_done_0(dubins4d_reachavoid_env_undistur
         env.reset()
         env._Dubins4dReachAvoidEnv__state = s0  # (x [m], y [m], theta [rad], v [m/s])
         env._cur_action = c0
-        env.goal = goals[i]
-        env.obstacle = obstacles[i]
+        env._goal = goals[i]
+        env._obstacle = obstacles[i]
 
         # ~~ ACT ~~
         # wait a fixed amount of time and then propagate system

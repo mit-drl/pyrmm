@@ -241,10 +241,12 @@ class Dubins4dReachAvoidEnv(gym.Env):
         # randomize goal, obstacle
         goal_xc, goal_yc = self.state_space.sample()[:2]
         goal_r = uniform(GOAL_R_MIN, GOAL_R_MAX)
-        self.goal = CircleRegion(xc=goal_xc, yc=goal_yc, r=goal_r)
+        self._goal = CircleRegion(xc=goal_xc, yc=goal_yc, r=goal_r)
+
+        # randomize obstacle (not meant for direct access)
         obst_xc, obst_yc = self.state_space.sample()[:2]
         obst_r = uniform(GOAL_R_MIN, GOAL_R_MAX)
-        self.obstacle = CircleRegion(xc=obst_xc, yc=obst_yc, r=obst_r)
+        self._obstacle = CircleRegion(xc=obst_xc, yc=obst_yc, r=obst_r)
 
         # reset sim clock and sim-to-wall clock sync point
         self.sim_time = 0.0
@@ -341,7 +343,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
         if ctrl is None:
             ctrl_n_del = self._solve_default_ctrl_clf_qp(
                 state=self.__state,
-                target=[self.goal.xc, self.goal.yc, 0.0],
+                target=[self._goal.xc, self._goal.yc, 0.0],
                 vmin=self.state_space.low[SS_VIND], vmax=self.state_space.high[SS_VIND],
                 u1min=self.action_space[TURNRATE_CTRL].low[0], u1max=self.action_space[TURNRATE_CTRL].high[0],
                 u2min=self.action_space[ACCEL_CTRL].low[0], u2max=self.action_space[ACCEL_CTRL].high[0],
@@ -355,8 +357,8 @@ class Dubins4dReachAvoidEnv(gym.Env):
         state_traj = odeint(self.__ode_dubins4d_truth, self.__state, tvec, args=(ctrl,))
 
         # check goal and obstacle collisions
-        gcol_any, _, gcol_edge = self.goal.check_traj_intersection(state_traj)
-        ocol_any, _, ocol_edge = self.obstacle.check_traj_intersection(state_traj)
+        gcol_any, _, gcol_edge = self._goal.check_traj_intersection(state_traj)
+        ocol_any, _, ocol_edge = self._obstacle.check_traj_intersection(state_traj)
 
         # reward is sparse [-1,0,1] if goal is reached before obstacle
         rew = 0

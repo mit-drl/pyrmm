@@ -45,8 +45,8 @@ CS_DVMAX = 0.5      # [m/s/s]
 # goal and obstacle params
 GOAL_R_MIN = 0.1
 GOAL_R_MAX = 1.0
-OBST_R_MIN = 0.1
-OBST_R_MAX = 1.0
+OBST_R_MIN = 0.5
+OBST_R_MAX = 2.0
 
 # observation space (OS) parameters
 OS_N_RAYS = 12      # number of rays to cast
@@ -59,7 +59,10 @@ TIME_ACCEL_FACTOR = 1.0         # [s-sim-time/s-wall-clock-time] acceleration of
 
 class Dubins4dReachAvoidEnv(gym.Env):
 
-    def __init__(self, n_rays:int=OS_N_RAYS, ray_length:float=OS_RAY_MAX):
+    def __init__(self, 
+        n_rays:int=OS_N_RAYS, ray_length:float=OS_RAY_MAX,
+        max_episode_sim_time:float=MAX_EPISODE_SIM_TIME,
+        time_accel_factor:float=TIME_ACCEL_FACTOR):
         '''
         Args
             n_rays : int
@@ -69,8 +72,11 @@ class Dubins4dReachAvoidEnv(gym.Env):
         '''
 
         # Timing parameters
-        self._max_episode_sim_time = MAX_EPISODE_SIM_TIME   # [s] sim time until termination of episode
-        self._time_accel_factor = TIME_ACCEL_FACTOR         # [s-sim-time/s-wall-time] sim-time accleration factor relative to wall clock
+        assert max_episode_sim_time > 0
+        self._max_episode_sim_time = max_episode_sim_time   # [s] sim time until termination of episode
+
+        assert time_accel_factor >= 1.0
+        self._time_accel_factor = time_accel_factor         # [s-sim-time/s-wall-time] sim-time accleration factor relative to wall clock
 
         # define state space bounds
         # [x [m], y [m], theta [rad], v [m/s]]
@@ -141,7 +147,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         # randomize obstacle (not meant for direct access)
         obst_xc, obst_yc = self.state_space.sample()[:2]
-        obst_r = uniform(GOAL_R_MIN, GOAL_R_MAX)
+        obst_r = uniform(OBST_R_MIN, OBST_R_MAX)
         self._obstacle = CircleRegion(xc=obst_xc, yc=obst_yc, r=obst_r)
 
         # reset sim clock and sim-to-wall clock sync point
@@ -235,7 +241,6 @@ class Dubins4dReachAvoidEnv(gym.Env):
         '''
 
         # accumulate simulation time since last update
-        assert self._time_accel_factor >= 1.0
         sim_lap_time = (time.time() - self._wall_clock_sync_time)*self._time_accel_factor
 
         # formulate lap time vector for physics propagation
@@ -348,7 +353,12 @@ class Dubins4dReachAvoidEnv(gym.Env):
                 obs_ray[i] = self._max_ray_length
 
         observation = np.concatenate((obs, obs_ray), dtype=self.observation_space.dtype)
-        assert self.observation_space.contains(observation)
+        # if not self.observation_space.contains(observation):
+        #     raise ValueError(
+        #         "Observation outside of observation space\n"+
+        #         "observation >= observation_space.low: {}\n".format(np.greater_equal(observation, self.observation_space.low)) +
+        #         "observation <= observation_space.high: {}".format(np.less_equal(observation, self.observation_space.high))
+        #     )
 
         return observation
 
@@ -559,6 +569,9 @@ class Dubins4dReachAvoidEnv(gym.Env):
         dXdt[1] = X[3] * np.sin(X[2]) + normal(self.__dist.ctrl.y_mean, self.__dist.ctrl.y_std)
         dXdt[2] = u[0] + normal(self.__dist.ctrl.theta_mean, self.__dist.ctrl.theta_std)
         dXdt[3] = u[1] + normal(self.__dist.ctrl.v_mean, self.__dist.ctrl.v_std)
+        # physical constraint: speed is non-negative
+        # if dXdt[3] < 0 and X[3] < 1e-3:
+        #     dXdt[3] = 0
         return dXdt
 
     def close(self):

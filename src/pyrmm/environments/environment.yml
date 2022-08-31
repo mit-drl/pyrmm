@@ -5,8 +5,4 @@ dependencies:
   - python=3
   - pip
   - pip:
-    - gym
-    - scipy
-    - cvxopt
-    - shapely
-    - pytest
+    - -r requirements.txt

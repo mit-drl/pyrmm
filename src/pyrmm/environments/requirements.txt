@@ -1,0 +1,5 @@
+gym
+scipy
+cvxopt
+shapely
+pytest

@@ -64,6 +64,7 @@ CUM_ACTIVE_CTRL_SIM_TIME = 'active_ctrl_sim_time'
 CUM_WALL_CLOCK_TIME = 'cum_wall_clock_time'
 CUM_SIM_TIME = 'cum_sim_time'
 AVG_POLICY_COMPUTE_TIME = 'avg_policy_compute_time'
+CUM_REWARD = 'cum_reward'
 
 class Dubins4dReachAvoidEnv(gym.Env):
 
@@ -169,6 +170,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
         self._active_ctrl_sim_time = 0.0
 
         # return initial observation and information
+        self._cum_reward = 0
         observation = self._get_observation()
         info = self._get_info(False)
         return observation, info
@@ -316,6 +318,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
             rew = -1
         else:
             rew = 0
+        self._cum_reward += rew
 
         # update system state
         self.__state = state_traj[-1,:]
@@ -406,6 +409,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
             info[CUM_WALL_CLOCK_TIME] = self._wall_clock_elapsed_time
             info[CUM_SIM_TIME] = self._sim_time
             info[AVG_POLICY_COMPUTE_TIME] = self._wall_clock_elapsed_time/self._n_env_steps
+            info[CUM_REWARD] = self._cum_reward
 
         return info
 

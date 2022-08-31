@@ -38,9 +38,10 @@ def test_ode_dubins4d_truth_undisturbed_zero_ctrl(dubins4d_reachavoid_env_undist
     s0 = [0, 0, 0, 1]   # (x [m], y [m], theta [rad], v [m/s])
     t = np.linspace(0, 1.0, 10, endpoint=True)
     u = [0, 0]
+    d = [0,0,0,0]
 
     # ~~ ACT ~~
-    sol = odeint(env._Dubins4dReachAvoidEnv__ode_dubins4d_truth, s0, t, args=(u,))
+    sol = odeint(env._Dubins4dReachAvoidEnv__ode_dubins4d_truth, s0, t, args=(u,d))
 
     # ~~ ASSERT ~~
     assert np.isclose(sol[-1, 0], 1.0)
@@ -62,9 +63,10 @@ def test_ode_dubins4d_truth_undisturbed_ctrl_acc_1(dubins4d_reachavoid_env_undis
     t = [0, 1]
     acc = 0.1
     u = [0, acc]
+    d = [0,0,0,0]
 
     # ~~ ACT ~~
-    sol = odeint(env._Dubins4dReachAvoidEnv__ode_dubins4d_truth, s0, t, args=(u,))
+    sol = odeint(env._Dubins4dReachAvoidEnv__ode_dubins4d_truth, s0, t, args=(u,d))
 
     # ~~ ASSERT ~~
     exp_x = 0.5*acc*t[-1]**2 + s0[3]*t[-1] + s0[0]
@@ -88,9 +90,10 @@ def test_ode_dubins4d_truth_undisturbed_ctrl_dtheta_1(dubins4d_reachavoid_env_un
     t = [0, 1]
     dtheta = np.pi/2
     u = [dtheta, 0]
+    d = [0,0,0,0]
 
     # ~~ ACT ~~
-    sol = odeint(env._Dubins4dReachAvoidEnv__ode_dubins4d_truth, s0, t, args=(u,))
+    sol = odeint(env._Dubins4dReachAvoidEnv__ode_dubins4d_truth, s0, t, args=(u,d))
 
     # ~~ ASSERT ~~
     exp_x = 2/np.pi

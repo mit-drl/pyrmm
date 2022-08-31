@@ -57,133 +57,6 @@ PROPAGATE_TIMESTEPS = 16
 MAX_EPISODE_SIM_TIME = 100.0    # [s] simulated time
 TIME_ACCEL_FACTOR = 1.0         # [s-sim-time/s-wall-clock-time] acceleration of simulation time
 
-class CircleRegion:
-    '''Object describes circular region in 2D space of specified radius'''
-    def __init__(self, xc:float, yc:float, r:float) -> None:
-        '''
-        Args:
-            xc : float
-                x-position of center of circle [m]
-            yc : float
-                y-position of center of circle [m]
-            r : float
-                radius of circle [m]
-        '''
-        # assert r > 0
-        self._xc = xc
-        self._yc = yc
-        self.r = r
-        self._polygon = None
-        self._update_polygon()
-
-    def _update_polygon(self):
-        self._polygon = Point(self._xc, self._yc).buffer(self._r)
-
-    @property
-    def polygon(self):
-        # NOTe: no setter for polygon; 
-        # it should always be inferred from updates to other properties
-        return self._polygon
-
-    @property
-    def xc(self):
-        return self._xc
-
-    @xc.setter
-    def xc(self, val):
-        self._xc = val
-        self._update_polygon()
-
-    @property
-    def yc(self):
-        return self._yc
-
-    @yc.setter
-    def yc(self, val):
-        self._yc = val
-        self._update_polygon()
-
-    @property
-    def r(self):
-        return self._r
-
-    @r.setter
-    def r(self, val):
-        if np.less_equal(val, 0):
-            raise ValueError("expected radius greater than 0, got {}".format(val))
-        self._r = val
-        self._update_polygon
-
-    def check_traj_intersection(self, traj: ArrayLike) -> Tuple:
-        '''check if propagated states path collide with circular region (e.g. goal or obstacle)
-        
-        Args:
-            traj : ArrayLike (mx4)
-                trajectory of m states to be checked for collision with obstacle
-
-        Returns:
-            : Tuple(bool, ArrayLike (m,), ArrayLike (m-1,)
-                boolean whether any collision exists, True if any collision
-                array of booleans, one for each state node, True if node in collision
-                array of booleans, one for each state-to-state edge, True if edge in collision
-        '''
-
-        n_pts = len(traj)
-        any_collision = False
-        pt_collision = n_pts*[False]
-        edge_collision = (n_pts-1)*[False]
-        # pt_collision = np.zeros(n_pts)
-        # edge_collision = np.zeros(n_pts-1)
-
-        for i in range(n_pts):
-
-            # check point collisions
-            distsqr = np.square(traj[i][SS_XIND]-self._xc) + np.square(traj[i][SS_YIND]-self._yc)
-            if np.less_equal(distsqr, np.square(self._r)):
-                pt_collision[i] = True
-                any_collision = True
-
-            # check edge collisions
-            if i == n_pts-1:
-                break
-            else:
-                # create line string for edge
-                edge = LineString([
-                    (traj[i][SS_XIND], traj[i][SS_YIND]), 
-                    (traj[i+1][SS_XIND], traj[i+1][SS_YIND])
-                ])
-                if self._polygon.intersects(edge):
-                    edge_collision[i] = True
-                    any_collision = True
-
-        return any_collision, pt_collision, edge_collision
-
-def cvx_qp_solver(P, q, G, h):
-    '''Solves quadratic programming using cvxopt
-
-    Args:
-        P : ArrayLike (mxm)
-            quadratic term in optimization objective
-        q : ArrayLike (mx1)
-            linear term in optimization objective
-        G : ArrayLike (?xm)
-            Left-hand side of (<=) inequality constraints
-        h : ArrayLike (?x1)
-            Right-hand side of (<=) inequality constraints
-    
-    Ref: 
-        https://www.cvxpy.org/examples/basic/quadratic_program.html
-        https://cvxopt.org/examples/tutorial/qp.html
-    '''
-    mat_P = matrix(P)
-    mat_q = matrix(q)
-    mat_G = matrix(G)
-    mat_h = matrix(h)
-
-    solvers.options['show_progress'] = False
-    sol = solvers.qp(mat_P, mat_q, mat_G, mat_h)
-    return sol['x']
-
 class Dubins4dReachAvoidEnv(gym.Env):
 
     def __init__(self, n_rays:int=OS_N_RAYS, ray_length:float=OS_RAY_MAX):
@@ -306,6 +179,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
         '''
 
         # propagate system from t-dt to t based on action set at t-dt
+        assert self.action_space.contains(next_action)
         ctrl = None
         if self._cur_action[ACTIVE_CTRL]:
             ctrl = np.concatenate((self._cur_action[TURNRATE_CTRL], self._cur_action[ACCEL_CTRL]))
@@ -690,3 +564,130 @@ class Dubins4dReachAvoidEnv(gym.Env):
     def close(self):
         '''Cleanup open resources (e.g. renderer, threads, etc)'''
         raise NotImplementedError
+
+class CircleRegion:
+    '''Object describes circular region in 2D space of specified radius'''
+    def __init__(self, xc:float, yc:float, r:float) -> None:
+        '''
+        Args:
+            xc : float
+                x-position of center of circle [m]
+            yc : float
+                y-position of center of circle [m]
+            r : float
+                radius of circle [m]
+        '''
+        # assert r > 0
+        self._xc = xc
+        self._yc = yc
+        self.r = r
+        self._polygon = None
+        self._update_polygon()
+
+    def _update_polygon(self):
+        self._polygon = Point(self._xc, self._yc).buffer(self._r)
+
+    @property
+    def polygon(self):
+        # NOTe: no setter for polygon; 
+        # it should always be inferred from updates to other properties
+        return self._polygon
+
+    @property
+    def xc(self):
+        return self._xc
+
+    @xc.setter
+    def xc(self, val):
+        self._xc = val
+        self._update_polygon()
+
+    @property
+    def yc(self):
+        return self._yc
+
+    @yc.setter
+    def yc(self, val):
+        self._yc = val
+        self._update_polygon()
+
+    @property
+    def r(self):
+        return self._r
+
+    @r.setter
+    def r(self, val):
+        if np.less_equal(val, 0):
+            raise ValueError("expected radius greater than 0, got {}".format(val))
+        self._r = val
+        self._update_polygon
+
+    def check_traj_intersection(self, traj: ArrayLike) -> Tuple:
+        '''check if propagated states path collide with circular region (e.g. goal or obstacle)
+        
+        Args:
+            traj : ArrayLike (mx4)
+                trajectory of m states to be checked for collision with obstacle
+
+        Returns:
+            : Tuple(bool, ArrayLike (m,), ArrayLike (m-1,)
+                boolean whether any collision exists, True if any collision
+                array of booleans, one for each state node, True if node in collision
+                array of booleans, one for each state-to-state edge, True if edge in collision
+        '''
+
+        n_pts = len(traj)
+        any_collision = False
+        pt_collision = n_pts*[False]
+        edge_collision = (n_pts-1)*[False]
+        # pt_collision = np.zeros(n_pts)
+        # edge_collision = np.zeros(n_pts-1)
+
+        for i in range(n_pts):
+
+            # check point collisions
+            distsqr = np.square(traj[i][SS_XIND]-self._xc) + np.square(traj[i][SS_YIND]-self._yc)
+            if np.less_equal(distsqr, np.square(self._r)):
+                pt_collision[i] = True
+                any_collision = True
+
+            # check edge collisions
+            if i == n_pts-1:
+                break
+            else:
+                # create line string for edge
+                edge = LineString([
+                    (traj[i][SS_XIND], traj[i][SS_YIND]), 
+                    (traj[i+1][SS_XIND], traj[i+1][SS_YIND])
+                ])
+                if self._polygon.intersects(edge):
+                    edge_collision[i] = True
+                    any_collision = True
+
+        return any_collision, pt_collision, edge_collision
+
+def cvx_qp_solver(P, q, G, h):
+    '''Solves quadratic programming using cvxopt
+
+    Args:
+        P : ArrayLike (mxm)
+            quadratic term in optimization objective
+        q : ArrayLike (mx1)
+            linear term in optimization objective
+        G : ArrayLike (?xm)
+            Left-hand side of (<=) inequality constraints
+        h : ArrayLike (?x1)
+            Right-hand side of (<=) inequality constraints
+    
+    Ref: 
+        https://www.cvxpy.org/examples/basic/quadratic_program.html
+        https://cvxopt.org/examples/tutorial/qp.html
+    '''
+    mat_P = matrix(P)
+    mat_q = matrix(q)
+    mat_G = matrix(G)
+    mat_h = matrix(h)
+
+    solvers.options['show_progress'] = False
+    sol = solvers.qp(mat_P, mat_q, mat_G, mat_h)
+    return sol['x']

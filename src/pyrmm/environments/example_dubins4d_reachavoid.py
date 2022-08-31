@@ -5,7 +5,7 @@ import numpy as np
 from dubins4d_reachavoid import Dubins4dReachAvoidEnv
 
 # create environment
-env = Dubins4dReachAvoidEnv(time_accel_factor=100.0)
+env = Dubins4dReachAvoidEnv(time_accel_factor=10.0)
 
 # get initial observation and info
 obs, info = env.reset()
@@ -21,4 +21,5 @@ while True:
 
     if done:
         break
-print("Done! Reward=", rew)
+
+print("Done!\nReward = {}\nInfo: {}".format(rew, info))

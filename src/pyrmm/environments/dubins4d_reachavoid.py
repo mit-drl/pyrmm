@@ -49,20 +49,28 @@ OBST_R_MIN = 0.5
 OBST_R_MAX = 2.0
 
 # observation space (OS) parameters
-OS_N_RAYS = 12      # number of rays to cast
-OS_RAY_MAX = 5.0    # [m] maximum length of ray
+OS_N_RAYS_DEFAULT = 12      # number of rays to cast
+OS_RAY_MAX_DEFAULT = 5.0    # [m] maximum length of ray
 
 # number of time steps to analyze per system propagation
 PROPAGATE_TIMESTEPS = 16
-MAX_EPISODE_SIM_TIME = 100.0    # [s] simulated time
-TIME_ACCEL_FACTOR = 1.0         # [s-sim-time/s-wall-clock-time] acceleration of simulation time
+MAX_EPISODE_SIM_TIME_DEFAULT = 100.0    # [s] simulated time
+TIME_ACCEL_FACTOR_DEFAULT = 1.0         # [s-sim-time/s-wall-clock-time] acceleration of simulation time
+
+# info dictionary keys
+N_ENV_STEPS = 'n_env_steps'
+N_ACTIVE_CTRL_ENV_STEPS = 'n_active_ctrl_env_steps'
+CUM_ACTIVE_CTRL_SIM_TIME = 'active_ctrl_sim_time'
+CUM_WALL_CLOCK_TIME = 'cum_wall_clock_time'
+CUM_SIM_TIME = 'cum_sim_time'
+AVG_POLICY_COMPUTE_TIME = 'avg_policy_compute_time'
 
 class Dubins4dReachAvoidEnv(gym.Env):
 
     def __init__(self, 
-        n_rays:int=OS_N_RAYS, ray_length:float=OS_RAY_MAX,
-        max_episode_sim_time:float=MAX_EPISODE_SIM_TIME,
-        time_accel_factor:float=TIME_ACCEL_FACTOR):
+        n_rays:int=OS_N_RAYS_DEFAULT, ray_length:float=OS_RAY_MAX_DEFAULT,
+        max_episode_sim_time:float=MAX_EPISODE_SIM_TIME_DEFAULT,
+        time_accel_factor:float=TIME_ACCEL_FACTOR_DEFAULT):
         '''
         Args
             n_rays : int
@@ -112,9 +120,9 @@ class Dubins4dReachAvoidEnv(gym.Env):
         self.__dist = SimpleNamespace()
         self.__dist.ctrl = SimpleNamespace()
         self.__dist.ctrl.x_mean = 0.0
-        self.__dist.ctrl.x_std = 0.1
+        self.__dist.ctrl.x_std = 0.01
         self.__dist.ctrl.y_mean = 0.0
-        self.__dist.ctrl.y_std = 0.1
+        self.__dist.ctrl.y_std = 0.01
         self.__dist.ctrl.theta_mean = 0.0
         self.__dist.ctrl.theta_std = 0.001
         self.__dist.ctrl.v_mean = 0.0
@@ -151,12 +159,18 @@ class Dubins4dReachAvoidEnv(gym.Env):
         self._obstacle = CircleRegion(xc=obst_xc, yc=obst_yc, r=obst_r)
 
         # reset sim clock and sim-to-wall clock sync point
+        self._wall_clock_elapsed_time = 0.0
         self._sim_time = 0.0
         self._wall_clock_sync_time = time.time()
 
+        # reset timing and stepping metrics
+        self._n_env_steps = 0
+        self._n_active_ctrl_env_steps = 0
+        self._active_ctrl_sim_time = 0.0
+
         # return initial observation and information
         observation = self._get_observation()
-        info = self._get_info()
+        info = self._get_info(False)
         return observation, info
 
     def step(self, action):
@@ -184,12 +198,16 @@ class Dubins4dReachAvoidEnv(gym.Env):
                 ## duration_ctrl: float length of time to apply control
         '''
 
-        # propagate system from t-dt to t based on action set at t-dt
         assert self.action_space.contains(next_action)
+        self._n_env_steps += 1
+
+        # format control portion of action if active control (otherwise passive CLF will control)
         ctrl = None
         if self._cur_action[ACTIVE_CTRL]:
+            self._n_active_ctrl_env_steps += 1
             ctrl = np.concatenate((self._cur_action[TURNRATE_CTRL], self._cur_action[ACCEL_CTRL]))
 
+        # propagate system from t-dt to t based on action set at t-dt
         obs, rew, done, info = self._propagate_realtime_system(ctrl=ctrl)
 
         # clip next action to action space bounds
@@ -240,8 +258,9 @@ class Dubins4dReachAvoidEnv(gym.Env):
                 dictionary of auxillary information
         '''
 
-        # accumulate simulation time since last update
-        sim_lap_time = (time.time() - self._wall_clock_sync_time)*self._time_accel_factor
+        # record wall-clock elapsed time and accumulate simulation time since last update
+        wall_lap_time = time.time() - self._wall_clock_sync_time
+        sim_lap_time = wall_lap_time*self._time_accel_factor
 
         # formulate lap time vector for physics propagation
         tvec = np.linspace(0, sim_lap_time, PROPAGATE_TIMESTEPS, endpoint=True)
@@ -259,9 +278,22 @@ class Dubins4dReachAvoidEnv(gym.Env):
                 p_Vtheta=1, p_Vspeed=1
             )
             ctrl = np.array(ctrl_n_del[:2]).reshape(2,)
+        else:
+            # record length of sim time spent in active control
+            self._active_ctrl_sim_time += sim_lap_time
+
+        # randomized control disturbances
+        dist = np.zeros(4,)
+        dist[0] = normal(self.__dist.ctrl.x_mean, self.__dist.ctrl.x_std)
+        dist[1] = normal(self.__dist.ctrl.y_mean, self.__dist.ctrl.y_std)
+        dist[2] = normal(self.__dist.ctrl.theta_mean, self.__dist.ctrl.theta_std)
+        dist[3] = normal(self.__dist.ctrl.v_mean, self.__dist.ctrl.v_std)
 
         # perform physics propagation
-        state_traj = odeint(self.__ode_dubins4d_truth, self.__state, tvec, args=(ctrl,))
+        state_traj = odeint(self.__ode_dubins4d_truth, self.__state, tvec, args=(ctrl,dist))
+        if np.any(np.isnan(state_traj)):
+            raise ValueError("Physics propagation failed resulting in NaN states\n"+
+                "init state: {}\nctrl: {}\nstate traj{}".format(self.__state, ctrl, state_traj))
 
         # check goal and obstacle collisions
         gcol_any, _, gcol_edge = self._goal.check_traj_intersection(state_traj)
@@ -289,6 +321,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
         self.__state = state_traj[-1,:]
 
         # updtate sim clock time 
+        self._wall_clock_elapsed_time += wall_lap_time
         self._sim_time += sim_lap_time
 
         # check for episode termination conditions (goal or obstacle intersection)
@@ -299,7 +332,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
         obs = self._get_observation()
 
         # get auxillary information
-        info = self._get_info()
+        info = self._get_info(done)
 
         # reset wall clock sync time for next loop
         self._wall_clock_sync_time = time.time()
@@ -363,9 +396,19 @@ class Dubins4dReachAvoidEnv(gym.Env):
         return observation
 
 
-    def _get_info(self):
-        # TODO
-        return dict()
+    def _get_info(self, done:bool):
+        '''packagage auxillary info into dictionary, particularly when episode is done'''
+        info = dict()
+        if done:
+            info[N_ENV_STEPS] = self._n_env_steps
+            info[N_ACTIVE_CTRL_ENV_STEPS] = self._n_active_ctrl_env_steps
+            info[CUM_ACTIVE_CTRL_SIM_TIME] = self._active_ctrl_sim_time
+            info[CUM_WALL_CLOCK_TIME] = self._wall_clock_elapsed_time
+            info[CUM_SIM_TIME] = self._sim_time
+            info[AVG_POLICY_COMPUTE_TIME] = self._wall_clock_elapsed_time/self._n_env_steps
+
+        return info
+
 
     def _solve_default_ctrl_clf_qp(self,
         state:ArrayLike, 
@@ -539,7 +582,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         return ctrl_n_del
 
-    def __ode_dubins4d_truth(self, X:ArrayLike, t:ArrayLike, u:ArrayLike) -> ArrayLike:
+    def __ode_dubins4d_truth(self, X:ArrayLike, t:ArrayLike, u:ArrayLike, d:ArrayLike) -> ArrayLike:
         '''dubins vehicle ordinary differential equations
 
         Truth model for physics propagation. This is in contrast to whatever
@@ -558,6 +601,9 @@ class Dubins4dReachAvoidEnv(gym.Env):
                 control vector [dtheta, dv]
                 dtheta = turn rate [rad/sec]
                 dv = linear acceleration [m/s/s]
+            d : ArrayLike (len=4)
+                control disturbances / process noise [dx, dy, dtheta, dv]
+
 
         Returns:
             dydt : array-like
@@ -565,10 +611,10 @@ class Dubins4dReachAvoidEnv(gym.Env):
         '''
 
         dXdt = 4*[None]
-        dXdt[0] = X[3] * np.cos(X[2]) + normal(self.__dist.ctrl.x_mean, self.__dist.ctrl.x_std)
-        dXdt[1] = X[3] * np.sin(X[2]) + normal(self.__dist.ctrl.y_mean, self.__dist.ctrl.y_std)
-        dXdt[2] = u[0] + normal(self.__dist.ctrl.theta_mean, self.__dist.ctrl.theta_std)
-        dXdt[3] = u[1] + normal(self.__dist.ctrl.v_mean, self.__dist.ctrl.v_std)
+        dXdt[0] = X[3] * np.cos(X[2]) + d[0]
+        dXdt[1] = X[3] * np.sin(X[2]) + d[1]
+        dXdt[2] = u[0] + d[2]
+        dXdt[3] = u[1] + d[3]
         # physical constraint: speed is non-negative
         # if dXdt[3] < 0 and X[3] < 1e-3:
         #     dXdt[3] = 0

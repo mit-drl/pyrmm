@@ -3,7 +3,7 @@
 
 import hydra
 import time
-import multiprocess
+import multiprocessing
 import logging
 import pickle
 import numpy as np
@@ -104,7 +104,7 @@ DEFAULT_TIME_ACCEL = 10.0   # sim-tim acceleration factor
 make_config_input = {
     K_N_TRIALS: DEFAULT_N_TRIALS,   
     K_TIME_ACCEL: DEFAULT_TIME_ACCEL,
-    K_N_CORES: multiprocess.cpu_count() # number of cores for multiprocessing jobs
+    K_N_CORES: multiprocessing.cpu_count() # number of cores for multiprocessing jobs
 }
 Config = make_config(**make_config_input)
 ConfigStore.instance().store(_CONFIG_NAME,Config)
@@ -121,7 +121,7 @@ def task_function(cfg: Config):
     obj = instantiate(cfg)
 
     # create pool of multiprocess jobs
-    pool = multiprocess.Pool(obj.n_cores)
+    pool = multiprocessing.Pool(obj.n_cores)
 
     # create storage for results
     results = dict()

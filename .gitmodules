@@ -5,3 +5,6 @@
 	path = v-hacd
 	url = git@github.com:kmammou/v-hacd.git
     ignore = untracked
+[submodule "optimized_dp"]
+	path = optimized_dp
+	url = git@github.com:SFU-MARS/optimized_dp.git

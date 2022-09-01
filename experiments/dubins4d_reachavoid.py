@@ -28,7 +28,7 @@ K_TIME_ACCEL = 'time_accel'
 K_N_CORES = 'n_cores'
 K_TRIAL_DATA = 'trial_data'
 K_AGGREGATE_DATA = 'aggregate_data'
-K_AVG_COMPUTE_WALL_TIME = 'avg_compute_wall_time'
+K_AVG_POLICY_COMPUTE_WALL_TIME = 'avg_policy_compute_wall_time'
 K_AVG_ACTIVE_CTRL_STEPS = 'avg_active_ctrl_steps'
 K_AVG_ACTIVE_CTRL_SIM_TIME = 'avg_active_ctrl_sim_time'
 K_GOAL_COMPLETION_RATE = 'goal_completion_rate'
@@ -39,7 +39,7 @@ K_AVG_SIM_TIME_TO_GOAL = 'avg_sim_time_to_goal'
 def aggregate_agent_metrics(trial_data:List)->Dict:
     '''compute metrics for agent performance for sequence of trials (episodes)
     Returns:
-        AVG_COMPUTE_WALL_TIME : average wall-clock computation time of agent's policy per step
+        AVG_POLICY_COMPUTE_WALL_TIME : average wall-clock computation time of agent's policy per step
         AVG_ACTIVE_CTRL_STEPS : average number of active control steps per episode
         AVG_ACTIVE_CTRL_SIM_TIME: average sim time spent under active control per episode
         GOAL_COMPLETION_RATE : fraction of episodes that end in the goal terminal state
@@ -49,7 +49,13 @@ def aggregate_agent_metrics(trial_data:List)->Dict:
     '''
     agg_data = dict()
 
-    agg_data[K_AVG_COMPUTE_WALL_TIME] = np.sum([t['cum_wall_clock_time'] for t in trial_data]) / np.sum([t['n_env_steps'] for t in trial_data])
+    agg_data[K_AVG_POLICY_COMPUTE_WALL_TIME] = np.sum([t['cum_wall_clock_time'] for t in trial_data]) / np.sum([t['n_env_steps'] for t in trial_data])
+    agg_data[K_AVG_ACTIVE_CTRL_STEPS] = np.mean([t['n_active_ctrl_env_steps'] for t in trial_data])
+    agg_data[K_AVG_ACTIVE_CTRL_SIM_TIME] = np.mean([t['active_ctrl_sim_time'] for t in trial_data]) 
+    agg_data[K_GOAL_COMPLETION_RATE] = len([t for t in trial_data if np.isclose(t['cum_reward'],1.0)])/len(trial_data)
+    agg_data[K_OBST_COLLISION_RATE] = len([t for t in trial_data if np.isclose(t['cum_reward'],-1.0)])/len(trial_data)
+    agg_data[K_TIMEOUT_RATE] = len([t for t in trial_data if np.isclose(t['cum_reward'],0.0)])/len(trial_data)
+    agg_data[K_AVG_SIM_TIME_TO_GOAL] = np.mean([t['cum_sim_time'] for t in trial_data if np.isclose(t['cum_reward'],1.0)])
 
     return agg_data
 

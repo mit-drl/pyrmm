@@ -37,8 +37,9 @@ cmake -DCMAKE_BUILD_TYPE=Release CMakeLists.txt
 cmake --build .
 ```
 
+### Installing pyrmm (this library)
 
-To use the pyrmm library, clone this repo and install with:
+To use the pyrmm library, clone this repo (with `--recurse-submodules` flag) and install with:
 ```
 pip install -e .
 ```

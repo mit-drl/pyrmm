@@ -1,4 +1,4 @@
-# PYRMM: (Learned) Risk Metric Maps in Python:
+# PYRMM: (Learned) Risk Metric Maps in Python
 
 ## Installation
 

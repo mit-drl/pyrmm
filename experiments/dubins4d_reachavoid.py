@@ -11,15 +11,23 @@ import numpy as np
 from pathlib import Path
 from functools import partial
 from hydra.core.config_store import ConfigStore
-from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv
 from hydra_zen import make_config, instantiate, make_custom_builds_fn, builds
 from typing import List, Dict
+from numpy.typing import ArrayLike
 
 import pyrmm.utils.utils as U
+
+from odp.dynamics import DubinsCar4D as DubinsCar4DODP
+from odp.Grid import Grid
+from odp.Shapes import CylinderShape
+
+from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv
+from pyrmm.hjreach.dubins4d_reachavoid_agent import HJReachDubins4dReachAvoidAgent
 
 _CONFIG_NAME = "dubins4d_reachavoid_experiment"
 _MONITOR_RATE = 1
 _SAVE_FNAME = U.format_save_filename(Path(__file__), 5)
+_SMALL_NUMBER = 1e-5
 
 # dictionary keys
 K_RANDOM_AGENT = 'random_agent'
@@ -61,7 +69,7 @@ def aggregate_agent_metrics(trial_data:List)->Dict:
 
 
 def execute_random_agent(env, max_delay:float=0.1)->Dict:
-    '''run random agent until episode completioin
+    '''run random agent until episode completion
 
     Args:
         env : Dubins4dReachAvoidEnv
@@ -88,6 +96,64 @@ def execute_random_agent(env, max_delay:float=0.1)->Dict:
             break
 
     return info
+
+def execute_hjreach_agent(env,
+    time_horizon : float,
+    time_step : float,
+    grid_lb : ArrayLike,
+    grid_ub : ArrayLike,
+    grid_nsteps : ArrayLike)->Dict:
+    '''run HJ-Reachability agent until episode completion
+
+    Args:
+        time_horizon : float
+            horizon to compute backward reachable set [s]
+        time_step : float
+            size of time steps to reach horizon
+        grid_lb : ArrayLike[float]:
+            lower bounds on each dimension in discretized state grid
+        grid_ub : ArrayLike[float]:
+            upper bounds on each dimension in discretized state grid
+        grid_nsteps : ArrayLike[int]:
+            number of discretization points each dimension of state grid
+    '''
+
+    # agent properties that can be instantiated a priori to environment
+    dynamics = DubinsCar4DODP(uMode="min", dMode="max", dMin = [0.0,0.0], dMax = [0.0,0.0])
+    time_grid = np.arange(start=0, stop=time_horizon + _SMALL_NUMBER, step=time_step)
+    grid = Grid(minBounds=grid_lb, maxBounds=grid_ub, dims=4, pts_each_dim=grid_nsteps, periodicDims=[3])
+
+    # reset env to restart timing and get obstacle and goal locations
+    obs, info = env.reset()
+
+    # extract and encode explicit obstacle and goal regions
+    # NOTE: this access private information about the enviornment, giving HJ-reach
+    # and advantage
+    goal = CylinderShape(grid=grid, ignore_dims=[2,3], center=np.array(env._goal.xc, env._goal.yc, 0, 0), radius=env._goal.r)
+    obstacle = CylinderShape(grid=grid, ignore_dims=[2,3], center=np.array(env._obstacle.xc, env._obstacle.yc, 0, 0), radius=env._obstacle.r)
+
+    # instantiate the HJ-reach agent (which solves for HJI value function on grid)
+    hjreach_agent = HJReachDubins4dReachAvoidAgent(grid=grid, dynamics=dynamics, goal=goal, obstacle=obstacle, time_grid=time_grid)
+
+    while True:
+
+        # get current state and transform to odp's x-y-v-theta ordering
+        # NOTE: this access private information about the enviornment, giving HJ-reach
+        # and advantage
+        state = env._Dubins4dReachAvoidEnv__state
+        state[2], state[3] = state[3], state[2]
+
+        # compute action at current state
+        action = hjreach_agent.get_action(state=state)
+
+        # employ action in environment
+        obs, rew, done, info = env.step_to_now(action)
+
+        if done:
+            break
+
+    return info
+
 
 ##############################################
 ############# HYDARA-ZEN CONFIGS #############
@@ -120,37 +186,42 @@ def task_function(cfg: Config):
     # instantiate the experiment objects
     obj = instantiate(cfg)
 
-    # create pool of multiprocess jobs
-    pool = multiprocessing.Pool(obj.n_cores)
-
     # create storage for results
     results = dict()
 
-    # create list of environment objects to be distributed during multiprocessing
-    envs = [Dubins4dReachAvoidEnv(time_accel_factor=obj.time_accel) for i in range(obj.n_trials)]
 
-    # create partial function for distributing envs to random agent executor
-    part_execute_random_agent = partial(execute_random_agent)
+    for agent_name in [K_RANDOM_AGENT]:
 
-    # use iterative map for process tracking
-    t_start = time.time()
-    randagent_iter = pool.imap(part_execute_random_agent, envs)
+        # create pool of multiprocess jobs
+        pool = multiprocessing.Pool(obj.n_cores)
 
-    # track multiprocess progress
-    results[K_RANDOM_AGENT] = {K_TRIAL_DATA:[]}
-    for i,_ in enumerate(envs):
-        results[K_RANDOM_AGENT][K_TRIAL_DATA].append(randagent_iter.next())
-        if i%_MONITOR_RATE ==  0:
-            print("Random-agent trial: completed {} of {} after {:.2f}".format(i+1, len(envs), time.time()-t_start,))
+        # create list of environment objects to be distributed during multiprocessing
+        envs = [Dubins4dReachAvoidEnv(time_accel_factor=obj.time_accel) for i in range(obj.n_trials)]
 
-    pool.close()
-    pool.join()
+        # create partial function for distributing envs to random agent executor
+        part_execute_random_agent = partial(execute_random_agent)
 
-    # compute aggregate metrics
-    results[K_RANDOM_AGENT][K_AGGREGATE_DATA] = aggregate_agent_metrics(results[K_RANDOM_AGENT][K_TRIAL_DATA])
+        # use iterative map for process tracking
+        t_start = time.time()
+        randagent_iter = pool.imap(part_execute_random_agent, envs)
 
-    # log and save (pickle) results
-    log.info("Agent: {} trials complete with aggregated results:\n{}".format(K_RANDOM_AGENT, results[K_RANDOM_AGENT][K_AGGREGATE_DATA]))
+        # track multiprocess progress
+        results[agent_name] = {K_TRIAL_DATA:[]}
+        for i,_ in enumerate(envs):
+            results[agent_name][K_TRIAL_DATA].append(randagent_iter.next())
+            if i%_MONITOR_RATE ==  0:
+                print("{} trial: completed {} of {} after {:.2f}".format(agent_name, i+1, len(envs), time.time()-t_start,))
+
+        pool.close()
+        pool.join()
+
+        # compute aggregate metrics
+        results[agent_name][K_AGGREGATE_DATA] = aggregate_agent_metrics(results[agent_name][K_TRIAL_DATA])
+
+        # log aggregate results
+        log.info("Agent: {} trials complete with aggregated results:\n{}".format(agent_name, results[K_RANDOM_AGENT][K_AGGREGATE_DATA]))
+
+    # save (pickle) results
     with open(_SAVE_FNAME+'.pkl', 'wb') as handle:
         pickle.dump(results, handle)
 

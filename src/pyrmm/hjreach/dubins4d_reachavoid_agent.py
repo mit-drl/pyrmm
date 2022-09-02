@@ -150,7 +150,7 @@ class HJReachDubins4dReachAvoidAgent():
         Vf = self._hji_values[..., 0]
 
         # compute value function at furthest time-horizon at current state
-        Vf_state = interpn(self._grid, Vf, state)
+        Vf_state = interpn(self._grid.grid_points, Vf, state)
 
         # determine if active control is to be applied
         if Vf_state > 0.0:
@@ -164,10 +164,10 @@ class HJReachDubins4dReachAvoidAgent():
         action[ACTIVE_CTRL] = True
 
         # Compute spatial derivatives of final value function at every discrete state on grid
-        delVf_delx = computeSpatDerivArray(self._grid, Vf, deriv_dim=1, accuracy="low")
-        delVf_dely = computeSpatDerivArray(self._grid, Vf, deriv_dim=2, accuracy="low")
-        delVf_delv = computeSpatDerivArray(self._grid, Vf, deriv_dim=3, accuracy="low")
-        delVf_delth = computeSpatDerivArray(self._grid, Vf, deriv_dim=4, accuracy="low")
+        delVf_delx = computeSpatDerivArray(self._grid.grid_points, Vf, deriv_dim=1, accuracy="low")
+        delVf_dely = computeSpatDerivArray(self._grid.grid_points, Vf, deriv_dim=2, accuracy="low")
+        delVf_delv = computeSpatDerivArray(self._grid.grid_points, Vf, deriv_dim=3, accuracy="low")
+        delVf_delth = computeSpatDerivArray(self._grid.grid_points, Vf, deriv_dim=4, accuracy="low")
 
         # interpolate spatial derivative at state
         grad_Vf_state = (

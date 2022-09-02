@@ -31,9 +31,10 @@ _SMALL_NUMBER = 1e-5
 
 # dictionary keys
 K_RANDOM_AGENT = 'random_agent'
-K_N_TRIALS = 'n_trials'
-K_TIME_ACCEL = 'time_accel'
-K_N_CORES = 'n_cores'
+K_HJREACH_AGENT = 'hjreach_agent'
+# K_N_TRIALS = 'n_trials'
+# K_TIME_ACCEL = 'time_accel'
+# K_N_CORES = 'n_cores'
 K_TRIAL_DATA = 'trial_data'
 K_AGGREGATE_DATA = 'aggregate_data'
 K_AVG_POLICY_COMPUTE_WALL_TIME = 'avg_policy_compute_wall_time'
@@ -121,7 +122,12 @@ def execute_hjreach_agent(env,
     # agent properties that can be instantiated a priori to environment
     dynamics = DubinsCar4DODP(uMode="min", dMode="max", dMin = [0.0,0.0], dMax = [0.0,0.0])
     time_grid = np.arange(start=0, stop=time_horizon + _SMALL_NUMBER, step=time_step)
-    grid = Grid(minBounds=grid_lb, maxBounds=grid_ub, dims=4, pts_each_dim=grid_nsteps, periodicDims=[3])
+    grid = Grid(
+        minBounds=np.asarray(grid_lb), 
+        maxBounds=np.asarray(grid_ub), 
+        dims=4, 
+        pts_each_dim=np.asarray(grid_nsteps), 
+        periodicDims=[3])
 
     # reset env to restart timing and get obstacle and goal locations
     obs, info = env.reset()
@@ -129,8 +135,8 @@ def execute_hjreach_agent(env,
     # extract and encode explicit obstacle and goal regions
     # NOTE: this access private information about the enviornment, giving HJ-reach
     # and advantage
-    goal = CylinderShape(grid=grid, ignore_dims=[2,3], center=np.array(env._goal.xc, env._goal.yc, 0, 0), radius=env._goal.r)
-    obstacle = CylinderShape(grid=grid, ignore_dims=[2,3], center=np.array(env._obstacle.xc, env._obstacle.yc, 0, 0), radius=env._obstacle.r)
+    goal = CylinderShape(grid=grid, ignore_dims=[2,3], center=np.array([env._goal.xc, env._goal.yc, 0, 0]), radius=env._goal.r)
+    obstacle = CylinderShape(grid=grid, ignore_dims=[2,3], center=np.array([env._obstacle.xc, env._obstacle.yc, 0, 0]), radius=env._obstacle.r)
 
     # instantiate the HJ-reach agent (which solves for HJI value function on grid)
     hjreach_agent = HJReachDubins4dReachAvoidAgent(grid=grid, dynamics=dynamics, goal=goal, obstacle=obstacle, time_grid=time_grid)
@@ -155,21 +161,21 @@ def execute_hjreach_agent(env,
     return info
 
 
-def env_agent_trial_runner(env_cfg, agent_runner_cfg):
-    '''instantiates environment and agent and runs single-episode trial'''
+# def env_agent_trial_runner(env_cfg, agent_runner_cfg, dummy_var):
+#     '''instantiates environment and agent and runs single-episode trial'''
 
-    # instantiate environment
-    env = instantiate(env_cfg)
+#     # instantiate environment
+#     env = instantiate(env_cfg)
 
-    # execute agent with environment instance
-    agent_runner = instantiate(agent_runner_cfg)
-    info = agent_runner(env=env)
+#     # execute agent with environment instance
+#     agent_runner = instantiate(agent_runner_cfg)
+#     info = agent_runner(env=env)
 
-    # close environment
-    env.close()
+#     # close environment
+#     env.close()
 
-    # return info
-    return info
+#     # return info
+#     return info
 
 ##############################################
 ############# HYDARA-ZEN CONFIGS #############
@@ -177,23 +183,46 @@ def env_agent_trial_runner(env_cfg, agent_runner_cfg):
 
 pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
-DEFAULT_N_TRIALS = 10       # number of trials (episodes) per agent
+# Configure environment
 DEFAULT_TIME_ACCEL = 10.0   # sim-tim acceleration factor
+EnvConf = builds(Dubins4dReachAvoidEnv,
+    time_accel_factor=DEFAULT_TIME_ACCEL
+)
 
 # Configure random agent
 # e.g. configure random agent max_delay so it's recorded by hydra
 DEFAULT_RANDOM_AGENT_MAX_DELAY = 0.1
 RandomAgentConf = pbuilds(execute_random_agent, max_delay=DEFAULT_RANDOM_AGENT_MAX_DELAY)
 
-# Top-level configuration and store for command line interface
-make_config_input = {
-    K_N_TRIALS: DEFAULT_N_TRIALS,   
-    K_TIME_ACCEL: DEFAULT_TIME_ACCEL,
-    K_N_CORES: multiprocessing.cpu_count(), # number of cores for multiprocessing jobs
-    K_RANDOM_AGENT: RandomAgentConf
+# Configure HJ-reach agent
+DEFAULT_HJREACH_TIME_HORIZON = 1.0
+DEFAULT_HJREACH_TIME_STEP = 0.05
+DEFAULT_HJREACH_GRID_LB = [-15.0, -15.0, 0.0, -np.pi]
+DEFAULT_HJREACH_GRID_UB = [15.0, 15.0, 4.0, np.pi]
+DEFAULT_HJREACH_GRID_NSTEPS = [64, 64, 32, 32]
+HJReachConf = pbuilds(execute_hjreach_agent, 
+    time_horizon = DEFAULT_HJREACH_TIME_HORIZON,
+    time_step = DEFAULT_HJREACH_TIME_STEP,
+    grid_lb = DEFAULT_HJREACH_GRID_LB,
+    grid_ub = DEFAULT_HJREACH_GRID_UB,
+    grid_nsteps = DEFAULT_HJREACH_GRID_NSTEPS)
+
+# Top-level configuration of experiment
+DEFAULT_N_TRIALS = 4       # number of trials (episodes) per agent
+agent_config_inputs = {
+    K_RANDOM_AGENT: RandomAgentConf,
+    K_HJREACH_AGENT: HJReachConf
 }
-Config = make_config(**make_config_input)
-ConfigStore.instance().store(_CONFIG_NAME,Config)
+ExpConfig = make_config(
+    n_trials = DEFAULT_N_TRIALS,
+    n_cores = multiprocessing.cpu_count(),
+    env = EnvConf,
+    **agent_config_inputs
+    # random_agent = RandomAgentConf
+)
+
+# store for command line interface
+ConfigStore.instance().store(_CONFIG_NAME,ExpConfig)
 
 ##############################################
 ############### TASK FUNCTIONS ###############
@@ -201,35 +230,44 @@ ConfigStore.instance().store(_CONFIG_NAME,Config)
 # a logger for this file
 log = logging.getLogger(__name__)
 @hydra.main(config_path=None, config_name=_CONFIG_NAME)
-def task_function(cfg: Config):
+def task_function(cfg: ExpConfig):
 
     # instantiate the experiment objects
-    obj = instantiate(cfg)
+    # obj = instantiate(cfg)
 
     # create storage for results
     results = dict()
 
-    for agent_name in [K_RANDOM_AGENT]:
+    for agent_name in agent_config_inputs.keys():
 
         # create pool of multiprocess jobs
-        pool = multiprocessing.Pool(obj.n_cores)
+        pool = multiprocessing.Pool(cfg.n_cores)
 
         # create list of environment objects to be distributed during multiprocessing
-        envs = [Dubins4dReachAvoidEnv(time_accel_factor=obj.time_accel) for i in range(obj.n_trials)]
+        # envs = [Dubins4dReachAvoidEnv(time_accel_factor=cfg.time_accel) for i in range(cfg.n_trials)]
+        envs = [instantiate(cfg.env) for _ in range(cfg.n_trials)]
 
         # create partial function for distributing envs to random agent executor
-        part_execute_random_agent = partial(execute_random_agent)
+        p_agent_runner = partial(instantiate(getattr(cfg,agent_name)))
+
+        # create partial function of env_agent_trial_runner
+        # part_env_agent_trial_runner = partial(env_agent_trial_runner, cfg.env, cfg.random_agent)
+
+        # create list of agent configs, one for each trial
+        # agent_runner_cfgs = [cfg.random_agent for i in range(cfg.n_trials)]
+        # dummy_iter = range(cfg.n_trials)
 
         # use iterative map for process tracking
         t_start = time.time()
-        randagent_iter = pool.imap(part_execute_random_agent, envs)
+        randagent_iter = pool.imap(p_agent_runner, envs)
+        # randagent_iter = pool.imap(part_env_agent_trial_runner, dummy_iter)
 
         # track multiprocess progress
         results[agent_name] = {K_TRIAL_DATA:[]}
-        for i,_ in enumerate(envs):
+        for i in range(cfg.n_trials):
             results[agent_name][K_TRIAL_DATA].append(randagent_iter.next())
             if i%_MONITOR_RATE ==  0:
-                print("{} trial: completed {} of {} after {:.2f}".format(agent_name, i+1, len(envs), time.time()-t_start,))
+                print("{} trial: completed {} of {} after {:.2f}".format(agent_name, i+1, cfg.n_trials, time.time()-t_start,))
 
         pool.close()
         pool.join()
@@ -238,7 +276,7 @@ def task_function(cfg: Config):
         results[agent_name][K_AGGREGATE_DATA] = aggregate_agent_metrics(results[agent_name][K_TRIAL_DATA])
 
         # log aggregate results
-        log.info("Agent: {} trials complete with aggregated results:\n{}".format(agent_name, results[K_RANDOM_AGENT][K_AGGREGATE_DATA]))
+        log.info("Agent: {} trials complete with aggregated results:\n{}".format(agent_name, results[agent_name][K_AGGREGATE_DATA]))
 
     # save (pickle) results
     with open(_SAVE_FNAME+'.pkl', 'wb') as handle:

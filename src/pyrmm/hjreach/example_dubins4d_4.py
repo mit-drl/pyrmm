@@ -58,44 +58,9 @@ v0 = 1.0
 th0 = math.pi/4
 X0 = [x0,y0,v0,th0]
 
-# interpolate derivative at arbitrary state
-spat_deriv_vector = (
-    interpn(g.grid_points, x_derivative, X0), 
-    interpn(g.grid_points, y_derivative, X0),
-    interpn(g.grid_points, v_derivative, X0),
-    interpn(g.grid_points, th_derivative, X0)
-)
-
-def dubins4d_optCtrl(dubins4d_car, spat_deriv):
-        """
-        :param spat_deriv: tuple of spatial derivative in all dimensions
-        :return:
-        """
-        # System dynamics
-        # x_dot     = v * cos(theta) + d_1
-        # y_dot     = v * sin(theta) + d_2
-        # v_dot = a
-        # theta_dot = w
-        opt_a = dubins4d_car.uMax[0]
-        opt_w = dubins4d_car.uMax[1]
-
-        # The initialized control only change sign in the following cases
-        if dubins4d_car.uMode == "min":
-            if spat_deriv[2] > 0:
-                opt_a = dubins4d_car.uMin[0]
-            if spat_deriv[3] > 0:
-                opt_w = dubins4d_car.uMin[1]
-        else:
-            if spat_deriv[2] < 0:
-                opt_a = dubins4d_car.uMin[0]
-            if spat_deriv[3] < 0:
-                opt_w = dubins4d_car.uMin[1]
-
-        return opt_a, opt_w
-
-# Compute the optimal control
-opt_a, opt_w = dubins4d_optCtrl(my_car, spat_deriv_vector)
-print("Optimal accel is {}\n".format(opt_a))
-print("Optimal rotation is {}\n".format(opt_w))
+action = hjreach_agent.get_action(X0)
+print("Active control: {}".format(action['active_ctrl']))
+# print("Optimal accel is {}\n".format(opt_a))
+# print("Optimal rotation is {}\n".format(opt_w))
 
 print("DONE!")

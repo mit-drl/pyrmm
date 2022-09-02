@@ -1,4 +1,5 @@
 gym
+pygame
 scipy
 cvxopt
 shapely

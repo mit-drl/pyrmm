@@ -12,11 +12,12 @@ import numpy as np
 from scipy.integrate import odeint
 from cvxopt import solvers, matrix
 from numpy.random import normal, uniform
-from typing import Tuple
+from typing import Tuple, Optional
 from numpy.typing import ArrayLike
 from shapely.geometry import Point, LineString
 from types import SimpleNamespace
 from copy import deepcopy
+from gym.utils.renderer import Renderer
 
 # state space (SS) constants (e.g. vector indexes, bounds)
 SS_XIND = 0     # index in state vector for x-positon
@@ -68,6 +69,8 @@ CUM_REWARD = 'cum_reward'
 
 class Dubins4dReachAvoidEnv(gym.Env):
 
+    metadata = {"render_modes": ["human", "rgb_array", "single_rgb_array"], "render_fps": 4}
+
     # define action space as class attribute so that it is accessable by agents
     # without having to instantiate a "dummy env"
     action_space = gym.spaces.Dict({
@@ -77,16 +80,25 @@ class Dubins4dReachAvoidEnv(gym.Env):
     })
 
     def __init__(self, 
-        n_rays:int=OS_N_RAYS_DEFAULT, ray_length:float=OS_RAY_MAX_DEFAULT,
-        max_episode_sim_time:float=MAX_EPISODE_SIM_TIME_DEFAULT,
-        time_accel_factor:float=TIME_ACCEL_FACTOR_DEFAULT):
+        n_rays: int = OS_N_RAYS_DEFAULT, 
+        ray_length: float = OS_RAY_MAX_DEFAULT,
+        max_episode_sim_time: float = MAX_EPISODE_SIM_TIME_DEFAULT,
+        time_accel_factor: float = TIME_ACCEL_FACTOR_DEFAULT,
+        render_mode: Optional[str] = None):
         '''
         Args
             n_rays : int
                 number of rays to cast for observations, evenly spaced
             ray_length : float
                 maximum extent of ray if no collision with obstacle
+            max_episode_sim_time : float
+                elapsed sim time before timeout termination critera
+            time_accel_factor : float
+                sim time acceleration relative to wall clock time
         '''
+
+        assert render_mode is None or render_mode in self.metadata["render_modes"]
+        self.render_mode = render_mode  # Define the attribute render_mode in your environment
 
         # Timing parameters
         assert max_episode_sim_time > 0
@@ -130,7 +142,24 @@ class Dubins4dReachAvoidEnv(gym.Env):
         self.__dist.ctrl.v_std = 0.01
 
         # setup renderer
-        # TODO: see https://www.gymlibrary.dev/content/environment_creation/
+        """
+        If human-rendering is used, `self.window` will be a reference
+        to the window that we draw to. `self.clock` will be a clock that is used
+        to ensure that the environment is rendered at the correct framerate in
+        human-mode.
+        """
+        self.render_window_size = 512  # The size of the PyGame window
+        if self.render_mode == "human":
+            import pygame  # import here to avoid pygame dependency with no render
+
+            pygame.init()
+            pygame.display.init()
+            self.render_window = pygame.display.set_mode((self.render_window_size, self.render_window_size))
+            self.render_clock = pygame.time.Clock()
+                
+        # The following line uses the util class Renderer to gather a collection of frames 
+        # using a method that computes a single frame. We will define _render_frame below.
+        self.renderer = Renderer(self.render_mode, self._render_frame)
 
         # reset env to generate all instance attributes
         self.reset()
@@ -158,6 +187,10 @@ class Dubins4dReachAvoidEnv(gym.Env):
         obst_xc, obst_yc = self.state_space.sample()[:2]
         obst_r = uniform(OBST_R_MIN, OBST_R_MAX)
         self._obstacle = CircleRegion(xc=obst_xc, yc=obst_yc, r=obst_r)
+
+        # clean the render collection and add the initial frame
+        self.renderer.reset()
+        self.renderer.render_step()
 
         # reset sim clock and sim-to-wall clock sync point
         self._wall_clock_elapsed_time = 0.0
@@ -211,6 +244,9 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         # propagate system from t-dt to t based on action set at t-dt
         obs, rew, done, info = self._propagate_realtime_system(ctrl=ctrl)
+
+        # add a frame to the render collection
+        self.renderer.render_step()
 
         # clip next action to action space bounds
         self._cur_action = deepcopy(next_action)
@@ -624,9 +660,75 @@ class Dubins4dReachAvoidEnv(gym.Env):
         #     dXdt[3] = 0
         return dXdt
 
+    def render(self):
+        # Just return the list of render frames collected by the Renderer.
+        return self.renderer.get_renders()
+
+    def map_state_to_render_window(self, x, y):
+        rend_x = (x-self.state_space.low[SS_XIND])/(self.state_space.high[SS_XIND] - self.state_space.low[SS_XIND]) * self.render_window_size
+        rend_y = (y-self.state_space.low[SS_YIND])/(self.state_space.high[SS_YIND] - self.state_space.low[SS_YIND]) * self.render_window_size
+        return rend_x, rend_y
+
+    def _render_frame(self, mode: str):
+        # This will be the function called by the Renderer to collect a single frame.
+        assert mode is not None  # The renderer will not call this function with no-rendering.
+    
+        import pygame # avoid global pygame dependency. This method is not called with no-render.
+    
+        canvas = pygame.Surface((self.render_window_size, self.render_window_size))
+        canvas.fill((255, 255, 255))
+
+        # First we draw the goal
+        rend_goal_xy = self.map_state_to_render_window(self._goal.xc, self._goal.yc)
+        rend_goal_r = abs(np.array(rend_goal_xy) - self.map_state_to_render_window(self._goal.xc+self._goal.r, self._goal.yc))[0]
+        pygame.draw.circle(
+            canvas,
+            color=(0, 255, 0),
+            center=rend_goal_xy,
+            radius=rend_goal_r
+            # radius=self._goal.r,
+        )
+        # Now draw obstacle
+        rend_obst_xy = self.map_state_to_render_window(self._obstacle.xc, self._obstacle.yc)
+        rend_obst_r = abs(np.array(rend_obst_xy) - self.map_state_to_render_window(self._obstacle.xc+self._obstacle.r, self._obstacle.yc))[0]
+        pygame.draw.circle(
+            canvas,
+            color=(255, 0, 0),
+            center=rend_obst_xy,
+            radius=rend_obst_r,
+        )
+        # Now we draw the agent
+        rend_agnt_xy = self.map_state_to_render_window(self.__state[SS_XIND], self.__state[SS_YIND])
+        # rend_agnt_r = abs(np.array(rend_agnt_xy) - self.map_state_to_render_window(self._goal.xc+self._goal.r, self._goal.yc))[0]
+        pygame.draw.circle(
+            canvas,
+            color=(0, 0, 255),
+            center=rend_agnt_xy,
+            radius=5,
+        )
+
+        if mode == "human":
+            assert self.render_window is not None
+            # The following line copies our drawings from `canvas` to the visible window
+            self.render_window.blit(canvas, canvas.get_rect())
+            pygame.event.pump()
+            pygame.display.update()
+
+            # We need to ensure that human-rendering occurs at the predefined framerate.
+            # The following line will automatically add a delay to keep the framerate stable.
+            self.render_clock.tick(self.metadata["render_fps"])
+        else:  # rgb_array or single_rgb_array
+            return np.transpose(
+                np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2)
+            )
+
     def close(self):
         '''Cleanup open resources (e.g. renderer, threads, etc)'''
-        super().close()
+        if self.window is not None:
+            import pygame 
+            
+            pygame.display.quit()
+            pygame.quit()
 
 class CircleRegion:
     '''Object describes circular region in 2D space of specified radius'''

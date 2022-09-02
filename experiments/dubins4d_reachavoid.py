@@ -30,6 +30,7 @@ _SAVE_FNAME = U.format_save_filename(Path(__file__), 5)
 _SMALL_NUMBER = 1e-5
 
 # dictionary keys
+K_INACTIVE_AGENT = 'inactive_agent'
 K_RANDOM_AGENT = 'random_agent'
 K_HJREACH_AGENT = 'hjreach_agent'
 # K_N_TRIALS = 'n_trials'
@@ -68,8 +69,41 @@ def aggregate_agent_metrics(trial_data:List)->Dict:
 
     return agg_data
 
+def execute_inactive_agent(env, delay:float)->Dict:
+    '''run agent than never takes active control (env CLF always controls)
 
-def execute_random_agent(env, max_delay:float=0.1)->Dict:
+    Args:
+        env : Dubins4dReachAvoidEnv
+            gym environment for agent interaction
+        delay : float [s]
+            fixed delay between steps
+
+    Returns 
+        info : Dict
+            dictionary of episode metric info
+    '''
+    assert delay > 0
+    
+    # set constant inactive action
+    action = env.action_space.sample()
+    action['active_ctrl'] = False
+
+    # reset env to restart timing
+    env.reset()
+
+    while True:
+        # random delay to allow system to propagate
+        time.sleep(delay)
+
+        # random action for next time interval
+        obs, rew, done, info = env.step_to_now(action)
+
+        if done:
+            break
+
+    return info
+
+def execute_random_agent(env, max_delay:float)->Dict:
     '''run random agent until episode completion
 
     Args:
@@ -189,6 +223,10 @@ EnvConf = builds(Dubins4dReachAvoidEnv,
     time_accel_factor=DEFAULT_TIME_ACCEL
 )
 
+# Configure inactive agent
+DEFAULT_INACTIVE_AGENT_DELAY = 0.05
+InactiveAgentConf = pbuilds(execute_inactive_agent, delay=DEFAULT_INACTIVE_AGENT_DELAY)
+
 # Configure random agent
 # e.g. configure random agent max_delay so it's recorded by hydra
 DEFAULT_RANDOM_AGENT_MAX_DELAY = 0.1
@@ -210,6 +248,7 @@ HJReachConf = pbuilds(execute_hjreach_agent,
 # Top-level configuration of experiment
 DEFAULT_N_TRIALS = 4       # number of trials (episodes) per agent
 agent_config_inputs = {
+    K_INACTIVE_AGENT: InactiveAgentConf,
     K_RANDOM_AGENT: RandomAgentConf,
     K_HJREACH_AGENT: HJReachConf
 }

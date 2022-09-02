@@ -626,7 +626,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
     def close(self):
         '''Cleanup open resources (e.g. renderer, threads, etc)'''
-        raise NotImplementedError
+        super().close()
 
 class CircleRegion:
     '''Object describes circular region in 2D space of specified radius'''

@@ -155,22 +155,42 @@ def execute_hjreach_agent(env,
     return info
 
 
+def env_agent_trial_runner(env_cfg, agent_runner_cfg):
+    '''instantiates environment and agent and runs single-episode trial'''
+
+    # instantiate environment
+    env = instantiate(env_cfg)
+
+    # execute agent with environment instance
+    agent_runner = instantiate(agent_runner_cfg)
+    info = agent_runner(env=env)
+
+    # close environment
+    env.close()
+
+    # return info
+    return info
+
 ##############################################
 ############# HYDARA-ZEN CONFIGS #############
 ##############################################
+
+pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
 DEFAULT_N_TRIALS = 10       # number of trials (episodes) per agent
 DEFAULT_TIME_ACCEL = 10.0   # sim-tim acceleration factor
 
 # Configure random agent
 # e.g. configure random agent max_delay so it's recorded by hydra
-# TODO
+DEFAULT_RANDOM_AGENT_MAX_DELAY = 0.1
+RandomAgentConf = pbuilds(execute_random_agent, max_delay=DEFAULT_RANDOM_AGENT_MAX_DELAY)
 
 # Top-level configuration and store for command line interface
 make_config_input = {
     K_N_TRIALS: DEFAULT_N_TRIALS,   
     K_TIME_ACCEL: DEFAULT_TIME_ACCEL,
-    K_N_CORES: multiprocessing.cpu_count() # number of cores for multiprocessing jobs
+    K_N_CORES: multiprocessing.cpu_count(), # number of cores for multiprocessing jobs
+    K_RANDOM_AGENT: RandomAgentConf
 }
 Config = make_config(**make_config_input)
 ConfigStore.instance().store(_CONFIG_NAME,Config)
@@ -188,7 +208,6 @@ def task_function(cfg: Config):
 
     # create storage for results
     results = dict()
-
 
     for agent_name in [K_RANDOM_AGENT]:
 

@@ -68,6 +68,14 @@ CUM_REWARD = 'cum_reward'
 
 class Dubins4dReachAvoidEnv(gym.Env):
 
+    # define action space as class attribute so that it is accessable by agents
+    # without having to instantiate a "dummy env"
+    action_space = gym.spaces.Dict({
+        ACTIVE_CTRL: gym.spaces.Discrete(2),
+        TURNRATE_CTRL: gym.spaces.Box(low=CS_DTHETAMIN, high=CS_DTHETAMAX),    # [rad/s]
+        ACCEL_CTRL: gym.spaces.Box(low=CS_DVMIN, high=CS_DVMAX),         # [m/s/s]
+    })
+
     def __init__(self, 
         n_rays:int=OS_N_RAYS_DEFAULT, ray_length:float=OS_RAY_MAX_DEFAULT,
         max_episode_sim_time:float=MAX_EPISODE_SIM_TIME_DEFAULT,
@@ -107,14 +115,6 @@ class Dubins4dReachAvoidEnv(gym.Env):
             low = np.concatenate(([0], 2*[-np.inf], [SS_THETAMIN, SS_VMIN], np.zeros(self._n_rays))),
             high = np.concatenate((3*[np.inf], [SS_THETAMAX, SS_VMAX], self._max_ray_length*np.ones(self._n_rays))),
         )
-
-        # define action space
-        self.action_space = gym.spaces.Dict({
-            ACTIVE_CTRL: gym.spaces.Discrete(2),
-            TURNRATE_CTRL: gym.spaces.Box(low=CS_DTHETAMIN, high=CS_DTHETAMAX),    # [rad/s]
-            ACCEL_CTRL: gym.spaces.Box(low=CS_DVMIN, high=CS_DVMAX),         # [m/s/s]
-            # DURATION_CTRL: gym.spaces.Box(low=0, high=np.inf)
-        })
 
         # control and observaiton disturbances 
         # (private because solution algorithms should not know them)

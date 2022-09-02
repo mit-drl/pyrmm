@@ -2,14 +2,18 @@
 
 import numpy as np
 
+from copy import deepcopy
 from typing import List
 from numpy.typing import ArrayLike
+from scipy.interpolate import interpn
 
 from odp.Grid import Grid
 from odp.dynamics import DubinsCar4D
 from odp.Shapes import CylinderShape
 from odp.Plots import PlotOptions
 from odp.solver import HJSolver, computeSpatDerivArray
+
+from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv
 
 class HJReachDubins4dReachAvoidAgent():
     def __init__(self,
@@ -19,11 +23,17 @@ class HJReachDubins4dReachAvoidAgent():
         obstacle: CylinderShape,
         time_grid: ArrayLike):
 
+        # specify action space from environment
+        self.action_space = deepcopy(Dubins4dReachAvoidEnv.action_space)
+
+        # instantiate properties used to solve for HJI value function
         self._grid = grid
         self._dynamics = dynamics
         self._goal = goal
         self._obstacle = obstacle
         self._time_grid = time_grid
+
+        # Solve for HJI value function on discrete state space grid
         self.update_hji_values()
 
     @property
@@ -33,7 +43,7 @@ class HJReachDubins4dReachAvoidAgent():
     def hji_values(self,val):
         # a property with no setter since it should always
         # be calculate from other properties
-        raise NotImplementedError('HJI Values should only be set by call to update_hji_values()')
+        raise NotImplementedError('HJI Values should only be implicitly set by call to update_hji_values()')
 
     @property
     def grid(self):
@@ -86,8 +96,16 @@ class HJReachDubins4dReachAvoidAgent():
             plot_option=PlotOptions(do_plot=False, plotDims=[0,1,3]),
             saveAllTimeSteps=True)
 
-    def get_action(self):
+    def get_action(self, state: ArrayLike):
         '''given environment state, determine appropriate action
+
+        Args:
+            state : ArrayLike
+                state of system in [x, y, v, theta] ordering
+                x = x-position [m]
+                y = y-position [m]
+                v = linear speed [m/s]
+                theta = heading [rad] 
         
         Ref:
             Bajcsy, Andrea, et al. "An efficient reachability-based framework for 
@@ -95,7 +113,10 @@ class HJReachDubins4dReachAvoidAgent():
                 2019 IEEE 58th Conference on Decision and Control (CDC). IEEE, 2019.
         '''
 
-        # Compute value function at current state
+        # Compute value function at furthest time-horizon at current state
+        V_X0 = interpn(self._grid, self._hji_values[..., 0], state)
+
+        # Determine if active control is to be applied 
 
         # If state is in backward reachable set (with finite time horizon)
         # of obstacle space (i.e. value function <= 0), then compute

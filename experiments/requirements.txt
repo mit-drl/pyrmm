@@ -1,0 +1,3 @@
+hydra-zen
+-e ..   # pyrmm package
+-r ../src/pyrmm/environments/requirements.txt   # pyrmm environemtns dependencies

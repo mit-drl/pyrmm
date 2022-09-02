@@ -13,7 +13,7 @@ from odp.Shapes import CylinderShape
 from odp.Plots import PlotOptions
 from odp.solver import HJSolver, computeSpatDerivArray
 
-from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv
+from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv, ACTIVE_CTRL, TURNRATE_CTRL, ACCEL_CTRL
 
 class HJReachDubins4dReachAvoidAgent():
     def __init__(self,
@@ -96,6 +96,36 @@ class HJReachDubins4dReachAvoidAgent():
             plot_option=PlotOptions(do_plot=False, plotDims=[0,1,3]),
             saveAllTimeSteps=True)
 
+    def opt_ctrl(self, spat_deriv):
+        ''' compute optimal control as function of spatial derivatve
+        
+        Args:
+            grad_Vf : ArrayLike 
+                spatial derivative (gradient) at particular state in [x,y,v,theta] order
+        
+        Returns
+            opt_a : float
+                optimal acceleration control
+            opt_w : float
+                optimal turnrate control
+        '''
+        opt_a = self.dynamics.uMax[0]
+        opt_w = self.dynamics.uMax[1]
+
+        # The initialized control only change sign in the following cases
+        if self.dynamics.uMode == "min":
+            if spat_deriv[2] > 0:
+                opt_a = self.dynamics.uMin[0]
+            if spat_deriv[3] > 0:
+                opt_w = self.dynamics.uMin[1]
+        else:
+            if spat_deriv[2] < 0:
+                opt_a = self.dynamics.uMin[0]
+            if spat_deriv[3] < 0:
+                opt_w = self.dynamics.uMin[1]
+
+        return opt_a, opt_w
+
     def get_action(self, state: ArrayLike):
         '''given environment state, determine appropriate action
 
@@ -113,12 +143,44 @@ class HJReachDubins4dReachAvoidAgent():
                 2019 IEEE 58th Conference on Decision and Control (CDC). IEEE, 2019.
         '''
 
-        # Compute value function at furthest time-horizon at current state
-        V_X0 = interpn(self._grid, self._hji_values[..., 0], state)
+        # create an action object for modification from sample
+        action = self.action_space.sample()
 
-        # Determine if active control is to be applied 
+        # extract hji value function on state space grid at furthest time horizon
+        Vf = self._hji_values[..., 0]
 
-        # If state is in backward reachable set (with finite time horizon)
+        # compute value function at furthest time-horizon at current state
+        Vf_state = interpn(self._grid, Vf, state)
+
+        # determine if active control is to be applied
+        if Vf_state > 0.0:
+            # state is in safe set, do not use active control
+            action[ACTIVE_CTRL] = False
+            return action
+
+        # if state is in backward reachable set (with finite time horizon)
         # of obstacle space (i.e. value function <= 0), then compute
         # and employ optimal evasive control
-        pass
+        action[ACTIVE_CTRL] = True
+
+        # Compute spatial derivatives of final value function at every discrete state on grid
+        delVf_delx = computeSpatDerivArray(self._grid, Vf, deriv_dim=1, accuracy="low")
+        delVf_dely = computeSpatDerivArray(self._grid, Vf, deriv_dim=2, accuracy="low")
+        delVf_delv = computeSpatDerivArray(self._grid, Vf, deriv_dim=3, accuracy="low")
+        delVf_delth = computeSpatDerivArray(self._grid, Vf, deriv_dim=4, accuracy="low")
+
+        # interpolate spatial derivative at state
+        grad_Vf_state = (
+            interpn(self._grid.grid_points, delVf_delx, state), 
+            interpn(self._grid.grid_points, delVf_dely, state),
+            interpn(self._grid.grid_points, delVf_delv, state),
+            interpn(self._grid.grid_points, delVf_delth, state)
+        )
+
+        # compute optimal control
+        opt_a, opt_w = self.opt_ctrl(grad_Vf_state)
+        action[ACCEL_CTRL] = opt_a
+        action[TURNRATE_CTRL] = opt_w
+
+        return action
+

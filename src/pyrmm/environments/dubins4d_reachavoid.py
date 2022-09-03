@@ -668,8 +668,8 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         return ctrl_n_del
 
-    @staticmethod
-    def __ode_dubins4d_truth(X:ArrayLike, t:ArrayLike, u:ArrayLike, d:ArrayLike) -> ArrayLike:
+    # @staticmethod
+    def __ode_dubins4d_truth(self, X:ArrayLike, t:ArrayLike, u:ArrayLike, d:ArrayLike) -> ArrayLike:
         '''dubins vehicle ordinary differential equations
 
         Truth model for physics propagation. This is in contrast to whatever
@@ -703,8 +703,10 @@ class Dubins4dReachAvoidEnv(gym.Env):
         dXdt[2] = u[0] + d[2]
         dXdt[3] = u[1] + d[3]
         # physical constraint: speed is non-negative
-        # if dXdt[3] < 0 and X[3] < 1e-3:
-        #     dXdt[3] = 0
+        if dXdt[3] < 0 and X[3] < self.state_space.low[SS_VIND] + 1e-3:
+            dXdt[3] = 0.0
+        if dXdt[3] > 0 and X[3] > self.state_space.high[SS_VIND] - 1e-3:
+            dXdt[3] = 0.0
         return dXdt
 
     def render(self):

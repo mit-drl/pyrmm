@@ -166,7 +166,7 @@ def test_solve_default_ctrl_clf_qp_0(dubins4d_reachavoid_env_undisturbed):
     # wait a fixed amount of time and then propagate system
     ctrl_n_del = env._solve_default_ctrl_clf_qp(
                 state=s0,
-                target=[goal.xc, goal.yc, 0.0],
+                target=[goal.xc, goal.yc],
                 vmin=v_min, vmax=v_max,
                 u1min=turnrate_min, u1max=turnrate_max,
                 u2min=acc_min, u2max=acc_max,

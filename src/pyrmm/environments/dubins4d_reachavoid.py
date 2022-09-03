@@ -59,13 +59,12 @@ MAX_EPISODE_SIM_TIME_DEFAULT = 100.0    # [s] simulated time
 TIME_ACCEL_FACTOR_DEFAULT = 1.0         # [s-sim-time/s-wall-clock-time] acceleration of simulation time
 
 # Control lyapunov QP parameters
-GAMMA_VMIN_DEFAULT=1
-GAMMA_VMAX_DEFAULT=1
-LAMBDA_VTHETA_DEFAULT=10
-LAMBDA_VSPEED_DEFAULT=1
-P_VTHETA_DEFAULT=50
-P_VSPEED_DEFAULT=1
-
+GAMMA_VMIN_DEFAULT=1    # parameter lower-bounding evolution of v-min speed barrier function
+GAMMA_VMAX_DEFAULT=1    # parameter lower-bounding evolution of v-max speed barrier function
+LAMBDA_VTHETA_DEFAULT=1     # parameter upper-bounding evolution of headding lyapunov functions
+LAMBDA_VSPEED_DEFAULT=1     # parameter upper-bounding evolution of headding lyapunov functions
+P_VTHETA_DEFAULT=1      # penalty in objective function on heading slack variables that relax stability constraints
+P_VSPEED_DEFAULT=1      # penalty in objective function on speed slack variables that relax stability constraints
 
 # info dictionary keys
 K_N_ENV_STEPS = 'n_env_steps'
@@ -333,7 +332,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
         if ctrl is None:
             ctrl_n_del = self._solve_default_ctrl_clf_qp(
                 state=self.__state,
-                target=[self._goal.xc, self._goal.yc, 1.0],
+                target=[self._goal.xc, self._goal.yc],
                 vmin=self.state_space.low[SS_VIND], vmax=self.state_space.high[SS_VIND],
                 u1min=self.action_space[K_TURNRATE_CTRL].low[0], u1max=self.action_space[K_TURNRATE_CTRL].high[0],
                 u2min=self.action_space[K_ACCEL_CTRL].low[0], u2max=self.action_space[K_ACCEL_CTRL].high[0],
@@ -504,8 +503,8 @@ class Dubins4dReachAvoidEnv(gym.Env):
         Args:
             state : ArrayLike (len=4)
                 state of dubins4d system [x, y, theta, v]
-            target : ArrayLike (len=3)
-                desired [x,y,v] to steer system toward (note desired theta inferred)
+            target : ArrayLike (len=2)
+                desired [x,y] to steer system toward
             vmin, vmax  : float
                 min and max constraint on speed state variable
             u1min, u1max : float
@@ -538,7 +537,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
         '''
 
         assert len(state) == 4
-        assert len(target) == 3
+        assert len(target) == 2
         assert vmin >= 0
         assert vmax >= vmin
         assert u1max >= u1min
@@ -552,7 +551,18 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         # unpack state vars for simple handling
         x, y, theta, v = state
-        xd, yd, vd = target
+        xd, yd = target
+
+        # distance to target
+        xhat = xd - x
+        yhat = yd - y
+
+        # heuristic that desired speed increase with distance to target
+        dist_targ = np.sqrt(xhat*xhat + yhat*yhat)
+        vd = min((dist_targ/2)**2, dist_targ/2)
+
+        # map theta into range [-pi,pi] to avoid windup of Vtheta
+        theta = (deepcopy(theta) + np.pi) % (2 * np.pi) - np.pi
 
         # init QP inequality matrices and vector
         G_all = np.empty((0,4))
@@ -595,9 +605,14 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         ### Vtheta: Control Lyapunov Function for heading stabilization (relaxed) constraint ###
 
-        xhat = xd - x
-        yhat = yd - y
         thetad = np.arctan2(yhat,xhat)
+
+        # heuristic to improve control for theta_d near pi
+        if theta < 0 and theta > -np.pi and thetad >= np.pi + theta and thetad <= np.pi:
+            thetad = -1.5*np.pi
+        if theta > 0 and theta < np.pi and thetad <= -np.pi + theta and thetad >= -np.pi:
+            thetad = 1.5*np.pi
+
         Vtheta = (theta - thetad)**2
 
         # Lie derivative of Vtheta along f(x)

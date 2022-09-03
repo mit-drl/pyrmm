@@ -21,7 +21,7 @@ env._Dubins4dReachAvoidEnv__dist.ctrl.v_std = 0.0
 obs, info = env.reset()
 
 # move obstacle far away to avoid collision
-env._obstacle = CircleRegion(xc=-100, yc=-100, r=0.1)
+# env._obstacle = CircleRegion(xc=-100, yc=-100, r=0.1)
 
 # always inactive control to test if CLF drives to goal
 action = env.action_space.sample()

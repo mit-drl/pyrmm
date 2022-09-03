@@ -46,8 +46,8 @@ CS_DVMAX = 0.5      # [m/s/s]
 # goal and obstacle params
 GOAL_R_MIN = 0.1
 GOAL_R_MAX = 1.0
-OBST_R_MIN = 0.5
-OBST_R_MAX = 2.0
+OBST_R_MIN = 2.0
+OBST_R_MAX = 5.0
 
 # observation space (OS) parameters
 OS_N_RAYS_DEFAULT = 12      # number of rays to cast

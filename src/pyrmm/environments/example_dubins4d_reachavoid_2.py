@@ -7,6 +7,16 @@ from dubins4d_reachavoid import Dubins4dReachAvoidEnv, CircleRegion
 # create environment
 env = Dubins4dReachAvoidEnv(time_accel_factor=10.0, render_mode="human")
 
+# set disturbances to zero
+env._Dubins4dReachAvoidEnv__dist.ctrl.x_mean = 0.0
+env._Dubins4dReachAvoidEnv__dist.ctrl.x_std = 0.0
+env._Dubins4dReachAvoidEnv__dist.ctrl.y_mean = 0.0
+env._Dubins4dReachAvoidEnv__dist.ctrl.y_std = 0.0
+env._Dubins4dReachAvoidEnv__dist.ctrl.theta_mean = 0.0
+env._Dubins4dReachAvoidEnv__dist.ctrl.theta_std = 0.0
+env._Dubins4dReachAvoidEnv__dist.ctrl.v_mean = 0.0
+env._Dubins4dReachAvoidEnv__dist.ctrl.v_std = 0.0
+
 # get initial observation and info
 obs, info = env.reset()
 
@@ -22,6 +32,7 @@ while True:
 
     # random delay to allow system to propagate
     # time.sleep(np.random.rand())
+    time.sleep(1./env.metadata['render_fps'])
 
     # random action for next time interval
     obs, rew, done, info = env.step_to_now(action)

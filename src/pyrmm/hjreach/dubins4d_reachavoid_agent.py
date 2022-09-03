@@ -13,7 +13,7 @@ from odp.Shapes import CylinderShape
 from odp.Plots import PlotOptions
 from odp.solver import HJSolver, computeSpatDerivArray
 
-from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv, ACTIVE_CTRL, TURNRATE_CTRL, ACCEL_CTRL
+from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv, K_ACTIVE_CTRL, K_TURNRATE_CTRL, K_ACCEL_CTRL
 
 class HJReachDubins4dReachAvoidAgent():
     def __init__(self,
@@ -155,13 +155,13 @@ class HJReachDubins4dReachAvoidAgent():
         # determine if active control is to be applied
         if Vf_state > 0.0:
             # state is in safe set, do not use active control
-            action[ACTIVE_CTRL] = False
+            action[K_ACTIVE_CTRL] = False
             return action
 
         # if state is in backward reachable set (with finite time horizon)
         # of obstacle space (i.e. value function <= 0), then compute
         # and employ optimal evasive control
-        action[ACTIVE_CTRL] = True
+        action[K_ACTIVE_CTRL] = True
 
         # Compute spatial derivatives of final value function at every discrete state on grid
         delVf_delx = computeSpatDerivArray(self._grid.grid_points, Vf, deriv_dim=1, accuracy="low")
@@ -179,8 +179,8 @@ class HJReachDubins4dReachAvoidAgent():
 
         # compute optimal control
         opt_a, opt_w = self.opt_ctrl(grad_Vf_state)
-        action[ACCEL_CTRL] = opt_a
-        action[TURNRATE_CTRL] = opt_w
+        action[K_ACCEL_CTRL] = opt_a
+        action[K_TURNRATE_CTRL] = opt_w
 
         return action
 

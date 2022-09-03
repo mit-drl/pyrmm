@@ -34,12 +34,12 @@ SS_VMIN = 0.0       # [m/s]
 SS_VMAX = 2.0       # [m/s]
 
 # control space (CS) parameters
-ACTIVE_CTRL = "active_ctrl"
-TURNRATE_CTRL = "turnrate_ctrl"
-ACCEL_CTRL = "accel_ctrl"
+K_ACTIVE_CTRL = "active_ctrl"
+K_TURNRATE_CTRL = "turnrate_ctrl"
+K_ACCEL_CTRL = "accel_ctrl"
 # DURATION_CTRL = "duration_ctrl"
-CS_DTHETAMIN = -0.2 # [rad/s]    
-CS_DTHETAMAX = 0.2  # [rad/s]
+CS_DTHETAMIN = -0.25 # [rad/s]    
+CS_DTHETAMAX = 0.25  # [rad/s]
 CS_DVMIN = -0.5     # [m/s/s]
 CS_DVMAX = 0.5      # [m/s/s]
 
@@ -58,25 +58,34 @@ PROPAGATE_TIMESTEPS = 16
 MAX_EPISODE_SIM_TIME_DEFAULT = 100.0    # [s] simulated time
 TIME_ACCEL_FACTOR_DEFAULT = 1.0         # [s-sim-time/s-wall-clock-time] acceleration of simulation time
 
+# Control lyapunov QP parameters
+GAMMA_VMIN_DEFAULT=1
+GAMMA_VMAX_DEFAULT=1
+LAMBDA_VTHETA_DEFAULT=10
+LAMBDA_VSPEED_DEFAULT=1
+P_VTHETA_DEFAULT=50
+P_VSPEED_DEFAULT=1
+
+
 # info dictionary keys
-N_ENV_STEPS = 'n_env_steps'
-N_ACTIVE_CTRL_ENV_STEPS = 'n_active_ctrl_env_steps'
-CUM_ACTIVE_CTRL_SIM_TIME = 'active_ctrl_sim_time'
-CUM_WALL_CLOCK_TIME = 'cum_wall_clock_time'
-CUM_SIM_TIME = 'cum_sim_time'
-AVG_POLICY_COMPUTE_TIME = 'avg_policy_compute_time'
-CUM_REWARD = 'cum_reward'
+K_N_ENV_STEPS = 'n_env_steps'
+K_N_ACTIVE_CTRL_ENV_STEPS = 'n_active_ctrl_env_steps'
+K_CUM_ACTIVE_CTRL_SIM_TIME = 'active_ctrl_sim_time'
+K_CUM_WALL_CLOCK_TIME = 'cum_wall_clock_time'
+K_CUM_SIM_TIME = 'cum_sim_time'
+K_AVG_POLICY_COMPUTE_TIME = 'avg_policy_compute_time'
+K_CUM_REWARD = 'cum_reward'
 
 class Dubins4dReachAvoidEnv(gym.Env):
 
-    metadata = {"render_modes": ["human", "rgb_array", "single_rgb_array"], "render_fps": 4}
+    metadata = {"render_modes": ["human", "rgb_array", "single_rgb_array"], "render_fps": 15}
 
     # define action space as class attribute so that it is accessable by agents
     # without having to instantiate a "dummy env"
     action_space = gym.spaces.Dict({
-        ACTIVE_CTRL: gym.spaces.Discrete(2),
-        TURNRATE_CTRL: gym.spaces.Box(low=CS_DTHETAMIN, high=CS_DTHETAMAX),    # [rad/s]
-        ACCEL_CTRL: gym.spaces.Box(low=CS_DVMIN, high=CS_DVMAX),         # [m/s/s]
+        K_ACTIVE_CTRL: gym.spaces.Discrete(2),
+        K_TURNRATE_CTRL: gym.spaces.Box(low=CS_DTHETAMIN, high=CS_DTHETAMAX),    # [rad/s]
+        K_ACCEL_CTRL: gym.spaces.Box(low=CS_DVMIN, high=CS_DVMAX),         # [m/s/s]
     })
 
     def __init__(self, 
@@ -84,6 +93,12 @@ class Dubins4dReachAvoidEnv(gym.Env):
         ray_length: float = OS_RAY_MAX_DEFAULT,
         max_episode_sim_time: float = MAX_EPISODE_SIM_TIME_DEFAULT,
         time_accel_factor: float = TIME_ACCEL_FACTOR_DEFAULT,
+        gamma_vmin=GAMMA_VMIN_DEFAULT, 
+        gamma_vmax=GAMMA_VMAX_DEFAULT,
+        lambda_Vtheta=LAMBDA_VTHETA_DEFAULT, 
+        lambda_Vspeed=LAMBDA_VSPEED_DEFAULT,
+        p_Vtheta=P_VTHETA_DEFAULT, 
+        p_Vspeed=P_VSPEED_DEFAULT,
         render_mode: Optional[str] = None):
         '''
         Args
@@ -95,6 +110,12 @@ class Dubins4dReachAvoidEnv(gym.Env):
                 elapsed sim time before timeout termination critera
             time_accel_factor : float
                 sim time acceleration relative to wall clock time
+            gamma_vmax, gamma_vmin : float
+                parameter lower-bounding evolution of speed barrier function
+            lambda_Vtheta, lambda_Vspeed : float
+                parameter upper-bounding evolution of headding and speed lyapunov functions
+            p_Vtheta, p_Vspeed : float
+                penalty in objective function on heading and speed slack variables that relax stability constraints
         '''
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -141,6 +162,14 @@ class Dubins4dReachAvoidEnv(gym.Env):
         self.__dist.ctrl.v_mean = 0.0
         self.__dist.ctrl.v_std = 0.01
 
+        # control lyapunov function params for inactive control
+        self.gamma_vmin = gamma_vmin
+        self.gamma_vmax = gamma_vmax
+        self.lambda_Vtheta = lambda_Vtheta
+        self.lambda_Vspeed = lambda_Vspeed
+        self.p_Vtheta = p_Vtheta
+        self.p_Vspeed = p_Vspeed
+
         # setup renderer
         """
         If human-rendering is used, `self.window` will be a reference
@@ -174,9 +203,9 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         # specify zero action for environment init
         self._cur_action = self.action_space.sample()
-        self._cur_action[ACTIVE_CTRL] = 0
-        self._cur_action[TURNRATE_CTRL][0] = 0.0
-        self._cur_action[ACCEL_CTRL][0] = 0.0
+        self._cur_action[K_ACTIVE_CTRL] = 0
+        self._cur_action[K_TURNRATE_CTRL][0] = 0.0
+        self._cur_action[K_ACCEL_CTRL][0] = 0.0
 
         # randomize goal, obstacle
         goal_xc, goal_yc = self.state_space.sample()[:2]
@@ -238,26 +267,23 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         # format control portion of action if active control (otherwise passive CLF will control)
         ctrl = None
-        if self._cur_action[ACTIVE_CTRL]:
+        if self._cur_action[K_ACTIVE_CTRL]:
             self._n_active_ctrl_env_steps += 1
-            ctrl = np.concatenate((self._cur_action[TURNRATE_CTRL], self._cur_action[ACCEL_CTRL]))
+            ctrl = np.concatenate((self._cur_action[K_TURNRATE_CTRL], self._cur_action[K_ACCEL_CTRL]))
 
         # propagate system from t-dt to t based on action set at t-dt
         obs, rew, done, info = self._propagate_realtime_system(ctrl=ctrl)
 
-        # add a frame to the render collection
-        self.renderer.render_step()
-
         # clip next action to action space bounds
         self._cur_action = deepcopy(next_action)
-        self._cur_action[TURNRATE_CTRL] = np.clip(
-            next_action[TURNRATE_CTRL], 
-            self.action_space[TURNRATE_CTRL].low,
-            self.action_space[TURNRATE_CTRL].high)
-        self._cur_action[ACCEL_CTRL] = np.clip(
-            next_action[ACCEL_CTRL], 
-            self.action_space[ACCEL_CTRL].low,
-            self.action_space[ACCEL_CTRL].high)
+        self._cur_action[K_TURNRATE_CTRL] = np.clip(
+            next_action[K_TURNRATE_CTRL], 
+            self.action_space[K_TURNRATE_CTRL].low,
+            self.action_space[K_TURNRATE_CTRL].high)
+        self._cur_action[K_ACCEL_CTRL] = np.clip(
+            next_action[K_ACCEL_CTRL], 
+            self.action_space[K_ACCEL_CTRL].low,
+            self.action_space[K_ACCEL_CTRL].high)
 
         if not self.action_space.contains(self._cur_action):
             raise ValueError("Action {} outside of action space {}".format(self._cur_action, self.action_space))
@@ -307,13 +333,13 @@ class Dubins4dReachAvoidEnv(gym.Env):
         if ctrl is None:
             ctrl_n_del = self._solve_default_ctrl_clf_qp(
                 state=self.__state,
-                target=[self._goal.xc, self._goal.yc, 0.0],
+                target=[self._goal.xc, self._goal.yc, 1.0],
                 vmin=self.state_space.low[SS_VIND], vmax=self.state_space.high[SS_VIND],
-                u1min=self.action_space[TURNRATE_CTRL].low[0], u1max=self.action_space[TURNRATE_CTRL].high[0],
-                u2min=self.action_space[ACCEL_CTRL].low[0], u2max=self.action_space[ACCEL_CTRL].high[0],
-                gamma_vmin=1, gamma_vmax=1,
-                lambda_Vtheta=1, lambda_Vspeed=1,
-                p_Vtheta=1, p_Vspeed=1
+                u1min=self.action_space[K_TURNRATE_CTRL].low[0], u1max=self.action_space[K_TURNRATE_CTRL].high[0],
+                u2min=self.action_space[K_ACCEL_CTRL].low[0], u2max=self.action_space[K_ACCEL_CTRL].high[0],
+                gamma_vmin=self.gamma_vmin, gamma_vmax=self.gamma_vmax,
+                lambda_Vtheta=self.lambda_Vtheta, lambda_Vspeed=self.lambda_Vspeed,
+                p_Vtheta=self.p_Vtheta, p_Vspeed=self.p_Vspeed
             )
             ctrl = np.array(ctrl_n_del[:2]).reshape(2,)
         else:
@@ -372,6 +398,9 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         # get auxillary information
         info = self._get_info(done)
+
+        # add a frame to the render collection
+        self.renderer.render_step()
 
         # reset wall clock sync time for next loop
         self._wall_clock_sync_time = time.time()
@@ -439,18 +468,19 @@ class Dubins4dReachAvoidEnv(gym.Env):
         '''packagage auxillary info into dictionary, particularly when episode is done'''
         info = dict()
         if done:
-            info[N_ENV_STEPS] = self._n_env_steps
-            info[N_ACTIVE_CTRL_ENV_STEPS] = self._n_active_ctrl_env_steps
-            info[CUM_ACTIVE_CTRL_SIM_TIME] = self._active_ctrl_sim_time
-            info[CUM_WALL_CLOCK_TIME] = self._wall_clock_elapsed_time
-            info[CUM_SIM_TIME] = self._sim_time
-            info[AVG_POLICY_COMPUTE_TIME] = self._wall_clock_elapsed_time/self._n_env_steps
-            info[CUM_REWARD] = self._cum_reward
+            info[K_N_ENV_STEPS] = self._n_env_steps
+            info[K_N_ACTIVE_CTRL_ENV_STEPS] = self._n_active_ctrl_env_steps
+            info[K_CUM_ACTIVE_CTRL_SIM_TIME] = self._active_ctrl_sim_time
+            info[K_CUM_WALL_CLOCK_TIME] = self._wall_clock_elapsed_time
+            info[K_CUM_SIM_TIME] = self._sim_time
+            info[K_AVG_POLICY_COMPUTE_TIME] = self._wall_clock_elapsed_time/self._n_env_steps
+            info[K_CUM_REWARD] = self._cum_reward
 
         return info
 
 
-    def _solve_default_ctrl_clf_qp(self,
+    @staticmethod
+    def _solve_default_ctrl_clf_qp(
         state:ArrayLike, 
         target:ArrayLike, 
         vmin, vmax,
@@ -572,6 +602,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         # Lie derivative of Vtheta along f(x)
         LfVtheta = 2*v*(theta - thetad)*(xhat*np.sin(theta)-yhat*np.cos(theta))/(xhat*xhat + yhat*yhat)
+        # LfVtheta = 0.0
 
         # Lie derivative of Vtheta along g(x)
         LgVthetau1 = 2*(theta - thetad)
@@ -622,7 +653,8 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         return ctrl_n_del
 
-    def __ode_dubins4d_truth(self, X:ArrayLike, t:ArrayLike, u:ArrayLike, d:ArrayLike) -> ArrayLike:
+    @staticmethod
+    def __ode_dubins4d_truth(X:ArrayLike, t:ArrayLike, u:ArrayLike, d:ArrayLike) -> ArrayLike:
         '''dubins vehicle ordinary differential equations
 
         Truth model for physics propagation. This is in contrast to whatever
@@ -705,6 +737,16 @@ class Dubins4dReachAvoidEnv(gym.Env):
             color=(0, 0, 255),
             center=rend_agnt_xy,
             radius=5,
+        )
+        # Now draw agent heading
+        pygame.draw.line(
+            canvas,
+            color=(0, 0, 255),
+            start_pos=rend_agnt_xy,
+            end_pos=self.map_state_to_render_window(
+                self.__state[SS_XIND] + self.__state[SS_VIND]*np.cos(self.__state[SS_THETAIND]), 
+                self.__state[SS_YIND] + self.__state[SS_VIND]*np.sin(self.__state[SS_THETAIND])
+            )
         )
 
         if mode == "human":

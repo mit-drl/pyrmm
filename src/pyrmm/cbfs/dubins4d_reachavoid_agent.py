@@ -108,12 +108,14 @@ class CBFDubins4dReachAvoidAgent():
             p_Vspeed= self.p_Vspeed
         )
 
-        # check barrier function inequalities
-        if not np.all(np.less(np.dot(G_safety, ctrl_n_del), h_safety)):
-            # at least one safety constraint active, apply active safety control
-            action[K_ACTIVE_CTRL] = True
-            action[K_TURNRATE_CTRL] = ctrl_n_del[0]
-            action[K_ACCEL_CTRL] = ctrl_n_del[1]
+        # check if feasible solution found
+        if ctrl_n_del is not None:
+            # check barrier function  for equality; if so take active a control
+            if np.any(np.isclose(np.dot(G_safety, ctrl_n_del), h_safety, rtol=1e-4)):
+                # at least one safety constraint active, apply active safety control
+                action[K_ACTIVE_CTRL] = True
+                action[K_TURNRATE_CTRL][0] = ctrl_n_del[0]
+                action[K_ACCEL_CTRL][0] = ctrl_n_del[1]
 
         return action
 
@@ -224,6 +226,10 @@ class CBFDubins4dReachAvoidAgent():
             # control barrier function
             b = (x - obs.xc)**2 + (y - obs.yc)**2 - obs.r**2
 
+            if np.less(b, 0.0):
+                # barrier function already violate, return None for control
+                return None, None, None
+
             # 1st order Lie derivative along f(x)
             Lfb = 2*v*((x-obs.xc)*np.cos(theta) + (y-obs.yc)*np.sin(theta))
 
@@ -236,7 +242,12 @@ class CBFDubins4dReachAvoidAgent():
 
             # Higher order terms
             Lfa1p0 = alpha_q1*alpha_p1*Lfb * b**(alpha_q1-1)
-            a2p1 = alpha_p2 * (Lfb + alpha_p1 * b**alpha_q1)**alpha_q2
+
+            temp_var = Lfb + alpha_p1 * b**alpha_q1
+            if np.less(temp_var, 0.0):
+                # barrier function already violate, return None for control
+                return None, None, None
+            a2p1 = alpha_p2 * (temp_var)**alpha_q2
 
             # form QP inequality matrices and vectors
             cur_G_safety = np.reshape([-LgLfbu1, -LgLfbu2, 0, 0], (1,4))   # 4 vector because slack variables

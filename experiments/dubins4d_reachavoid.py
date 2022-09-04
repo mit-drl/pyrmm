@@ -21,8 +21,9 @@ from odp.dynamics import DubinsCar4D as DubinsCar4DODP
 from odp.Grid import Grid
 from odp.Shapes import CylinderShape
 
-from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv
+from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv, K_ACTIVE_CTRL
 from pyrmm.hjreach.dubins4d_reachavoid_agent import HJReachDubins4dReachAvoidAgent
+from pyrmm.cbfs.dubins4d_reachavoid_agent import CBFDubins4dReachAvoidAgent
 
 _CONFIG_NAME = "dubins4d_reachavoid_experiment"
 _MONITOR_RATE = 1
@@ -33,6 +34,7 @@ _SMALL_NUMBER = 1e-5
 K_INACTIVE_AGENT = 'inactive_agent'
 K_RANDOM_AGENT = 'random_agent'
 K_HJREACH_AGENT = 'hjreach_agent'
+K_CBF_AGENT = 'cbf_agent'
 # K_N_TRIALS = 'n_trials'
 # K_TIME_ACCEL = 'time_accel'
 # K_N_CORES = 'n_cores'
@@ -194,22 +196,87 @@ def execute_hjreach_agent(env,
 
     return info
 
+def execute_cbf_agent(env,
+    vmin, vmax,
+    u1min, u1max,
+    u2min, u2max,
+    alpha_p1, alpha_p2, alpha_q1, alpha_q2,
+    gamma_vmin, gamma_vmax,
+    lambda_Vtheta, lambda_Vspeed,
+    p_Vtheta, p_Vspeed):
+    '''
+    Args:
+        vmin, vmax  : float
+            min and max constraint on speed state variable
+        u1min, u1max : float
+            min and max constraint on turning rate control variable
+        u2min, u2max : float
+            min and max constraint on linear acceleration control variable
+        alpha_p1, alpha_p2 : float
+            penalty value for 2nd order parameterized method of HOCBF
+        alpha_q1, alpha_q2 : float
+            powers of 2nd order parameterized method of HOCBF
+        gamma_vmax, gamma_vmin : float
+            parameter lower-bounding evolution of speed barrier function
+        lambda_Vtheta, lambda_Vspeed : float
+            parameter upper-bounding evolution of headding and speed lyapunov functions
+        p_Vtheta, p_Vspeed : float
+            penalty in objective function on heading and speed slack variables that relax stability constraints
+    '''
 
-# def env_agent_trial_runner(env_cfg, agent_runner_cfg, dummy_var):
-#     '''instantiates environment and agent and runs single-episode trial'''
+    # reset env to restart timing and get obstacle and goal locations
+    obs, info = env.reset()
 
-#     # instantiate environment
-#     env = instantiate(env_cfg)
+    # instantiate CBF agent
+    # NOTE: this access private information about the enviornment, giving HJ-reach
+    # and advantage
+    cbf_agent = CBFDubins4dReachAvoidAgent(
+        goal=env._goal, obstacle=env._obstacle,
+        vmin = vmin,
+        vmax = vmax,
+        u1min = u1min,
+        u1max = u1max,
+        u2min = u2min,
+        u2max = u2max,
+        alpha_p1 = alpha_p1,
+        alpha_p2 = alpha_p2,
+        alpha_q1 = alpha_q1,
+        alpha_q2 = alpha_q2,
+        gamma_vmin = gamma_vmin,
+        gamma_vmax = gamma_vmax,
+        lambda_Vtheta = lambda_Vtheta,
+        lambda_Vspeed = lambda_Vspeed,
+        p_Vtheta = p_Vtheta,
+        p_Vspeed = p_Vspeed
+    )
 
-#     # execute agent with environment instance
-#     agent_runner = instantiate(agent_runner_cfg)
-#     info = agent_runner(env=env)
+    while True:
 
-#     # close environment
-#     env.close()
+        # get current state
+        # NOTE: this access private information about the enviornment, giving HJ-reach
+        # and advantage
+        state = env._Dubins4dReachAvoidEnv__state
 
-#     # return info
-#     return info
+        # try to compute action at current state,
+        # catch value error corresponding to infeasible QP
+        try:
+            action = cbf_agent.get_action(state=state)
+        except ValueError as e:
+            if str(e) == "domain error":
+                # infeasible QP, apply inactive control
+                action = env.action_space.sample()
+                action[K_ACTIVE_CTRL] = False
+            else:
+                raise
+            
+
+        # employ action in environment
+        obs, rew, done, info = env.step_to_now(action)
+
+        if done:
+            break
+
+    return info
 
 ##############################################
 ############# HYDARA-ZEN CONFIGS #############
@@ -245,12 +312,49 @@ HJReachConf = pbuilds(execute_hjreach_agent,
     grid_ub = DEFAULT_HJREACH_GRID_UB,
     grid_nsteps = DEFAULT_HJREACH_GRID_NSTEPS)
 
+# Configure CBF agent
+DEFAULT_VMIN = 0    # [M/S]
+DEFAULT_VMAX = 2    # [M/S]
+DEFAULT_U1MIN = -0.2    # [RAD/S]
+DEFAULT_U1MAX = 0.2     # [RAD/S]
+DEFAULT_U2MIN = -0.5    # [M/S/S]
+DEFAULT_U2MAX = 0.5     # [M/S/S]
+DEFAULT_ALPHA_P1 = 0.7535
+DEFAULT_ALPHA_P2 = 0.6664
+DEFAULT_ALPHA_Q1 = 1.0045
+DEFAULT_ALPHA_Q2 = 1.0267
+DEFAULT_GAMMA_VMAX = 1
+DEFAULT_GAMMA_VMIN = 1
+DEFAULT_LAMBDA_VTHETA = 1
+DEFAULT_LAMBDA_VSPEED = 1
+DEFAULT_P_VTHETA = 1
+DEFAULT_P_VSPEED = 1
+CBFAgentConf = pbuilds(execute_cbf_agent,
+    vmin = DEFAULT_VMIN,
+    vmax = DEFAULT_VMAX,
+    u1min = DEFAULT_U1MIN,
+    u1max = DEFAULT_U1MAX,
+    u2min = DEFAULT_U2MIN,
+    u2max = DEFAULT_U2MAX,
+    alpha_p1 = DEFAULT_ALPHA_P1,
+    alpha_p2 = DEFAULT_ALPHA_P2,
+    alpha_q1 = DEFAULT_ALPHA_Q1,
+    alpha_q2 = DEFAULT_ALPHA_Q2,
+    gamma_vmin = DEFAULT_GAMMA_VMIN,
+    gamma_vmax = DEFAULT_GAMMA_VMAX,
+    lambda_Vtheta = DEFAULT_LAMBDA_VTHETA,
+    lambda_Vspeed = DEFAULT_LAMBDA_VSPEED,
+    p_Vtheta = DEFAULT_P_VTHETA,
+    p_Vspeed = DEFAULT_P_VSPEED
+    )
+
 # Top-level configuration of experiment
 DEFAULT_N_TRIALS = 4       # number of trials (episodes) per agent
 agent_config_inputs = {
-    K_INACTIVE_AGENT: InactiveAgentConf,
-    K_RANDOM_AGENT: RandomAgentConf,
-    K_HJREACH_AGENT: HJReachConf
+    # K_INACTIVE_AGENT: InactiveAgentConf,
+    # K_RANDOM_AGENT: RandomAgentConf,
+    # K_HJREACH_AGENT: HJReachConf,
+    K_CBF_AGENT: CBFAgentConf
 }
 ExpConfig = make_config(
     n_trials = DEFAULT_N_TRIALS,
@@ -289,17 +393,9 @@ def task_function(cfg: ExpConfig):
         # create partial function for distributing envs to random agent executor
         p_agent_runner = partial(instantiate(getattr(cfg,agent_name)))
 
-        # create partial function of env_agent_trial_runner
-        # part_env_agent_trial_runner = partial(env_agent_trial_runner, cfg.env, cfg.random_agent)
-
-        # create list of agent configs, one for each trial
-        # agent_runner_cfgs = [cfg.random_agent for i in range(cfg.n_trials)]
-        # dummy_iter = range(cfg.n_trials)
-
         # use iterative map for process tracking
         t_start = time.time()
         randagent_iter = pool.imap(p_agent_runner, envs)
-        # randagent_iter = pool.imap(part_env_agent_trial_runner, dummy_iter)
 
         # track multiprocess progress
         results[agent_name] = {K_TRIAL_DATA:[]}

@@ -261,8 +261,10 @@ class Dubins4dReachAvoidEnv(gym.Env):
                 ## duration_ctrl: float length of time to apply control
         '''
 
-        assert self.action_space.contains(next_action)
         self._n_env_steps += 1
+
+        if not self.action_space.contains(self._cur_action):
+            raise ValueError("Action {} outside of action space {}".format(self._cur_action, self.action_space))
 
         # format control portion of action if active control (otherwise passive CLF will control)
         ctrl = None
@@ -284,8 +286,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
             self.action_space[K_ACCEL_CTRL].low,
             self.action_space[K_ACCEL_CTRL].high)
 
-        if not self.action_space.contains(self._cur_action):
-            raise ValueError("Action {} outside of action space {}".format(self._cur_action, self.action_space))
+        # assert self.action_space.contains(next_action)
 
         # return 
         return obs, rew, done, info
@@ -714,8 +715,12 @@ class Dubins4dReachAvoidEnv(gym.Env):
         return self.renderer.get_renders()
 
     def map_state_to_render_window(self, x, y):
-        rend_x = (x-self.state_space.low[SS_XIND])/(self.state_space.high[SS_XIND] - self.state_space.low[SS_XIND]) * self.render_window_size
-        rend_y = (y-self.state_space.low[SS_YIND])/(self.state_space.high[SS_YIND] - self.state_space.low[SS_YIND]) * self.render_window_size
+        xmin = self.state_space.low[SS_XIND]
+        xmax = self.state_space.high[SS_XIND]
+        ymin = self.state_space.low[SS_YIND]
+        ymax = self.state_space.high[SS_YIND]
+        rend_x = (x - xmin)/(xmax - xmin) * self.render_window_size
+        rend_y = (1 - (y - ymin)/(ymax - ymin)) * self.render_window_size
         return rend_x, rend_y
 
     def _render_frame(self, mode: str):

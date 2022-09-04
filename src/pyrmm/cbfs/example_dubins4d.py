@@ -1,10 +1,15 @@
 # example script for solving quadratic program for dubins4d
 
+import numpy as np
+
 from pyrmm.cbfs.dubins4d_reachavoid_agent import CBFDubins4dReachAvoidAgent
-from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv
+from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv, CircleRegion
+
+np.seterr(all='raise')
 
 # create environment
 env = Dubins4dReachAvoidEnv(time_accel_factor=10, render_mode='human')
+# env = Dubins4dReachAvoidEnv(time_accel_factor=10)
 
 # speed constraints
 vmin = 0    # [m/s]
@@ -34,6 +39,14 @@ lambda_Vspeed = 1
 p_Vtheta = 1
 p_Vspeed = 1
 
+# reset env to get new obstacle
+env.reset()
+
+# place obstacle to guarantee collision
+env._obstacle = CircleRegion(xc=2.0, yc=0.0, r=0.9)
+env._goal = CircleRegion(xc=5.0, yc=5.0, r=1.0)
+env._Dubins4dReachAvoidEnv__state = np.array([0.0, 0.0, 0.1, 0.5])
+
 # create agent
 agent = CBFDubins4dReachAvoidAgent(
     goal=env._goal,
@@ -57,7 +70,6 @@ agent = CBFDubins4dReachAvoidAgent(
 )
 
 # run agent until termination
-env.reset()
 while True:
 
     # get agent at current state
@@ -68,4 +80,6 @@ while True:
 
     if done:
         break
+
+print("Done!\nReward = {}\nInfo: {}".format(rew, info))
 

@@ -4,41 +4,37 @@ state : [x, y, heading, speed]
 control : [d_theta, d_speed]
 '''
 
+from ompl import base as ob
 
 from pyrmm.setups import SystemSetup
 
-class Dubins4DCircleObstSetup(SystemSetup):
-    def __init__(self, 
-        v_min: float, v_max: float, 
-        dtheta_min: float, dtheta_max: float,
-        dv_min: float, dv_max: float):
+class Dubins4DReachAvoidSetup(SystemSetup):
+    def __init__(self, env):
         '''
         Args:
-            v_min : float
-                min linear speed [m/s]
-            v_max : float
-                max linear speed [m/s]
-            dthteta_min : float
-                min turnrate control bound [rad/s]
-            dtheta_max : float
-                max turnrate control bound [rad/s]
-            dv_min : float 
-                min linear acceleration control bound [m/s]
-            dv_max : float
-                max linear acceleration control bound [m/s]
+            env : Dubins4dReachAvoidEnv
+                Instance of Dubins4dReachAvoidEnv
         '''
 
-        assert v_min >= 0
-        assert v_max >= v_min
-        assert dtheta_max >= dtheta_min
-        assert dv_max >= dv_min
+        # create state space
+        state_space = ob.CompoundStateSpace()
+        state_space.addSubspace(ob.RealVectorStateSpace(2), 1.0)    # xy-position [m]
+        state_space.addSubspace(ob.SO2StateSpace(), 1.0)            # heading (theta)   [rad]
+        state_space.addSubspace(ob.RealVectorStateSpace(1), 1.0)    # linear speed (v)  [m/s]
 
-        # save init args for re-creation of object
-        self.v_min = v_min
-        self.v_max = v_max
-        self.dtheta_min = dtheta_min
-        self.dtheta_max = dtheta_max
-        self.dv_min = dv_min
-        self.dv_max = dv_max
+        # set state space bounds from environment
+        pos_bounds = ob.RealVectorBounds(2)
+        pos_bounds.setLow(0, float(env.state_space.low[0]))
+        pos_bounds.setHigh(0, float(env.state_space.high[0]))
+        pos_bounds.setLow(1, float(env.state_space.low[1]))
+        pos_bounds.setHigh(1, float(env.state_space.high[1]))
+        state_space.getSubspace(0).setBounds(pos_bounds)
+
+        speed_bounds = ob.RealVectorBounds(1)
+        speed_bounds.setLow(0, float(env.state_space.low[3]))
+        speed_bounds.setHigh(0, float(env.state_space.high[3]))
+        state_space.getSubspace(2).setBounds(speed_bounds)
+
+        # create control space
 
         

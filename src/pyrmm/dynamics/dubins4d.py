@@ -20,7 +20,7 @@ Ref:
 
 import numpy as np
 
-def ode_dubins4d(y, t, u):
+def ode_dubins4d(y, t, u, vbounds):
     '''dubins vehicle ordinary differential equations
     
     Args:
@@ -36,6 +36,8 @@ def ode_dubins4d(y, t, u):
             control vector [dtheta, dv]
             dtheta = turn rate [rad/sec]
             dv = linear acceleration [m/s/s]
+        vbounds : array-like (len=2)
+            linear speed bounds [v_min, v_max] [m/s]
 
     Returns:
         dydt : array-like
@@ -47,4 +49,12 @@ def ode_dubins4d(y, t, u):
     dydt[1] = y[3] * np.sin(y[2])
     dydt[2] = u[0]
     dydt[3] = u[1]
+
+    # physical constraint: speed is non-negative
+    if dydt[3] < 0 and y[3] < vbounds[0] + 1e-3:
+        dydt[3] = 0.0
+    if dydt[3] > 0 and y[3] > vbounds[1]- 1e-3:
+        dydt[3] = 0.0
+    return dydt
+
     return dydt

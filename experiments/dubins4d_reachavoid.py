@@ -41,6 +41,9 @@ K_CBF_AGENT = 'cbf_agent'
 K_TRIAL_DATA = 'trial_data'
 K_AGGREGATE_DATA = 'aggregate_data'
 K_AVG_POLICY_COMPUTE_WALL_TIME = 'avg_policy_compute_wall_time'
+K_AVG_WALL_CLOCK_TIME_PER_EPISODE = 'avg_wall_clock_time_per_episode'
+K_AVG_STEPS_PER_EPISODE = 'avg_steps_per_episode'
+K_AVG_SIM_TIME_PER_EPISODE = 'avg_sim_time_per_episode'
 K_AVG_ACTIVE_CTRL_STEPS = 'avg_active_ctrl_steps'
 K_AVG_ACTIVE_CTRL_SIM_TIME = 'avg_active_ctrl_sim_time'
 K_GOAL_COMPLETION_RATE = 'goal_completion_rate'
@@ -52,6 +55,9 @@ def aggregate_agent_metrics(trial_data:List)->Dict:
     '''compute metrics for agent performance for sequence of trials (episodes)
     Returns:
         AVG_POLICY_COMPUTE_WALL_TIME : average wall-clock computation time of agent's policy per step
+        AVG_WALL_CLOCK_TIME_PER_EPISODE : average wall clock time per episode
+        AVG_STEPS_PER_EPISODE : average number of control steps, active or inactive, per episode
+        AVG_SIM_TIME_PER_EPISODE : average simulation time per episode
         AVG_ACTIVE_CTRL_STEPS : average number of active control steps per episode
         AVG_ACTIVE_CTRL_SIM_TIME: average sim time spent under active control per episode
         GOAL_COMPLETION_RATE : fraction of episodes that end in the goal terminal state
@@ -62,6 +68,9 @@ def aggregate_agent_metrics(trial_data:List)->Dict:
     agg_data = dict()
 
     agg_data[K_AVG_POLICY_COMPUTE_WALL_TIME] = np.sum([t['cum_wall_clock_time'] for t in trial_data]) / np.sum([t['n_env_steps'] for t in trial_data])
+    agg_data[K_AVG_WALL_CLOCK_TIME_PER_EPISODE] = np.mean([t['cum_wall_clock_time'] for t in trial_data])
+    agg_data[K_AVG_STEPS_PER_EPISODE] = np.mean([t['n_env_steps'] for t in trial_data])
+    agg_data[K_AVG_SIM_TIME_PER_EPISODE] = np.mean([t['cum_sim_time'] for t in trial_data])
     agg_data[K_AVG_ACTIVE_CTRL_STEPS] = np.mean([t['n_active_ctrl_env_steps'] for t in trial_data])
     agg_data[K_AVG_ACTIVE_CTRL_SIM_TIME] = np.mean([t['active_ctrl_sim_time'] for t in trial_data]) 
     agg_data[K_GOAL_COMPLETION_RATE] = len([t for t in trial_data if np.isclose(t['cum_reward'],1.0)])/len(trial_data)
@@ -268,7 +277,7 @@ def execute_cbf_agent(env,
                 action[K_ACTIVE_CTRL] = False
             else:
                 raise
-            
+
 
         # employ action in environment
         obs, rew, done, info = env.step_to_now(action)
@@ -351,9 +360,9 @@ CBFAgentConf = pbuilds(execute_cbf_agent,
 # Top-level configuration of experiment
 DEFAULT_N_TRIALS = 4       # number of trials (episodes) per agent
 agent_config_inputs = {
-    # K_INACTIVE_AGENT: InactiveAgentConf,
-    # K_RANDOM_AGENT: RandomAgentConf,
-    # K_HJREACH_AGENT: HJReachConf,
+    K_INACTIVE_AGENT: InactiveAgentConf,
+    K_RANDOM_AGENT: RandomAgentConf,
+    K_HJREACH_AGENT: HJReachConf,
     K_CBF_AGENT: CBFAgentConf
 }
 ExpConfig = make_config(

@@ -366,7 +366,15 @@ def test_get_observation_obstacle_0():
 
         # ~~ ACT ~~
         # wait a fixed amount of time and then propagate system
-        obs = env._get_observation()
+        obs = env._get_observation(
+            state=env._Dubins4dReachAvoidEnv__state, 
+            sim_time=env._sim_time, 
+            goal=env._goal,
+            obstacle=env._obstacle,
+            n_rays=env._n_rays,
+            ray_length=env._max_ray_length,
+            obs_dtype=env.observation_space.dtype
+        )
 
         # ~~ ASSERT ~~
         assert np.isclose(obs[5], exp_len_5[i])

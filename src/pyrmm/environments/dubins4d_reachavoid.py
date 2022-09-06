@@ -232,7 +232,14 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         # return initial observation and information
         self._cum_reward = 0
-        observation = self._get_observation()
+        observation = self._get_observation(
+            state=self.__state, 
+            sim_time=self._sim_time, 
+            goal=self._goal,
+            obstacle=self._obstacle,
+            n_rays=self._n_rays,
+            ray_length=self._max_ray_length,
+            obs_dtype=self.observation_space.dtype)
         info = self._get_info(False)
         return observation, info
 
@@ -394,8 +401,14 @@ class Dubins4dReachAvoidEnv(gym.Env):
         done = gcol_any or ocol_any or timeout
 
         # get observation
-        obs = self._get_observation()
-
+        obs = self._get_observation(
+            state=self.__state, 
+            sim_time=self._sim_time, 
+            goal=self._goal,
+            obstacle=self._obstacle,
+            n_rays=self._n_rays,
+            ray_length=self._max_ray_length,
+            obs_dtype=self.observation_space.dtype)
         # get auxillary information
         info = self._get_info(done)
 
@@ -407,8 +420,25 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         return obs, rew, done, info
 
-    def _get_observation(self):
+    @staticmethod
+    def _get_observation(state, sim_time, goal, obstacle, n_rays, ray_length, obs_dtype):
         '''formats observation of system according to observation space
+
+        Args:
+            state : ArrayLike
+                state of Dubins4D system in [x, y, theta, v] ordering
+            sim_time : float
+                simulation time when observation taken
+            goal : CircleRegion
+                goal region
+            obstacle : CircleRegion
+                obstacle region
+            n_rays : int
+                number of ray casts to observe
+            ray_length : float
+                maximum extent of unobstructed rays
+            obs_dtype :
+                dtype of observation space
 
         Returns:
             [0] sim-time [s]
@@ -419,41 +449,41 @@ class Dubins4dReachAvoidEnv(gym.Env):
             [5:5+N_RAYS] ray-casts to obstacles [m]
         '''
         obs = [
-            self._sim_time,
-            self._goal.xc - self.__state[SS_XIND],
-            self._goal.yc - self.__state[SS_YIND],
-            self.__state[SS_THETAIND],
-            self.__state[SS_VIND],
+            sim_time,
+            goal.xc - state[SS_XIND],
+            goal.yc - state[SS_YIND],
+            state[SS_THETAIND],
+            state[SS_VIND],
             ]
 
-        obs_ray = self._n_rays*[None]
-        for i in range(self._n_rays):
+        obs_ray = n_rays*[None]
+        for i in range(n_rays):
             # get evenly spaced angles relative to vehicle heading
-            rel_angle = 2*np.pi/self._n_rays * i
-            abs_angle = rel_angle + self.__state[SS_THETAIND]
+            rel_angle = 2*np.pi/n_rays * i
+            abs_angle = rel_angle + state[SS_THETAIND]
 
             # create start point of ray at vehicle location
-            abs_start_pt = Point(self.__state[SS_XIND], self.__state[SS_YIND])
+            abs_start_pt = Point(state[SS_XIND], state[SS_YIND])
 
             # get endpoints of ray if no collision in abs coords
-            abs_end_x = self._max_ray_length*np.cos(abs_angle) + self.__state[SS_XIND]
-            abs_end_y = self._max_ray_length*np.sin(abs_angle) + self.__state[SS_YIND]
+            abs_end_x = ray_length*np.cos(abs_angle) + state[SS_XIND]
+            abs_end_y = ray_length*np.sin(abs_angle) + state[SS_YIND]
             abs_end_pt = Point(abs_end_x, abs_end_y)
 
             # create Linestring from start to end to represent ray
             ray = LineString([abs_start_pt, abs_end_pt])
 
             # intersect LineString with obstacle Polygon
-            if ray.intersects(self._obstacle.polygon):
-                ray_obst_inter = ray.intersection(self._obstacle.polygon)
+            if ray.intersects(obstacle.polygon):
+                ray_obst_inter = ray.intersection(obstacle.polygon)
 
                 # get distance from point to intersection
                 obs_ray[i] = abs_start_pt.distance(ray_obst_inter)
 
             else:
-                obs_ray[i] = self._max_ray_length
+                obs_ray[i] = ray_length
 
-        observation = np.concatenate((obs, obs_ray), dtype=self.observation_space.dtype)
+        observation = np.concatenate((obs, obs_ray), dtype=obs_dtype)
         # if not self.observation_space.contains(observation):
         #     raise ValueError(
         #         "Observation outside of observation space\n"+

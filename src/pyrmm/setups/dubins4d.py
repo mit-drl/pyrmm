@@ -199,6 +199,58 @@ class Dubins4DReachAvoidStatePropagator(oc.StatePropagator):
             because it's perform the numerical integration in python instead of C++. 
             Could be improved later
         '''
+        # unpack objects from space information for ease of use
+        cspace = self.__si.getControlSpace()
+        nctrldims = cspace.getDimension()
+        cbounds = cspace.getBounds()
+        nsteps = path.getStateCount()
+        assert nsteps >= 2
+        assert nctrldims == 2
+        assert duration > 0 and not np.isclose(duration, 0.0)
+
+        # package init state and time vector
+        np_s0 = state_ompl_to_numpy(omplState=state)
+        
+        # create equi-spaced time vector based on number or elements
+        # in path object
+        t = np.linspace(0.0, duration, nsteps)
+
+        # clip the control to ensure it is within the control bounds
+        bounded_control = [np.clip(control[i], cbounds.low[i], cbounds.high[i]) for i in range(nctrldims)]
+        # bounded_control = np.clip([control[0]], self.cbounds.low, self.cbounds.high)
+
+        # formulate speed (state) bounds
+        speed_bounds = [
+            self.__si.getStateSpace().getSubspace(2).getBounds().low,
+            self.__si.getStateSpace().getSubspace(2).getBounds().high,
+        ]
+
+        # call scipy's ode integrator
+        sol = odeint(D4DD.ode_dubins4d, np_s0, t, args=(bounded_control, speed_bounds))
+
+        # store each intermediate point in the solution as pat of the path
+        pstates = path.getStates()
+        pcontrols = path.getControls()
+        ptimes = path.getControlDurations()
+        assert len(pcontrols) == len(ptimes) == nsteps-1
+        for i in range(nsteps-1):
+            state_numpy_to_ompl(np_state=sol[i,:], omplState=pstates[i])
+            for j in range(nctrldims):
+                pcontrols[i][j] = bounded_control[j]
+            ptimes[i] = t[i+1] - t[i]
+        
+        # store final state
+        state_numpy_to_ompl(np_state=sol[-1,:], omplState=pstates[-1])
+
+    def observeState(self, state):
+        '''query observation from a particular state
+        Args:
+            state : ob.State
+                state from which to make observation
+        Returns:
+            observation : ArrayLike
+                array giving observation values
+        '''
         raise NotImplementedError()
 
     def canPropagateBackwards(self):

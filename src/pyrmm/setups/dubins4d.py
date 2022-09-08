@@ -55,6 +55,9 @@ class Dubins4DReachAvoidSetup(SystemSetup):
         validityChecker = ob.StateValidityCheckerFn(partial(self.isStateValid, space_info, env))
         space_info.setStateValidityChecker(validityChecker)
 
+        # setup path validity checker
+        self.isPathValid = partial(self.isPathValidFull, env)
+
         # # call parent init to create simple setup
         super().__init__(space_information=space_info)
 
@@ -79,10 +82,34 @@ class Dubins4DReachAvoidSetup(SystemSetup):
         is_collision, _, _ = environment._obstacle.check_traj_intersection(np_state)
 
         # check speed bounds
-        is_speed_valid = spaceInformation.getStateSpace().getSubspace(2).satisfiesBounds(state[2])
+        # is_speed_valid = spaceInformation.getStateSpace().getSubspace(2).satisfiesBounds(state[2])
 
-        is_valid = is_speed_valid and not is_collision
-        return is_valid
+        # is_valid = is_speed_valid and not is_collision
+        return not is_collision
+
+    def isPathValidFull(self, environment, path):
+        '''check if path intersects obstacles in ppm image using bresenham lines
+        
+        Args:
+            environment : Dubins4DReachAvoidEnv
+                environment used for access to collision checker
+            path : oc.Path
+                OMPL representation of path to be checked
+        
+        Returns:
+            true if all path states and interpolated bresenham lines are valid (not colliding with obstacles)
+
+        Notes:
+            This overrides SystemSetup function that just looks at discrete states, not interpolated paths
+        '''
+
+        # convert path to array of states
+        np_traj = np.array([state_ompl_to_numpy(path.getState(i)) for i in range(path.getStateCount())])
+
+        # check collision validity
+        any_collision, _, _ = environment._obstacle.check_traj_intersection(np_traj)
+        
+        return not any_collision
 
         
 class Dubins4DReachAvoidStatePropagator(oc.StatePropagator):

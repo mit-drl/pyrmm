@@ -25,20 +25,20 @@ def test_Dubins4DReachAvoidSetup_init_0():
     # ~~~ ASSERT ~~~
     pass
 
-def test_Dubins4DReachAvoid_isStateValid_0():
-    """check that a speed-violating path is invalid"""
-    # ~~~ ARRANGE ~~~
-    env = Dubins4dReachAvoidEnv()
-    d4d_setup = Dubins4DReachAvoidSetup(env=env)
-    is_valid_fn = d4d_setup.space_info.getStateValidityChecker()
-    s0 = d4d_setup.space_info.allocState()
-    s0[2][0] = env.state_space.high[3] + 0.1
+# def test_Dubins4DReachAvoid_isStateValid_0():
+#     """check that a speed-violating path is invalid"""
+#     # ~~~ ARRANGE ~~~
+#     env = Dubins4dReachAvoidEnv()
+#     d4d_setup = Dubins4DReachAvoidSetup(env=env)
+#     is_valid_fn = d4d_setup.space_info.getStateValidityChecker()
+#     s0 = d4d_setup.space_info.allocState()
+#     s0[2][0] = env.state_space.high[3] + 0.1
 
-    # ~~~ ACT ~~~
-    is_valid = is_valid_fn.isValid(s0)
+#     # ~~~ ACT ~~~
+#     is_valid = is_valid_fn.isValid(s0)
 
-    # ~~~ ASSERT ~~~
-    assert not is_valid
+#     # ~~~ ASSERT ~~~
+#     assert not is_valid
 
 def test_Dubins4DReachAvoid_isStateValid_1():
     """check that a obst-violating path is invalid"""
@@ -72,6 +72,60 @@ def test_Dubins4DReachAvoid_isStateValid_2():
 
     # ~~~ ASSERT ~~~
     assert is_valid
+
+def test_Dubins4DReachAvoid_isPathValid_0():
+    """check that unobstructed path is valid"""
+    # ~~~ ARRANGE ~~~
+    env = Dubins4dReachAvoidEnv()
+    env._obstacle.xc = 100
+    env._obstacle.yc = 100
+    d4d_setup = Dubins4DReachAvoidSetup(env=env)
+
+    # create state
+    np_s0 = np.array([-1, -1, np.pi/4, 1])
+    np_s1 = np.array([1, 1, np.pi/4, 1])
+    s0 = d4d_setup.space_info.allocState()
+    s1 = d4d_setup.space_info.allocState()
+    state_numpy_to_ompl(np_s0, s0)
+    state_numpy_to_ompl(np_s1, s1)
+
+    # create path
+    pth = oc.PathControl(d4d_setup.space_info)
+    pth.append(s0)
+    pth.append(s1)
+
+    # ~~~ ACT ~~~
+    is_valid = d4d_setup.isPathValid(pth)
+
+    # ~~~ ASSERT ~~~
+    assert is_valid
+
+def test_Dubins4DReachAvoid_isPathValid_1():
+    """check that obstructed path is invalid"""
+    # ~~~ ARRANGE ~~~
+    env = Dubins4dReachAvoidEnv()
+    env._obstacle.xc = 0
+    env._obstacle.yc = 0
+    d4d_setup = Dubins4DReachAvoidSetup(env=env)
+
+    # create state
+    np_s0 = np.array([-1, -1, np.pi/4, 1])
+    np_s1 = np.array([1, 1, np.pi/4, 1])
+    s0 = d4d_setup.space_info.allocState()
+    s1 = d4d_setup.space_info.allocState()
+    state_numpy_to_ompl(np_s0, s0)
+    state_numpy_to_ompl(np_s1, s1)
+
+    # create path
+    pth = oc.PathControl(d4d_setup.space_info)
+    pth.append(s0)
+    pth.append(s1)
+
+    # ~~~ ACT ~~~
+    is_valid = d4d_setup.isPathValid(pth)
+
+    # ~~~ ASSERT ~~~
+    assert not is_valid
 
 def test_Dubins4DReachAvoidStatePropagator_propagate_0():
 
@@ -148,4 +202,4 @@ def test_state_ompl_to_numpy_0():
     
 if __name__ == "__main__":
     # test_Dubins4DReachAvoidStatePropagator_propagate_0()
-    test_Dubins4DReachAvoid_isStateValid_2()
+    test_Dubins4DReachAvoid_isPathValid_0()

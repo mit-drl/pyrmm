@@ -17,7 +17,7 @@ from ompl import control as oc
 from pyrmm.setups import SystemSetup
 from pyrmm.environments.dubins4d_reachavoid import K_TURNRATE_CTRL, K_ACCEL_CTRL
 
-class Dubins4DReachAvoidSetup(SystemSetup):
+class Dubins4dReachAvoidSetup(SystemSetup):
     def __init__(self, env):
         '''
         Args:
@@ -33,7 +33,7 @@ class Dubins4DReachAvoidSetup(SystemSetup):
         sbounds['ypos_high'] = float(env.state_space.high[1])
         sbounds['speed_low'] = float(env.state_space.low[3])
         sbounds['speed_high'] = float(env.state_space.high[3])
-        state_space = D4DD.Dubins4DStateSpace(bounds=sbounds)
+        state_space = D4DD.Dubins4dStateSpace(bounds=sbounds)
 
         # create control space and set bounds inherited from environment
         control_space = oc.RealVectorControlSpace(stateSpace=state_space, dim=2)
@@ -48,7 +48,7 @@ class Dubins4DReachAvoidSetup(SystemSetup):
         space_info = oc.SpaceInformation(stateSpace=state_space, controlSpace=control_space)
 
         # create and set propagator class from ODEs
-        propagator = Dubins4DReachAvoidStatePropagator(spaceInformation=space_info)
+        propagator = Dubins4dReachAvoidStatePropagator(spaceInformation=space_info)
         space_info.setStatePropagator(propagator)
 
         # create and set state validity checker
@@ -112,7 +112,7 @@ class Dubins4DReachAvoidSetup(SystemSetup):
         return not any_collision
 
         
-class Dubins4DReachAvoidStatePropagator(oc.StatePropagator):
+class Dubins4dReachAvoidStatePropagator(oc.StatePropagator):
     def __init__(self, spaceInformation):
         '''
         spaceInformation : oc.SpaceInformation

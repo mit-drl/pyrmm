@@ -6,8 +6,8 @@ from ompl import base as ob
 from ompl import control as oc
 from copy import deepcopy
 
-from pyrmm.setups.dubins4d import Dubins4DReachAvoidSetup, \
-    Dubins4DReachAvoidStatePropagator, \
+from pyrmm.setups.dubins4d import Dubins4dReachAvoidSetup, \
+    Dubins4dReachAvoidStatePropagator, \
     state_ompl_to_numpy, state_numpy_to_ompl
 from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv
 from ompl import base as ob
@@ -20,7 +20,7 @@ def test_Dubins4DReachAvoidSetup_init_0():
 
     # ~~~ ACT ~~~
     # create dubins4d reach avoid setup
-    d4d_setup = Dubins4DReachAvoidSetup(env = env)
+    d4d_setup = Dubins4dReachAvoidSetup(env = env)
 
     # ~~~ ASSERT ~~~
     pass
@@ -44,7 +44,7 @@ def test_Dubins4DReachAvoid_isStateValid_1():
     """check that a obst-violating path is invalid"""
     # ~~~ ARRANGE ~~~
     env = Dubins4dReachAvoidEnv()
-    d4d_setup = Dubins4DReachAvoidSetup(env=env)
+    d4d_setup = Dubins4dReachAvoidSetup(env=env)
     is_valid_fn = d4d_setup.space_info.getStateValidityChecker()
     s0 = d4d_setup.space_info.allocState()
     s0[0][0] = float(env._obstacle.xc)
@@ -60,7 +60,7 @@ def test_Dubins4DReachAvoid_isStateValid_2():
     """check that state is valid"""
     # ~~~ ARRANGE ~~~
     env = Dubins4dReachAvoidEnv()
-    d4d_setup = Dubins4DReachAvoidSetup(env=env)
+    d4d_setup = Dubins4dReachAvoidSetup(env=env)
     is_valid_fn = d4d_setup.space_info.getStateValidityChecker()
     s0 = d4d_setup.space_info.allocState()
     s0[0][0] = float(env.state_space.high[0] + 100.)
@@ -79,7 +79,7 @@ def test_Dubins4DReachAvoid_isPathValid_0():
     env = Dubins4dReachAvoidEnv()
     env._obstacle.xc = 100
     env._obstacle.yc = 100
-    d4d_setup = Dubins4DReachAvoidSetup(env=env)
+    d4d_setup = Dubins4dReachAvoidSetup(env=env)
 
     # create state
     np_s0 = np.array([-1, -1, np.pi/4, 1])
@@ -106,7 +106,7 @@ def test_Dubins4DReachAvoid_isPathValid_1():
     env = Dubins4dReachAvoidEnv()
     env._obstacle.xc = 0
     env._obstacle.yc = 0
-    d4d_setup = Dubins4DReachAvoidSetup(env=env)
+    d4d_setup = Dubins4dReachAvoidSetup(env=env)
 
     # create state
     np_s0 = np.array([-1, -1, np.pi/4, 1])
@@ -160,7 +160,7 @@ def test_Dubins4DReachAvoidStatePropagator_propagate_0():
 
     # create space information for state and control space
     space_info = oc.SpaceInformation(stateSpace=state_space, controlSpace=control_space)
-    propagator = Dubins4DReachAvoidStatePropagator(spaceInformation=space_info)
+    propagator = Dubins4dReachAvoidStatePropagator(spaceInformation=space_info)
 
     # create state and control to propagate
     state = state_space.allocState()
@@ -186,7 +186,7 @@ def test_Dubins4DReachAvoidStatePropagator_propagate_0():
 def test_state_ompl_to_numpy_0():
     """check if copying states does not modify them"""
     # ~~~ ARRANGE ~~~
-    sspace = D4DD.Dubins4DStateSpace()
+    sspace = D4DD.Dubins4dStateSpace()
 
     omplState = sspace.allocState()
     np_state_orig = np.array([0.43438265, 0.66847181, 0.38747802, 0.00861762])

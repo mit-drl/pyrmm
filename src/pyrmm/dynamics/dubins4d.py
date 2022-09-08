@@ -21,7 +21,7 @@ Ref:
 import numpy as np
 from ompl import base as ob
 
-class Dubins4DStateSpace(ob.CompoundStateSpace):
+class Dubins4dStateSpace(ob.CompoundStateSpace):
     """OMPL representation of Dubins 4D state with x-pos, y-pos, heading, speed"""
     def __init__(self, bounds=None):
         """
@@ -102,6 +102,4 @@ def ode_dubins4d(y, t, u, vbounds):
         dydt[3] = 0.0
     if dydt[3] > 0 and y[3] > vbounds[1]- 1e-3:
         dydt[3] = 0.0
-    return dydt
-
     return dydt

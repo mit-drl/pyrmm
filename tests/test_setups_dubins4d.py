@@ -40,6 +40,39 @@ def test_Dubins4DReachAvoid_isStateValid_0():
     # ~~~ ASSERT ~~~
     assert not is_valid
 
+def test_Dubins4DReachAvoid_isStateValid_1():
+    """check that a obst-violating path is invalid"""
+    # ~~~ ARRANGE ~~~
+    env = Dubins4dReachAvoidEnv()
+    d4d_setup = Dubins4DReachAvoidSetup(env=env)
+    is_valid_fn = d4d_setup.space_info.getStateValidityChecker()
+    s0 = d4d_setup.space_info.allocState()
+    s0[0][0] = float(env._obstacle.xc)
+    s0[0][1] = float(env._obstacle.yc)
+
+    # ~~~ ACT ~~~
+    is_valid = is_valid_fn.isValid(s0)
+
+    # ~~~ ASSERT ~~~
+    assert not is_valid
+
+def test_Dubins4DReachAvoid_isStateValid_2():
+    """check that state is valid"""
+    # ~~~ ARRANGE ~~~
+    env = Dubins4dReachAvoidEnv()
+    d4d_setup = Dubins4DReachAvoidSetup(env=env)
+    is_valid_fn = d4d_setup.space_info.getStateValidityChecker()
+    s0 = d4d_setup.space_info.allocState()
+    s0[0][0] = float(env.state_space.high[0] + 100.)
+    s0[0][1] = float(env.state_space.high[1] + 100.)
+    s0[2][0] = float(env.state_space.low[3])
+
+    # ~~~ ACT ~~~
+    is_valid = is_valid_fn.isValid(s0)
+
+    # ~~~ ASSERT ~~~
+    assert is_valid
+
 def test_Dubins4DReachAvoidStatePropagator_propagate_0():
 
     # ~~~ ARRANGE ~~~
@@ -114,4 +147,5 @@ def test_state_ompl_to_numpy_0():
 
     
 if __name__ == "__main__":
-    test_Dubins4DReachAvoidStatePropagator_propagate_0()
+    # test_Dubins4DReachAvoidStatePropagator_propagate_0()
+    test_Dubins4DReachAvoid_isStateValid_2()

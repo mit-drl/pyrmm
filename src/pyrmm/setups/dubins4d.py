@@ -6,13 +6,15 @@ control : [d_theta, d_speed]
 
 import numpy as np
 
+import pyrmm.dynamics.dubins4d as D4DD
+
+from functools import partial
 from scipy.integrate import odeint
 
 from ompl import base as ob
 from ompl import control as oc
 
 from pyrmm.setups import SystemSetup
-from pyrmm.dynamics.dubins4d import ode_dubins4d
 from pyrmm.environments.dubins4d_reachavoid import K_TURNRATE_CTRL, K_ACCEL_CTRL
 
 class Dubins4DReachAvoidSetup(SystemSetup):
@@ -24,23 +26,14 @@ class Dubins4DReachAvoidSetup(SystemSetup):
         '''
 
         # create state space
-        state_space = ob.CompoundStateSpace()
-        state_space.addSubspace(ob.RealVectorStateSpace(2), 1.0)    # xy-position [m]
-        state_space.addSubspace(ob.SO2StateSpace(), 1.0)            # heading (theta)   [rad]
-        state_space.addSubspace(ob.RealVectorStateSpace(1), 1.0)    # linear speed (v)  [m/s]
-
-        # set state space bounds inherited from environment
-        pos_bounds = ob.RealVectorBounds(2)
-        pos_bounds.setLow(0, float(env.state_space.low[0]))
-        pos_bounds.setHigh(0, float(env.state_space.high[0]))
-        pos_bounds.setLow(1, float(env.state_space.low[1]))
-        pos_bounds.setHigh(1, float(env.state_space.high[1]))
-        state_space.getSubspace(0).setBounds(pos_bounds)
-
-        speed_bounds = ob.RealVectorBounds(1)
-        speed_bounds.setLow(0, float(env.state_space.low[3]))
-        speed_bounds.setHigh(0, float(env.state_space.high[3]))
-        state_space.getSubspace(2).setBounds(speed_bounds)
+        sbounds = dict()
+        sbounds['xpos_low'] = float(env.state_space.low[0])
+        sbounds['xpos_high'] = float(env.state_space.high[0])
+        sbounds['ypos_low'] = float(env.state_space.low[1])
+        sbounds['ypos_high'] = float(env.state_space.high[1])
+        sbounds['speed_low'] = float(env.state_space.low[3])
+        sbounds['speed_high'] = float(env.state_space.high[3])
+        state_space = D4DD.Dubins4DStateSpace(bounds=sbounds)
 
         # create control space and set bounds inherited from environment
         control_space = oc.RealVectorControlSpace(stateSpace=state_space, dim=2)
@@ -58,12 +51,34 @@ class Dubins4DReachAvoidSetup(SystemSetup):
         propagator = Dubins4DReachAvoidStatePropagator(spaceInformation=space_info)
         space_info.setStatePropagator(propagator)
 
-        # # create and set state validity checker
-        # validityChecker = TODO
-        # space_info.setStateValidityChecker(validityChecker)
+        # create and set state validity checker
+        validityChecker = ob.StateValidityCheckerFn(partial(self.isStateValid, space_info, env))
+        space_info.setStateValidityChecker(validityChecker)
 
         # # call parent init to create simple setup
         # super().__init__(space_information=space_info)
+
+    def isStateValid(self, spaceInformation, environment, state):
+        ''' check ppm image colors for obstacle collision
+        Args:
+            spaceInformation : ob.SpaceInformationPtr
+                state space information as given by SimpleSetup.getSpaceInformation
+            environment : gym.Env
+                envrionment defining obstacle set
+            state : ob.State
+                state to check for validity
+        
+        Returns:
+            True if state in bound and not in collision with obstacles
+        '''
+
+        # convert state to numpy
+
+        # check obstacle collision
+
+        # check speed bounds
+        raise NotImplementedError()
+
 
         
 class Dubins4DReachAvoidStatePropagator(oc.StatePropagator):
@@ -105,7 +120,8 @@ class Dubins4DReachAvoidStatePropagator(oc.StatePropagator):
         # package init state and time vector
         # NOTE: only using 2-step time vector. Not sure if this degrades 
         # accuracy or just reduces the amount of data output
-        s0 = [state[0][0], state[0][1], state[1].value, state[2][0]]
+        s0 = np.empty(4,)
+        state_ompl_to_numpy(omplState=state, np_state=s0)
         t = [0.0, duration]
 
         # clip the control to ensure it is within the control bounds
@@ -119,11 +135,74 @@ class Dubins4DReachAvoidStatePropagator(oc.StatePropagator):
         ]
 
         # call scipy's ode integrator
-        sol = odeint(ode_dubins4d, s0, t, args=(bounded_control, speed_bounds))
+        sol = odeint(D4DD.ode_dubins4d, s0, t, args=(bounded_control, speed_bounds))
 
         # store solution in result
-        result[0][0] = sol[-1,0]
-        result[0][1] = sol[-1,1]
-        result[1].value = sol[-1,2]
-        result[2][0] = sol[-1,3]
+        state_numpy_to_ompl(np_state=sol[-1,:], omplState=result)
+        # result[0][0] = sol[-1,0]
+        # result[0][1] = sol[-1,1]
+        # result[1].value = sol[-1,2]
+        # result[2][0] = sol[-1,3]
 
+    def propagate_path(self, state, control, duration, path):
+        ''' propagate from start based on control, store final state in result, store path to result
+        Args:
+            state : ob.State
+                start state of propagation
+            control : oc.Control
+                control to apply during propagation
+            duration : float
+                duration of propagation
+            path : oc.ControlPath
+                path from state to result in nsteps. initial state is state, final state is result
+
+        Returns:
+            None
+
+
+        Notes:
+            This function is similar, but disctinct from 'StatePropagator.propagate', thus its different name to no overload `propagate`. 
+            propagate does not store or return the path to get to result
+            
+            Currently using scipy's odeint. This creates a dependency on scipy and is likely inefficient
+            because it's perform the numerical integration in python instead of C++. 
+            Could be improved later
+        '''
+        raise NotImplementedError()
+
+    def canPropagateBackwards(self):
+        return False
+
+    def steer(self, from_state, to_state, control, duration):
+        return False
+
+    def canSteer(self):
+        return False
+
+def state_ompl_to_numpy(omplState, np_state):
+    """convert Dubins4d ompl state to numpy array
+
+    Args:
+        omplState : ob.CompoundState
+            dubins 4d state in ompl CompoundState format
+        np_state : ndarray (4,)
+            dubins 4d state represented in np array in [x,y,theta,v] ordering
+    """
+    np_state[0] = omplState[0][0]
+    np_state[1] = omplState[0][1]
+    np_state[2] = omplState[1].value
+    np_state[3] = omplState[2][0]
+
+def state_numpy_to_ompl(np_state, omplState):
+    """convert dubins4d state in numpy array in [x,y,theta,v] to ompl compound state
+
+    Args:
+        np_state : ndarray (4,)
+            dubins 4d state represented in np array in [x,y,theta,v] ordering
+        omplState : ob.CompoundState
+            dubins 4d state in ompl CompoundState format
+    """
+    omplState[0][0] = np_state[0]
+    omplState[0][1] = np_state[1]
+    omplState[1].value = np_state[2]
+    omplState[2][0] = np_state[3]

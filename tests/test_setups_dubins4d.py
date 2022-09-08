@@ -1,11 +1,17 @@
 import numpy as np
 
-from pyrmm.setups.dubins4d import Dubins4DReachAvoidSetup, Dubins4DReachAvoidStatePropagator
-from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv
+import pyrmm.dynamics.dubins4d as D4DD
 
 from ompl import base as ob
 from ompl import control as oc
+from copy import deepcopy
 
+from pyrmm.setups.dubins4d import Dubins4DReachAvoidSetup, \
+    Dubins4DReachAvoidStatePropagator, \
+    state_ompl_to_numpy, state_numpy_to_ompl
+from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv
+from ompl import base as ob
+from ompl import control as oc
 def test_Dubins4DReachAvoidSetup_init_0():
     
     # ~~~ ARRANGE ~~~
@@ -74,6 +80,22 @@ def test_Dubins4DReachAvoidStatePropagator_propagate_0():
     assert np.isclose(result[0][1], 0.0)
     assert np.isclose(result[1].value, 0.0)
     assert np.isclose(result[2][0], 1.0)
+
+def test_state_ompl_to_numpy_0():
+    """check if copying states does not modify them"""
+    # ~~~ ARRANGE ~~~
+    sspace = D4DD.Dubins4DStateSpace()
+
+    omplState = sspace.allocState()
+    np_state_orig = np.array([0.43438265, 0.66847181, 0.38747802, 0.00861762])
+    np_state_new = np.empty(4,)
+
+    # ~~~ ACT ~~~
+    state_numpy_to_ompl(np_state_orig, omplState)
+    state_ompl_to_numpy(omplState, np_state_new)
+
+    # ~~~ ASSERT ~~~
+    assert np.allclose(np_state_new, np_state_orig)
     
 if __name__ == "__main__":
     test_Dubins4DReachAvoidStatePropagator_propagate_0()

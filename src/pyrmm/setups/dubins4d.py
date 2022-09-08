@@ -161,8 +161,8 @@ class Dubins4dReachAvoidStatePropagator(oc.StatePropagator):
 
         # formulate speed (state) bounds
         speed_bounds = [
-            self.__si.getStateSpace().getSubspace(2).getBounds().low,
-            self.__si.getStateSpace().getSubspace(2).getBounds().high,
+            self.__si.getStateSpace().getSubspace(2).getBounds().low[0],
+            self.__si.getStateSpace().getSubspace(2).getBounds().high[0],
         ]
 
         # call scipy's ode integrator
@@ -221,8 +221,8 @@ class Dubins4dReachAvoidStatePropagator(oc.StatePropagator):
 
         # formulate speed (state) bounds
         speed_bounds = [
-            self.__si.getStateSpace().getSubspace(2).getBounds().low,
-            self.__si.getStateSpace().getSubspace(2).getBounds().high,
+            self.__si.getStateSpace().getSubspace(2).getBounds().low[0],
+            self.__si.getStateSpace().getSubspace(2).getBounds().high[0],
         ]
 
         # call scipy's ode integrator

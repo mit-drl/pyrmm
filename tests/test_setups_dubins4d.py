@@ -183,6 +183,69 @@ def test_Dubins4DReachAvoidStatePropagator_propagate_0():
     assert np.isclose(result[1].value, 0.0)
     assert np.isclose(result[2][0], 1.0)
 
+def test_Dubins4dReachAvoidStatePropagator_propagate_path_0():
+    '''test that propagator arrives at expected state'''
+
+    # ~~~ ARRANGE ~~~
+    # create state space
+    sbounds = dict()
+    sbounds['xpos_low'] = -10.0
+    sbounds['xpos_high'] = 10.0
+    sbounds['ypos_low'] = -10.0
+    sbounds['ypos_high'] = 10.0
+    sbounds['speed_low'] = -2.0
+    sbounds['speed_high'] = 2.0
+    state_space = D4DD.Dubins4dStateSpace(bounds=sbounds)
+
+    # create control space and set bounds inherited from environment
+    control_space = oc.RealVectorControlSpace(stateSpace=state_space, dim=2)
+    cbounds = ob.RealVectorBounds(2)
+    cbounds.setLow(0, -1)
+    cbounds.setHigh(0, 1)
+    cbounds.setLow(1, -1)
+    cbounds.setHigh(1, 1)
+    control_space.setBounds(cbounds)
+
+    # create space information for state and control space
+    si = oc.SpaceInformation(stateSpace=state_space, controlSpace=control_space)
+    propagator = Dubins4dReachAvoidStatePropagator(spaceInformation=si)
+
+    # create initial state
+    np_s0 = np.array([0.0, 0.0, 0.0, 1.0])
+    s0 = state_space.allocState()
+    state_numpy_to_ompl(np_state=np_s0, omplState=s0)
+
+    # create control input and duration
+    c0 = control_space.allocControl()
+    c0[0] = 0.0
+    c0[1] = 0.0
+    duration = 1.0
+
+    # create path object and alloc 2 states
+    path = oc.PathControl(si)
+    path.append(state=si.allocState(), control=si.allocControl(), duration=0)
+    path.append(state=si.allocState())
+
+    # ~~~ ACT ~~~
+    # propagate state
+    propagator.propagate_path(s0, c0, duration, path)
+    
+    # ~~~ ASSERT ~~~
+    assert control_space.getDimension() == 2
+    assert path.getStateCount() == 2
+    assert path.getControlCount() == 1
+    assert np.isclose(path.getState(0)[0][0], 0.0)
+    assert np.isclose(path.getState(0)[0][1], 0.0)
+    assert np.isclose(path.getState(0)[1].value, 0.0)
+    assert np.isclose(path.getState(0)[2][0], 1.0)
+    assert np.isclose(path.getControl(0)[0], 0.0)
+    assert np.isclose(path.getControl(0)[1], 0.0)
+    assert np.isclose(path.getControlDuration(0), 1.0)
+    assert np.isclose(path.getState(1)[0][0], 1.0)
+    assert np.isclose(path.getState(1)[0][1], 0.0)
+    assert np.isclose(path.getState(1)[1].value, 0.0)
+    assert np.isclose(path.getState(1)[2][0], 1.0)
+
 def test_state_ompl_to_numpy_0():
     """check if copying states does not modify them"""
     # ~~~ ARRANGE ~~~
@@ -201,5 +264,6 @@ def test_state_ompl_to_numpy_0():
 
     
 if __name__ == "__main__":
-    # test_Dubins4DReachAvoidStatePropagator_propagate_0()
-    test_Dubins4DReachAvoid_isPathValid_0()
+    test_Dubins4DReachAvoidStatePropagator_propagate_0()
+    # test_Dubins4DReachAvoid_isPathValid_0()
+    # test_Dubins4dReachAvoidStatePropagator_propagate_path_0()

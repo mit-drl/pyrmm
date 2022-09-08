@@ -25,6 +25,21 @@ def test_Dubins4DReachAvoidSetup_init_0():
     # ~~~ ASSERT ~~~
     pass
 
+def test_Dubins4DReachAvoid_isStateValid_0():
+    """check that a speed-violating path is invalid"""
+    # ~~~ ARRANGE ~~~
+    env = Dubins4dReachAvoidEnv()
+    d4d_setup = Dubins4DReachAvoidSetup(env=env)
+    is_valid_fn = d4d_setup.space_info.getStateValidityChecker()
+    s0 = d4d_setup.space_info.allocState()
+    s0[2][0] = env.state_space.high[3] + 0.1
+
+    # ~~~ ACT ~~~
+    is_valid = is_valid_fn.isValid(s0)
+
+    # ~~~ ASSERT ~~~
+    assert not is_valid
+
 def test_Dubins4DReachAvoidStatePropagator_propagate_0():
 
     # ~~~ ARRANGE ~~~
@@ -96,6 +111,7 @@ def test_state_ompl_to_numpy_0():
 
     # ~~~ ASSERT ~~~
     assert np.allclose(np_state_new, np_state_orig)
+
     
 if __name__ == "__main__":
     test_Dubins4DReachAvoidStatePropagator_propagate_0()

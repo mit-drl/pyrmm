@@ -56,7 +56,7 @@ class Dubins4DReachAvoidSetup(SystemSetup):
         space_info.setStateValidityChecker(validityChecker)
 
         # # call parent init to create simple setup
-        # super().__init__(space_information=space_info)
+        super().__init__(space_information=space_info)
 
     def isStateValid(self, spaceInformation, environment, state):
         ''' check ppm image colors for obstacle collision
@@ -73,12 +73,16 @@ class Dubins4DReachAvoidSetup(SystemSetup):
         '''
 
         # convert state to numpy
+        np_state = state_ompl_to_numpy(state).reshape(1,4)
 
         # check obstacle collision
+        is_collision, _, _ = environment._obstacle.check_traj_intersection(np_state)
 
         # check speed bounds
-        raise NotImplementedError()
+        is_speed_valid = spaceInformation.getStateSpace().getSubspace(2).satisfiesBounds(state[2])
 
+        is_valid = is_speed_valid and not is_collision
+        return is_valid
 
         
 class Dubins4DReachAvoidStatePropagator(oc.StatePropagator):
@@ -179,7 +183,7 @@ class Dubins4DReachAvoidStatePropagator(oc.StatePropagator):
     def canSteer(self):
         return False
 
-def state_ompl_to_numpy(omplState, np_state):
+def state_ompl_to_numpy(omplState, np_state=None):
     """convert Dubins4d ompl state to numpy array
 
     Args:
@@ -188,10 +192,17 @@ def state_ompl_to_numpy(omplState, np_state):
         np_state : ndarray (4,)
             dubins 4d state represented in np array in [x,y,theta,v] ordering
     """
+    ret = False
+    if np_state is None:
+        np_state = np.empty(4,)
+        ret = True
     np_state[0] = omplState[0][0]
     np_state[1] = omplState[0][1]
     np_state[2] = omplState[1].value
     np_state[3] = omplState[2][0]
+
+    if ret:
+        return np_state
 
 def state_numpy_to_ompl(np_state, omplState):
     """convert dubins4d state in numpy array in [x,y,theta,v] to ompl compound state

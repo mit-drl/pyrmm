@@ -1,5 +1,5 @@
 import hydra
-import multiprocess
+import multiprocessing
 import time
 import torch
 import logging
@@ -34,6 +34,7 @@ _SAVE_FNAME = U.format_save_filename(Path(__file__), _HASH_LEN)
 
 pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
+# TODO: add much more dense lidar mesh
 _DEFAULT_LIDAR_RANGE = 100.0
 _DEFAULT_LIDAR_ANGLES = [
         (np.pi/2, 0),
@@ -65,7 +66,7 @@ make_config_input = {
     U.TREE_DEPTH: zf(int,_DEFAULT_TREE_DEPTH),
     U.N_STEPS: zf(int,_DEFAULT_N_STEPS),
     U.POLICY: zf(str,_DEFAULT_POLICY),
-    U.N_CORES: zf(int, multiprocess.cpu_count()),
+    U.N_CORES: zf(int, multiprocessing.cpu_count()),
 }
 Config = make_config('pcg_rooms_dir', **make_config_input)
 ConfigStore.instance().store(_CONFIG_NAME,Config)

@@ -58,6 +58,9 @@ class Dubins4dReachAvoidSetup(SystemSetup):
         # setup path validity checker
         self.isPathValid = partial(self.isPathValidFull, env)
 
+        # setup state observation
+        self.observeState = partial(self.observeStateFull, env)
+
         # # call parent init to create simple setup
         super().__init__(space_information=space_info)
 
@@ -110,6 +113,21 @@ class Dubins4dReachAvoidSetup(SystemSetup):
         any_collision, _, _ = environment._obstacle.check_traj_intersection(np_traj)
         
         return not any_collision
+
+    def observeStateFull(self, environment, state):
+        '''query observation from a particular state
+        Args:
+            environment : Dubins4dReachAvoidEnv
+                environment on which to take observations
+            state : ob.State
+                state from which to make observation
+        Returns:
+            observation : ArrayLike
+                array giving observation values
+        '''
+        # convert state to numpy
+        np_state = state_ompl_to_numpy(omplState=state)
+        return environment._get_observation(state=np_state)
 
         
 class Dubins4dReachAvoidStatePropagator(oc.StatePropagator):
@@ -241,18 +259,7 @@ class Dubins4dReachAvoidStatePropagator(oc.StatePropagator):
         
         # store final state
         state_numpy_to_ompl(np_state=sol[-1,:], omplState=pstates[-1])
-
-    def observeState(self, state):
-        '''query observation from a particular state
-        Args:
-            state : ob.State
-                state from which to make observation
-        Returns:
-            observation : ArrayLike
-                array giving observation values
-        '''
-        raise NotImplementedError()
-
+        
     def canPropagateBackwards(self):
         return False
 

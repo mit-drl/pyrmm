@@ -127,6 +127,81 @@ def test_Dubins4DReachAvoid_isPathValid_1():
     # ~~~ ASSERT ~~~
     assert not is_valid
 
+def test_Dubins4dReachAvoidSetup_observeState_0():
+    """check simple state observation is as expected"""
+
+    # ~~~ ARRANGE ~~~
+    env = Dubins4dReachAvoidEnv()
+    # env._obstacle.xc = 1.0
+    # env._obstacle.yc = 0.0
+    env._goal.xc = 0.0
+    env._goal.yc = 1.0
+    d4d_setup = Dubins4dReachAvoidSetup(env=env)
+
+    # create state
+    np_s0 = np.array([0.08063903, 0.3758181 , 0.06863028, 0.25325886])
+    s0 = d4d_setup.space_info.allocState()
+    state_numpy_to_ompl(np_s0, s0)
+
+    # ~~~ ACT ~~~
+    # observe state
+    obs = d4d_setup.observeState(state=s0)
+
+    # ~~~ ASSERT ~~~
+    assert len(obs) == 17
+    assert np.isclose(obs[0], 0)
+    assert np.isclose(obs[1], -0.08063903)
+    assert np.isclose(obs[2], 1-0.3758181)
+    assert np.isclose(obs[3], 0.06863028)
+    assert np.isclose(obs[4], 0.25325886)
+
+def test_Dubins4dReachAvoidSetup_observeState_1():
+    """check simple state observation is as expected"""
+
+    # ~~~ ARRANGE ~~~
+    env = Dubins4dReachAvoidEnv()
+    env._obstacle.xc = 1.0
+    env._obstacle.yc = 0.0
+    obst_r = 0.5 + 1e-3
+    env._obstacle.r = obst_r
+    env._goal.xc = 0.0
+    env._goal.yc = 1.0
+    d4d_setup = Dubins4dReachAvoidSetup(env=env)
+
+    # create state
+    np_s0 = np.array([0., 0., 0., 0.])
+    s0 = d4d_setup.space_info.allocState()
+    state_numpy_to_ompl(np_s0, s0)
+
+    # ~~~ ACT ~~~
+    # observe state
+    obs = d4d_setup.observeState(state=s0)
+
+    # ~~~ ASSERT ~~~
+    assert len(obs) == 17
+    # sim time
+    assert np.isclose(obs[0], 0)
+
+    # goal relative position
+    assert np.isclose(obs[1], 0)
+    assert np.isclose(obs[2], 1)
+
+    # absolute heading and velocity
+    assert np.isclose(obs[3], 0)
+    assert np.isclose(obs[4], 0)
+
+    # ray cast
+    assert np.isclose(obs[5], 1-obst_r)
+    theta = np.pi/6
+    alpha = np.pi - np.arcsin(1*np.sin(theta)/obst_r)
+    beta = np.pi - theta - alpha
+    b = obst_r * np.sin(beta)/np.sin(theta)
+    assert np.isclose(obs[6], b, rtol=1e-2)
+    assert np.allclose(obs[7:-1], 5.0)
+    assert np.isclose(obs[-1], b, rtol=1e-2)
+
+    
+
 def test_Dubins4DReachAvoidStatePropagator_propagate_0():
 
     # ~~~ ARRANGE ~~~
@@ -264,6 +339,7 @@ def test_state_ompl_to_numpy_0():
 
     
 if __name__ == "__main__":
-    test_Dubins4DReachAvoidStatePropagator_propagate_0()
+    # test_Dubins4DReachAvoidStatePropagator_propagate_0()
     # test_Dubins4DReachAvoid_isPathValid_0()
     # test_Dubins4dReachAvoidStatePropagator_propagate_path_0()
+    test_Dubins4dReachAvoidSetup_observeState_1()

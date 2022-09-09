@@ -232,14 +232,8 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         # return initial observation and information
         self._cum_reward = 0
-        observation = self._get_observation(
-            state=self.__state, 
-            sim_time=self._sim_time, 
-            goal=self._goal,
-            obstacle=self._obstacle,
-            n_rays=self._n_rays,
-            ray_length=self._max_ray_length,
-            obs_dtype=self.observation_space.dtype)
+        observation = self._get_observation(state=self.__state)
+
         info = self._get_info(False)
         return observation, info
 
@@ -401,14 +395,8 @@ class Dubins4dReachAvoidEnv(gym.Env):
         done = gcol_any or ocol_any or timeout
 
         # get observation
-        obs = self._get_observation(
-            state=self.__state, 
-            sim_time=self._sim_time, 
-            goal=self._goal,
-            obstacle=self._obstacle,
-            n_rays=self._n_rays,
-            ray_length=self._max_ray_length,
-            obs_dtype=self.observation_space.dtype)
+        obs = self._get_observation(state=self.__state)
+
         # get auxillary information
         info = self._get_info(done)
 
@@ -420,78 +408,27 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         return obs, rew, done, info
 
-    @staticmethod
-    def _get_observation(state, sim_time, goal, obstacle, n_rays, ray_length, obs_dtype):
-        '''formats observation of system according to observation space
+    def _get_observation(self, state):
+        """instance method that calls static method
 
         Args:
             state : ArrayLike
-                state of Dubins4D system in [x, y, theta, v] ordering
-            sim_time : float
-                simulation time when observation taken
-            goal : CircleRegion
-                goal region
-            obstacle : CircleRegion
-                obstacle region
-            n_rays : int
-                number of ray casts to observe
-            ray_length : float
-                maximum extent of unobstructed rays
-            obs_dtype :
-                dtype of observation space
+                state to observe in [x,y,theta,v] ordering
 
-        Returns:
-            [0] sim-time [s]
-            [1] x-rel-to-goal [m]
-            [2] y-rel-to-goal [m]
-            [3] heading [rad]
-            [4] speed [m/s]
-            [5:5+N_RAYS] ray-casts to obstacles [m]
-        '''
-        obs = [
-            sim_time,
-            goal.xc - state[SS_XIND],
-            goal.yc - state[SS_YIND],
-            state[SS_THETAIND],
-            state[SS_VIND],
-            ]
+        Note: This paradigm was written when we thought we wanted a static method
+        that could be called without a instance of the environment, but later 
+        implementation details led us away from this approach. The instance and 
+        static methods could be replaced with a simple instance method for clarity
+        """
 
-        obs_ray = n_rays*[None]
-        for i in range(n_rays):
-            # get evenly spaced angles relative to vehicle heading
-            rel_angle = 2*np.pi/n_rays * i
-            abs_angle = rel_angle + state[SS_THETAIND]
-
-            # create start point of ray at vehicle location
-            abs_start_pt = Point(state[SS_XIND], state[SS_YIND])
-
-            # get endpoints of ray if no collision in abs coords
-            abs_end_x = ray_length*np.cos(abs_angle) + state[SS_XIND]
-            abs_end_y = ray_length*np.sin(abs_angle) + state[SS_YIND]
-            abs_end_pt = Point(abs_end_x, abs_end_y)
-
-            # create Linestring from start to end to represent ray
-            ray = LineString([abs_start_pt, abs_end_pt])
-
-            # intersect LineString with obstacle Polygon
-            if ray.intersects(obstacle.polygon):
-                ray_obst_inter = ray.intersection(obstacle.polygon)
-
-                # get distance from point to intersection
-                obs_ray[i] = abs_start_pt.distance(ray_obst_inter)
-
-            else:
-                obs_ray[i] = ray_length
-
-        observation = np.concatenate((obs, obs_ray), dtype=obs_dtype)
-        # if not self.observation_space.contains(observation):
-        #     raise ValueError(
-        #         "Observation outside of observation space\n"+
-        #         "observation >= observation_space.low: {}\n".format(np.greater_equal(observation, self.observation_space.low)) +
-        #         "observation <= observation_space.high: {}".format(np.less_equal(observation, self.observation_space.high))
-        #     )
-
-        return observation
+        return _get_observation(
+            state=state, 
+            sim_time=self._sim_time, 
+            goal=self._goal,
+            obstacle=self._obstacle,
+            n_rays=self._n_rays,
+            ray_length=self._max_ray_length,
+            obs_dtype=self.observation_space.dtype)
 
 
     def _get_info(self, done:bool):
@@ -824,6 +761,79 @@ class Dubins4dReachAvoidEnv(gym.Env):
             pygame.display.quit()
             pygame.quit()
 
+
+def _get_observation(state, sim_time, goal, obstacle, n_rays, ray_length, obs_dtype):
+    '''formats observation of system according to observation space
+
+    Args:
+        state : ArrayLike
+            state of Dubins4D system in [x, y, theta, v] ordering
+        sim_time : float
+            simulation time when observation taken
+        goal : CircleRegion
+            goal region
+        obstacle : CircleRegion
+            obstacle region
+        n_rays : int
+            number of ray casts to observe
+        ray_length : float
+            maximum extent of unobstructed rays
+        obs_dtype :
+            dtype of observation space
+
+    Returns:
+        [0] sim-time [s]
+        [1] x-rel-to-goal [m]
+        [2] y-rel-to-goal [m]
+        [3] heading [rad]
+        [4] speed [m/s]
+        [5:5+N_RAYS] ray-casts to obstacles [m]
+    '''
+    obs = [
+        sim_time,
+        goal.xc - state[SS_XIND],
+        goal.yc - state[SS_YIND],
+        state[SS_THETAIND],
+        state[SS_VIND],
+        ]
+
+    obs_ray = n_rays*[None]
+    for i in range(n_rays):
+        # get evenly spaced angles relative to vehicle heading
+        rel_angle = 2*np.pi/n_rays * i
+        abs_angle = rel_angle + state[SS_THETAIND]
+
+        # create start point of ray at vehicle location
+        abs_start_pt = Point(state[SS_XIND], state[SS_YIND])
+
+        # get endpoints of ray if no collision in abs coords
+        abs_end_x = ray_length*np.cos(abs_angle) + state[SS_XIND]
+        abs_end_y = ray_length*np.sin(abs_angle) + state[SS_YIND]
+        abs_end_pt = Point(abs_end_x, abs_end_y)
+
+        # create Linestring from start to end to represent ray
+        ray = LineString([abs_start_pt, abs_end_pt])
+
+        # intersect LineString with obstacle Polygon
+        if ray.intersects(obstacle.polygon):
+            ray_obst_inter = ray.intersection(obstacle.polygon)
+
+            # get distance from point to intersection
+            obs_ray[i] = abs_start_pt.distance(ray_obst_inter)
+
+        else:
+            obs_ray[i] = ray_length
+
+    observation = np.concatenate((obs, obs_ray), dtype=obs_dtype)
+    # if not self.observation_space.contains(observation):
+    #     raise ValueError(
+    #         "Observation outside of observation space\n"+
+    #         "observation >= observation_space.low: {}\n".format(np.greater_equal(observation, self.observation_space.low)) +
+    #         "observation <= observation_space.high: {}".format(np.less_equal(observation, self.observation_space.high))
+    #     )
+
+    return observation
+
 class CircleRegion:
     '''Object describes circular region in 2D space of specified radius'''
     def __init__(self, xc:float, yc:float, r:float) -> None:
@@ -879,7 +889,7 @@ class CircleRegion:
         if np.less_equal(val, 0):
             raise ValueError("expected radius greater than 0, got {}".format(val))
         self._r = val
-        self._update_polygon
+        self._update_polygon()
 
     def check_traj_intersection(self, traj: ArrayLike) -> Tuple:
         '''check if propagated states path collide with circular region (e.g. goal or obstacle)

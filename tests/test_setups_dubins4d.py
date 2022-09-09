@@ -200,7 +200,131 @@ def test_Dubins4dReachAvoidSetup_observeState_1():
     assert np.allclose(obs[7:-1], 5.0)
     assert np.isclose(obs[-1], b, rtol=1e-2)
 
-    
+def test_Dubins4dReachAvoidSetup_stateSampler_0():
+    """check that state sampler samples expected region and is not trivial in any dimension"""
+    # ~~~ ARRANGE ~~~
+    n_samples = 1024
+    env = Dubins4dReachAvoidEnv()
+    ds = Dubins4dReachAvoidSetup(env=env)
+    sampler = ds.space_info.allocStateSampler()
+    ssamples = n_samples * [None] 
+    np_ssamples = n_samples * [None]
+
+    # ~~~ ACT ~~~
+    # draw samples
+    for i in range(n_samples):
+        ssamples[i] = ds.space_info.allocState()
+        sampler.sampleUniform(ssamples[i])
+        np_ssamples[i] = state_ompl_to_numpy(omplState=ssamples[i])
+
+    np_ssamples = np.asarray(np_ssamples)
+    sample_xmin = np.min(np_ssamples[:,0])
+    sample_xmax = np.max(np_ssamples[:,0])
+    sample_ymin = np.min(np_ssamples[:,1])
+    sample_ymax = np.max(np_ssamples[:,1])
+    sample_tmin = np.min(np_ssamples[:,2])
+    sample_tmax = np.max(np_ssamples[:,2])
+    sample_vmin = np.min(np_ssamples[:,3])
+    sample_vmax = np.max(np_ssamples[:,3])
+
+    # ~~~ ASSERT ~~~
+
+    # check that sampling is in expected bounds
+    assert np.greater(sample_xmin, env.state_space.low[0])
+    assert np.less(sample_xmax, env.state_space.high[0])
+    assert np.greater(sample_ymin, env.state_space.low[1])
+    assert np.less(sample_ymax, env.state_space.high[1])
+    assert np.greater(sample_tmin, env.state_space.low[2])
+    assert np.less(sample_tmax, env.state_space.high[2])
+    assert np.greater(sample_vmin, env.state_space.low[3])
+    assert np.less(sample_vmax, env.state_space.high[3])
+
+    # check sampling is not trivial
+    assert not np.isclose(sample_xmin, sample_xmax, rtol=0.1)
+    assert not np.isclose(sample_ymin, sample_ymax, rtol=0.1)
+    assert not np.isclose(sample_tmin, sample_tmax, rtol=0.1)
+    assert not np.isclose(sample_vmin, sample_vmax, rtol=0.1)
+
+def test_Dubins4dReachAvoidSetup_estimateRiskMetric_zero_risk_region_0():
+    '''check that, when sampled away from obstacles, always produces zero risk'''
+
+    # ~~~ ARRANGE ~~~
+    n_samples = 32
+    near_dist = 10.0
+    duration = 5.0
+    branch_fact = 16
+    tree_depth = 2
+    n_steps = 2
+
+    # create environment and move obstacle far away
+    env = Dubins4dReachAvoidEnv()
+    env._obstacle.xc = 100.
+    env._obstacle.yc = 100.
+
+    # create system setup
+    ds = Dubins4dReachAvoidSetup(env=env)
+
+    # create sampling point
+    np_s_near = np.zeros((4,))
+    s_near = ds.space_info.allocState()
+    state_numpy_to_ompl(np_state=np_s_near, omplState=s_near)
+
+    # create sampler
+    sampler = ds.space_info.allocStateSampler()
+    ssamples = n_samples * [None] 
+    rmetrics = n_samples * [None]
+
+    # ~~~ ACT ~~~
+    # sample states in zero-risk region and compute risk metrics
+
+    for i in range(n_samples):
+
+        # assign state and sample
+        ssamples[i] = ds.space_info.allocState()
+        sampler.sampleUniformNear(ssamples[i], s_near, near_dist)
+
+        # compute risk metric
+        rmetrics[i] = ds.estimateRiskMetric(ssamples[i], None, duration, branch_fact, tree_depth, n_steps)
+
+        # print("Debug: risk metric={} at state ({},{},{})".format(rmetrics[i], ssamples[i].getX(), ssamples[i].getY(), ssamples[i].getYaw()))
+
+        assert np.isclose(rmetrics[i], 0.0), "non-zero risk metric of {} for state ({},{},{})".format(rmetrics[i], ssamples[i].getX(), ssamples[i].getY(), ssamples[i].getYaw())
+
+def test_Dubins4dReachAvoidSetup_estimateRiskMetric_inevitable_region_0():
+    '''check that, when sampled in region of inevitable collision, risk is 1.0'''
+
+    # ~~~ ARRANGE ~~~
+    duration = 5.0
+    branch_fact = 16
+    tree_depth = 4
+    n_steps = 2
+
+
+    # create environment and move obstacle far away
+    env = Dubins4dReachAvoidEnv()
+    env._obstacle.xc = 1.0
+    env._obstacle.yc = 1.0
+    env._obstacle.r = 1.2
+
+    # create system setup
+    ds = Dubins4dReachAvoidSetup(env=env)
+
+    # create sampling point
+    np_s0 = np.zeros((4,))
+    np_s0[2] = np.pi/4  # aim at obstacle
+    np_s0[3] = 2.0  # set high speed
+    s0 = ds.space_info.allocState()
+    state_numpy_to_ompl(np_state=np_s0, omplState=s0)
+
+    # ~~~ ACT ~~~
+
+    # compute risk metric at region of inevitable collision
+    rmetric = ds.estimateRiskMetric(s0, None, duration, branch_fact, tree_depth, n_steps)
+
+    # ~~~ ASSERT ~~~
+
+    assert np.isclose(rmetric, 1.0)
+
 
 def test_Dubins4DReachAvoidStatePropagator_propagate_0():
 
@@ -342,4 +466,5 @@ if __name__ == "__main__":
     # test_Dubins4DReachAvoidStatePropagator_propagate_0()
     # test_Dubins4DReachAvoid_isPathValid_0()
     # test_Dubins4dReachAvoidStatePropagator_propagate_path_0()
-    test_Dubins4dReachAvoidSetup_observeState_1()
+    # test_Dubins4dReachAvoidSetup_observeState_1()
+    test_Dubins4dReachAvoidSetup_stateSampler_0()

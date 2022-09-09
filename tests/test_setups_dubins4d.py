@@ -1,6 +1,7 @@
+import pickle
 import numpy as np
 
-import pyrmm.dynamics.dubins4d as D4DD
+import pyrmm.dynamics.dubins4d as D4D
 
 from ompl import base as ob
 from ompl import control as oc
@@ -8,7 +9,8 @@ from copy import deepcopy
 
 from pyrmm.setups.dubins4d import Dubins4dReachAvoidSetup, \
     Dubins4dReachAvoidStatePropagator, \
-    state_ompl_to_numpy, state_numpy_to_ompl
+    state_ompl_to_numpy, state_numpy_to_ompl, \
+    update_pickler_dubins4dstate
 from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv
 from ompl import base as ob
 from ompl import control as oc
@@ -394,7 +396,7 @@ def test_Dubins4dReachAvoidStatePropagator_propagate_path_0():
     sbounds['ypos_high'] = 10.0
     sbounds['speed_low'] = -2.0
     sbounds['speed_high'] = 2.0
-    state_space = D4DD.Dubins4dStateSpace(bounds=sbounds)
+    state_space = D4D.Dubins4dStateSpace(bounds=sbounds)
 
     # create control space and set bounds inherited from environment
     control_space = oc.RealVectorControlSpace(stateSpace=state_space, dim=2)
@@ -448,7 +450,7 @@ def test_Dubins4dReachAvoidStatePropagator_propagate_path_0():
 def test_state_ompl_to_numpy_0():
     """check if copying states does not modify them"""
     # ~~~ ARRANGE ~~~
-    sspace = D4DD.Dubins4dStateSpace()
+    sspace = D4D.Dubins4dStateSpace()
 
     omplState = sspace.allocState()
     np_state_orig = np.array([0.43438265, 0.66847181, 0.38747802, 0.00861762])
@@ -460,6 +462,27 @@ def test_state_ompl_to_numpy_0():
 
     # ~~~ ASSERT ~~~
     assert np.allclose(np_state_new, np_state_orig)
+
+def test_update_pickler_dubins4dstate_0():
+    """check that dubins4d state can be pickled and upickled without change"""
+    # ~~~ ARRANGE ~~~
+    # set pre-specified random state
+    np_state = np.array([-2.300, -1.537, -0.890, 0.070])
+    omplState = D4D.Dubins4dStateSpace().allocState()
+    state_numpy_to_ompl(np_state=np_state, omplState=omplState)
+
+    # ~~~ ACT ~~~
+    # update pickler
+    update_pickler_dubins4dstate()
+
+    # pickle and unpicle ompl state
+    omplState_copy = pickle.loads(pickle.dumps(omplState))
+
+    # ~~~ ASSERT ~~~
+    assert np.isclose(omplState[0][0], omplState_copy[0][0])
+    assert np.isclose(omplState[0][1], omplState_copy[0][1])
+    assert np.isclose(omplState[1].value, omplState_copy[1].value)
+    assert np.isclose(omplState[2][0], omplState_copy[2][0])
 
     
 if __name__ == "__main__":

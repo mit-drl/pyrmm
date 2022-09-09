@@ -4,9 +4,10 @@ state : [x, y, heading, speed]
 control : [d_theta, d_speed]
 '''
 
+import copyreg
 import numpy as np
 
-import pyrmm.dynamics.dubins4d as D4DD
+import pyrmm.dynamics.dubins4d as D4D
 
 from functools import partial
 from scipy.integrate import odeint
@@ -33,7 +34,7 @@ class Dubins4dReachAvoidSetup(SystemSetup):
         sbounds['ypos_high'] = float(env.state_space.high[1])
         sbounds['speed_low'] = float(env.state_space.low[3])
         sbounds['speed_high'] = float(env.state_space.high[3])
-        state_space = D4DD.Dubins4dStateSpace(bounds=sbounds)
+        state_space = D4D.Dubins4dStateSpace(bounds=sbounds)
 
         # create control space and set bounds inherited from environment
         control_space = oc.RealVectorControlSpace(stateSpace=state_space, dim=2)
@@ -184,7 +185,7 @@ class Dubins4dReachAvoidStatePropagator(oc.StatePropagator):
         ]
 
         # call scipy's ode integrator
-        sol = odeint(D4DD.ode_dubins4d, s0, t, args=(bounded_control, speed_bounds))
+        sol = odeint(D4D.ode_dubins4d, s0, t, args=(bounded_control, speed_bounds))
 
         # store solution in result
         state_numpy_to_ompl(np_state=sol[-1,:], omplState=result)
@@ -244,7 +245,7 @@ class Dubins4dReachAvoidStatePropagator(oc.StatePropagator):
         ]
 
         # call scipy's ode integrator
-        sol = odeint(D4DD.ode_dubins4d, np_s0, t, args=(bounded_control, speed_bounds))
+        sol = odeint(D4D.ode_dubins4d, np_s0, t, args=(bounded_control, speed_bounds))
 
         # store each intermediate point in the solution as pat of the path
         pstates = path.getStates()
@@ -303,3 +304,26 @@ def state_numpy_to_ompl(np_state, omplState):
     omplState[0][1] = np_state[1]
     omplState[1].value = np_state[2]
     omplState[2][0] = np_state[3]
+
+_DUMMY_DUBINS4DSTATESPACE = D4D.Dubins4dStateSpace()
+
+def _pickle_Dubins4dState(state):
+    '''pickle Dubins4d state (OMPL compound state) object'''
+    px = state[0][0]
+    py = state[0][1]
+    theta = state[1].value
+    v = state[2][0]
+    return _unpickle_Dubins4dState, (px,py,theta,v)
+
+def _unpickle_Dubins4dState(px, py, theta, v):
+    '''unpickle Dubins4d state (OMPL compound state) object'''
+    state = _DUMMY_DUBINS4DSTATESPACE.allocState()
+    state[0][0] = px
+    state[0][1] = py
+    state[1].value = theta
+    state[2][0] = v
+    return state
+
+def update_pickler_dubins4dstate():
+    '''updates pickler to enable pickling and unpickling of ompl objects'''
+    copyreg.pickle(_DUMMY_DUBINS4DSTATESPACE.allocState().__class__, _pickle_Dubins4dState, _unpickle_Dubins4dState)

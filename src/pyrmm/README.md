@@ -1,1 +1,1 @@
-# pyrmm: Python-based Risk Metrics Maps
+# PYRMM: (Learned) Risk Metric Maps in Python

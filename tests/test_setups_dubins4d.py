@@ -484,6 +484,24 @@ def test_update_pickler_dubins4dstate_0():
     assert np.isclose(omplState[1].value, omplState_copy[1].value)
     assert np.isclose(omplState[2][0], omplState_copy[2][0])
 
+def test_Dubins4dReachAvoidSetup_reduce_0():
+    """check that pickling-unpickling setup object with modified env"""
+    # ~~~ ARRANGE ~~~
+    env = Dubins4dReachAvoidEnv()
+    env._obstacle.xc = -51.388
+    ds = Dubins4dReachAvoidSetup(env=env)
+
+    # ~~~ ACT ~~~
+    # modify env object to see if reproduced in setup object
+    env._obstacle.xc = 79.476
+
+    # pickle and unpickle setup object
+    ds_copy = pickle.loads(pickle.dumps(ds))
+
+    # ~~~ ASSERT ~~~
+    # check that obstacle is in modified location is setup copy
+    assert np.isclose(ds_copy.env._obstacle.xc, 79.476)
+
     
 if __name__ == "__main__":
     # test_Dubins4DReachAvoidStatePropagator_propagate_0()

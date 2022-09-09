@@ -26,23 +26,26 @@ class Dubins4dReachAvoidSetup(SystemSetup):
                 Instance of Dubins4dReachAvoidEnv
         '''
 
+        # store environment for unpickling
+        self.env = env
+
         # create state space
         sbounds = dict()
-        sbounds['xpos_low'] = float(env.state_space.low[0])
-        sbounds['xpos_high'] = float(env.state_space.high[0])
-        sbounds['ypos_low'] = float(env.state_space.low[1])
-        sbounds['ypos_high'] = float(env.state_space.high[1])
-        sbounds['speed_low'] = float(env.state_space.low[3])
-        sbounds['speed_high'] = float(env.state_space.high[3])
+        sbounds['xpos_low'] = float(self.env.state_space.low[0])
+        sbounds['xpos_high'] = float(self.env.state_space.high[0])
+        sbounds['ypos_low'] = float(self.env.state_space.low[1])
+        sbounds['ypos_high'] = float(self.env.state_space.high[1])
+        sbounds['speed_low'] = float(self.env.state_space.low[3])
+        sbounds['speed_high'] = float(self.env.state_space.high[3])
         state_space = D4D.Dubins4dStateSpace(bounds=sbounds)
 
         # create control space and set bounds inherited from environment
         control_space = oc.RealVectorControlSpace(stateSpace=state_space, dim=2)
         cbounds = ob.RealVectorBounds(2)
-        cbounds.setLow(0, float(env.action_space[K_TURNRATE_CTRL].low[0]))
-        cbounds.setHigh(0, float(env.action_space[K_TURNRATE_CTRL].high[0]))
-        cbounds.setLow(1, float(env.action_space[K_ACCEL_CTRL].low[0]))
-        cbounds.setHigh(1, float(env.action_space[K_ACCEL_CTRL].high[0]))
+        cbounds.setLow(0, float(self.env.action_space[K_TURNRATE_CTRL].low[0]))
+        cbounds.setHigh(0, float(self.env.action_space[K_TURNRATE_CTRL].high[0]))
+        cbounds.setLow(1, float(self.env.action_space[K_ACCEL_CTRL].low[0]))
+        cbounds.setHigh(1, float(self.env.action_space[K_ACCEL_CTRL].high[0]))
         control_space.setBounds(cbounds)
 
         # create space information for state and control space
@@ -53,25 +56,34 @@ class Dubins4dReachAvoidSetup(SystemSetup):
         space_info.setStatePropagator(propagator)
 
         # create and set state validity checker
-        validityChecker = ob.StateValidityCheckerFn(partial(self.isStateValid, space_info, env))
+        validityChecker = ob.StateValidityCheckerFn(partial(self.isStateValid, space_info))
         space_info.setStateValidityChecker(validityChecker)
 
         # setup path validity checker
-        self.isPathValid = partial(self.isPathValidFull, env)
+        # self.isPathValid = partial(self.isPathValidFull, env)
 
         # setup state observation
-        self.observeState = partial(self.observeStateFull, env)
+        # self.observeState = partial(self.observeStateFull, env)
 
-        # # call parent init to create simple setup
+        # setup __reduce__ method for unpickling via constructor
+        # self.__reduce__ = partial(self.reduce_full, env)
+
+        # call parent init to create simple setup
         super().__init__(space_information=space_info)
 
-    def isStateValid(self, spaceInformation, environment, state):
+    def __reduce__(self):
+        ''' Function to enable re-creation of unpickable object
+
+        Note: See comments about potential risks here
+        https://stackoverflow.com/a/50308545/4055705
+        '''
+        return (Dubins4dReachAvoidSetup, (self.env,))
+
+    def isStateValid(self, spaceInformation, state):
         ''' check ppm image colors for obstacle collision
         Args:
             spaceInformation : ob.SpaceInformationPtr
                 state space information as given by SimpleSetup.getSpaceInformation
-            environment : gym.Env
-                envrionment defining obstacle set
             state : ob.State
                 state to check for validity
         
@@ -83,7 +95,7 @@ class Dubins4dReachAvoidSetup(SystemSetup):
         np_state = state_ompl_to_numpy(state).reshape(1,4)
 
         # check obstacle collision
-        is_collision, _, _ = environment._obstacle.check_traj_intersection(np_state)
+        is_collision, _, _ = self.env._obstacle.check_traj_intersection(np_state)
 
         # check speed bounds
         # is_speed_valid = spaceInformation.getStateSpace().getSubspace(2).satisfiesBounds(state[2])
@@ -91,12 +103,10 @@ class Dubins4dReachAvoidSetup(SystemSetup):
         # is_valid = is_speed_valid and not is_collision
         return not is_collision
 
-    def isPathValidFull(self, environment, path):
+    def isPathValid(self, path):
         '''check if path intersects obstacles in ppm image using bresenham lines
         
         Args:
-            environment : Dubins4DReachAvoidEnv
-                environment used for access to collision checker
             path : oc.Path
                 OMPL representation of path to be checked
         
@@ -111,15 +121,13 @@ class Dubins4dReachAvoidSetup(SystemSetup):
         np_traj = np.array([state_ompl_to_numpy(path.getState(i)) for i in range(path.getStateCount())])
 
         # check collision validity
-        any_collision, _, _ = environment._obstacle.check_traj_intersection(np_traj)
+        any_collision, _, _ = self.env._obstacle.check_traj_intersection(np_traj)
         
         return not any_collision
 
-    def observeStateFull(self, environment, state):
+    def observeState(self, state):
         '''query observation from a particular state
         Args:
-            environment : Dubins4dReachAvoidEnv
-                environment on which to take observations
             state : ob.State
                 state from which to make observation
         Returns:
@@ -128,7 +136,7 @@ class Dubins4dReachAvoidSetup(SystemSetup):
         '''
         # convert state to numpy
         np_state = state_ompl_to_numpy(omplState=state)
-        return environment._get_observation(state=np_state)
+        return self.env._get_observation(state=np_state)
 
         
 class Dubins4dReachAvoidStatePropagator(oc.StatePropagator):

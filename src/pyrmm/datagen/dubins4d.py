@@ -106,7 +106,7 @@ def task_function(cfg: Config):
     log.info(
             "DUBINS RISK DATA GENERATION COMPLETE" +
             "\n---> Total Elapsed Time: {:.4f}".format(time.time() - t_start) + 
-            "\n---> Total Obstacle Sets: {}".format(obj.n_environment) + 
+            "\n---> Total Obstacle Sets: {}".format(obj.n_environments) + 
             "\n---> Total Data Samples: {}".format(getattr(obj, U.N_SAMPLES)*obj.n_environments)
         )
 

@@ -8,6 +8,7 @@ from torchmetrics.functional import mean_absolute_error, mean_squared_error
 
 from pathlib import Path
 from typing import List, Tuple, Optional
+from numpy.typing import ArrayLike
 from types import SimpleNamespace
 from torch.utils.data import TensorDataset, DataLoader, random_split
 from pytorch_lightning import LightningDataModule, LightningModule
@@ -54,26 +55,45 @@ class RiskMetricTrainingData():
     Meant to be flexible to different data containers (lists, tuples, arrays, etc)
     used mostly like a namespace with some light error checking on sizes
     '''
-    def __init__(self, state_samples, risk_metrics, observations):
+    def __init__(self, 
+        state_samples: ArrayLike, 
+        risk_metrics: ArrayLike, 
+        observations: ArrayLike,
+        min_risk_ctrls: ArrayLike,
+        min_risk_ctrl_durs: ArrayLike):
         '''
         Args
-        state_samples : array-like
+        state_samples : ArrayLike
             state samples in their native format (i.e. OMPL State objects)
             i-th element is i-th sampled state represented as a numpy array
-        risk_metrics : array-like
+        risk_metrics : ArrayLike
             risk metric evaluated at corresponding sampled state
             i-th element is risk metric evaluated at the i-th sampled state
-        observations : array-like
+        observations : ArrayLike
             observeState outputs at each corresponding sampled state
             i-th element is the obervation (see observeState) at the i-th sampled state
+        min_risk_ctrls : ArrayLike
+            minimum risk control to take at a particular state as evaluated by estimateRiskMetric
+            i-th element is the min-risk control at the i-th sampled state
+        min_risk_ctrl_durs: ArrayLike
+            duration of time to apply minimum-risk control at particular state as evaluated by estimateRiskMetrics
+            i-th element is the time [sec] to apply i-th min-risk control at i-th sample state
         '''
 
         # check that amount of data in each category is equal
-        assert len(state_samples) == len(risk_metrics) == len(observations)
+        assert (
+            len(state_samples) == 
+            len(risk_metrics) == 
+            len(observations) ==
+            len(min_risk_ctrls) ==
+            len(min_risk_ctrl_durs)
+        )
 
         self.state_samples = state_samples
         self.risk_metrics = risk_metrics
         self.observations = observations
+        self.min_risk_ctrls = min_risk_ctrls
+        self.min_risk_ctrl_durs = min_risk_ctrl_durs
         
 
 def compile_raw_data(datapaths, verify_func:callable=None):
@@ -116,13 +136,15 @@ def compile_raw_data(datapaths, verify_func:callable=None):
         concat_data.extend(cur_data)
 
     # zip data into three immutable, indice-aligned objects
-    state_samples, risk_metrics, observations = tuple(zip(*concat_data))
+    state_samples, risk_metrics, observations, min_risk_ctrls, min_risk_ctrl_durs = tuple(zip(*concat_data))
 
     # create training data object with raw (non-numpy) compiled data
     compiled_raw_data = RiskMetricTrainingData(
         state_samples=state_samples,
         risk_metrics=risk_metrics,
-        observations=observations)
+        observations=observations,
+        min_risk_ctrls=min_risk_ctrls,
+        min_risk_ctrl_durs=min_risk_ctrl_durs)
 
     return compiled_raw_data, separated_raw_data
 

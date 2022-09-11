@@ -66,9 +66,9 @@ def sample_risk_metrics(sysset:SystemSetup, cfg_obj, multiproc:bool=True, prfx:s
         rmetrics_iter = pool.imap(partial_estimateRiskMetric, states)
 
         # track multiprocess progress
-        risk_metrics = []
+        risk_n_ctrl_tuples = []
         for i,_ in enumerate(states):
-            risk_metrics.append(rmetrics_iter.next())
+            risk_n_ctrl_tuples.append(rmetrics_iter.next())
             if i%_MONITOR_RATE ==  0:
                 print("{}Risk metric evaluation: completed {} of {} after {:.2f}".format(prfx, i, len(states), time.time()-t_start))
 
@@ -77,15 +77,18 @@ def sample_risk_metrics(sysset:SystemSetup, cfg_obj, multiproc:bool=True, prfx:s
 
     else:
         # single-process implementation of risk metric estimation
-        risk_metrics = []
+        risk_n_ctrl_tuples = []
         for i, state in enumerate(states):
-            risk_metrics.append(partial_estimateRiskMetric(state=state))
+            risk_n_ctrl_tuples.append(partial_estimateRiskMetric(state=state))
             if i%_MONITOR_RATE ==  0:
                 print("{}Risk metric evaluation: completed {} of {} after {:.2f}".format(prfx,i, len(states), time.time()-t_start))
 
     print("{}Total risk estimation elapsed time: {:.2f}".format(prfx,time.time()-t_start))
 
-    risk_data = zip(states, risk_metrics, observations)
+    # unpack risk metrics and min-risk-ctrl tuples into index-aligned tuples
+    risk_metrics, min_risk_ctrls, min_risk_ctrl_durs = list(zip(*risk_n_ctrl_tuples))
+
+    risk_data = zip(states, risk_metrics, observations, min_risk_ctrls, min_risk_ctrl_durs)
     return risk_data
 
     # # save data for pytorch training

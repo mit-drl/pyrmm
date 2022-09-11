@@ -98,8 +98,8 @@ def ode_dubins4d(y, t, u, vbounds):
     dydt[3] = u[1]
 
     # physical constraint: speed is non-negative
-    if dydt[3] < 0 and y[3] < vbounds[0] + 1e-3:
-        dydt[3] = 0.0
-    if dydt[3] > 0 and y[3] > vbounds[1]- 1e-3:
-        dydt[3] = 0.0
+    # if dydt[3] < 0 and y[3] < vbounds[0] + 1e-3:
+    #     dydt[3] = 0.0
+    # if dydt[3] > 0 and y[3] > vbounds[1]- 1e-3:
+    #     dydt[3] = 0.0
     return dydt

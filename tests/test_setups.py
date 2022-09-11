@@ -32,7 +32,7 @@ def get_dummy_r2_setup():
     si.setStateValidityChecker(ob.StateValidityCheckerFn(partial(state_validity_fn, si)))
     si.setStatePropagator(prop_cls(si))
     sys_setup = SystemSetup(space_information=si)
-    sys_setup.control_ompl_to_numpy = lambda omplCtrl, npCtrl=None: np.zeros(2)
+    sys_setup.control_ompl_to_numpy = lambda omplCtrl, npCtrl=None: np.array([omplCtrl[0], omplCtrl[1]])
     # sys_setup.control_ompl_to_numpy = control_ompl_to_numpy
     return sys_setup
 
@@ -268,6 +268,64 @@ def test_SystemSetup_estimateRiskMetric_deterministic_0():
 
     # ~~~ ASSERT ~~~
     assert np.isclose(r_s0, 1.0/3.0)
+
+def test_SystemSetup_estimateRiskMetric_deterministic_1():
+    '''check minimum risk control is properly returned'''
+
+    # ~~~ ARRANGE ~~~
+    ds = get_dummy_r2_setup()
+    si = ds.space_info
+
+    # pre-specify state samples
+    x0 = 0.0; y0 = 0.0
+    s0 = si.allocState()
+    s1 = si.allocState()
+    s2 = si.allocState()
+    s3 = si.allocState()
+    s0[0] = x0; s0[1] = y0
+    s1[0] = x0+1; s1[1] = y0-1
+    s2[0] = x0-1; s2[1] = y0+1
+    s3[0] = x0; s3[1] = y0
+
+    # specify controls
+    c1 = si.allocControl()
+    c2 = si.allocControl()
+    c3 = si.allocControl()
+    c1[0], c1[1] = [0.46885954, 0.24200232]
+    c2[0], c2[1] = [0.25406809, 0.54474039]
+    c3[0], c3[1] = [0.75440753, 0.11925401]
+
+    # specify control durations
+    d1, d2, d3 = [0.72044402, 0.51690959, 0.4763451 ]
+
+    # formulate as path controls
+    p1 = oc.PathControl(si)
+    p2 = oc.PathControl(si)
+    p3 = oc.PathControl(si)
+    p1.append(s0, c1, d1); p1.append(s1)
+    p2.append(s0, c2, d2); p2.append(s2)
+    p3.append(s0, c3, d3); p3.append(s3)
+    samples = [p1, p2, p3]
+
+    ## set state validity checker to always return false
+    state_validity_fn=lambda spaceInformation, state: True if np.isclose(state[1], y0) else False
+    si.setStateValidityChecker(ob.StateValidityCheckerFn(partial(state_validity_fn, si)))
+
+    # ~~~ ACT ~~~
+    r_s0, min_risk_ctrl , min_risk_ctrl_dur = ds.estimateRiskMetric(
+        state = s0, 
+        trajectory = None, 
+        distance = 1.0,
+        branch_fact = 3,
+        depth = 1,
+        n_steps = 2,
+        samples=samples
+    )
+
+    # ~~~ ASSERT ~~~
+    assert np.isclose(r_s0, 2.0/3.0)
+    assert np.allclose(min_risk_ctrl, [c3[0], c3[1]])
+    assert np.isclose(min_risk_ctrl_dur, d3)
 
 if __name__ == "__main__":
     test_SystemSetup_estimateRiskMetric_deterministic_0()

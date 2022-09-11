@@ -205,6 +205,26 @@ class DubinsPPMSetup(SystemSetup):
         assert len(self.lidar_angles) > 0
         return [self.cast_ray(state, theta, self.lidar_resolution) for theta in self.lidar_angles]
 
+    def control_ompl_to_numpy(self, omplCtrl, npCtrl=None):
+        """convert Dubins4d ompl control object to numpy array
+
+        Args:
+            omplCtrl : oc.Control
+                dubins4d control in ompl RealVectorControl format
+            npCtrl : ndarray (2,)
+                dubins4d control represented in np array with [turnrate, acceleration] ordering
+                if not None, input argument is modified in place, else returned
+        """
+        ret = False
+        if npCtrl is None:
+            npCtrl = np.empty(1,)
+            ret = True
+
+        npCtrl[0] = omplCtrl[0]
+
+        if ret:
+            return npCtrl
+
     def dummyRiskMetric(self, state, trajectory, distance, branch_fact, depth, n_steps, policy='uniform_random', samples=None):
         '''A stand-in for the actual risk metric estimator used for model training testing purposes
         

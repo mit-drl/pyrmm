@@ -4,6 +4,7 @@ for different systems that can be used to compute risk metric
 maps
 '''
 import numpy as np
+from copy import deepcopy
 from functools import partial
 
 from ompl import base as ob
@@ -130,7 +131,10 @@ class SystemSetup:
 
         return samples
 
-    def estimateRiskMetric(self, state, trajectory, distance, branch_fact, depth, n_steps, policy='uniform_random', samples=None):
+    def estimateRiskMetric(self, state, trajectory, distance, branch_fact, depth, n_steps, 
+        policy='uniform_random', 
+        samples=None,
+        base_estimate_fn=None):
         '''Sampling-based, recursive risk metric estimation at specific state
         
         Args:
@@ -150,6 +154,9 @@ class SystemSetup:
                 string description of policy to use
             samples : list[oc.PathControl]
                 list of pre-specified to samples for deterministic calc
+            base_estimate_fn : Callable
+                recursion base function to be called to estimate risk and
+                min risk trajectory at leaf nodes. Can be used for bootstrapping
 
         Returns:
             risk_est : float
@@ -163,9 +170,13 @@ class SystemSetup:
         if (not z) and (trajectory is not None):
             z = not self.isPathValid(trajectory)
 
-        if z or depth <= 0:
-            # recursion base: state is failure or a leaf of tree
-            return float(z)
+        # recursion base: state is failure or leaf node without base estimation function
+        if z or (depth==0 and base_estimate_fn is None):
+            return float(z), None, None
+
+        # recursion base: leaf node with base estimation function
+        if depth == 0 and base_estimate_fn is not None:
+            return base_estimate_fn(state)
 
         # sample reachable states
         if samples is None:
@@ -180,8 +191,11 @@ class SystemSetup:
 
         # recursively compute risk estimates at sampled states
         risk_vals = branch_fact*[None]
+        min_risk = np.inf
+        min_risk_ctrl = None
+        min_risk_ctrl_dur = None
         for i in range(branch_fact):
-            risk_vals[i] = self.estimateRiskMetric(
+            risk_vals[i], _, _ = self.estimateRiskMetric(
                 state=samples[i].getState(n_steps-1),
                 trajectory=samples[i],
                 distance=distance,
@@ -191,8 +205,14 @@ class SystemSetup:
                 policy=policy
             )
 
+            # store minimum risk control
+            if np.less(risk_vals[i], min_risk):
+                min_risk = risk_vals[i]
+                min_risk_ctrl_dur = samples[i].getControlDurations()[0]
+                min_risk_ctrl = self.control_ompl_to_numpy(samples[i].getControls()[0])
+
         # Evaluate the risk metric
-        return self.risk_fn(risk_vals)
+        return self.risk_fn(risk_vals), min_risk_ctrl, min_risk_ctrl_dur
 
     def observeState(self, state):
         '''query observation from a particular state
@@ -203,5 +223,17 @@ class SystemSetup:
             observation : ndarray
                 array giving observation values
         '''
+        raise NotImplementedError('To be implemented by child class')
+
+    def control_ompl_to_numpy(self, omplCtrl, npCtrl=None):
+        """ convert OMPL control object to numpy
+        Args:
+            omplCtrl : oc.Control
+                OMPL control object
+                https://ompl.kavrakilab.org/classompl_1_1control_1_1ControlSpace.html
+            npCtrl : ndarray
+                control represented as np array
+                if not None, input argument is modified in place, else returned
+        """
         raise NotImplementedError('To be implemented by child class')
         

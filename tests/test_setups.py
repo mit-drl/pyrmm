@@ -21,14 +21,20 @@ def get_dummy_r2_setup():
         def propagate_path(self, **kwargs):
             pass
 
+    # def control_ompl_to_numpy(self, omplCtrl, npCtrl):
+    #     return np.zeros(2)
+
     # state_space = ob.SO2StateSpace()
     state_space = ob.RealVectorStateSpace(dim=2)
     control_space = oc.RealVectorControlSpace(stateSpace=state_space, dim=2)
     si = oc.SpaceInformation(state_space, control_space)
-    state_validity_fn=lambda spaceInformation, state: True
+    state_validity_fn = lambda spaceInformation, state: True
     si.setStateValidityChecker(ob.StateValidityCheckerFn(partial(state_validity_fn, si)))
     si.setStatePropagator(prop_cls(si))
-    return SystemSetup(space_information=si)
+    sys_setup = SystemSetup(space_information=si)
+    sys_setup.control_ompl_to_numpy = lambda omplCtrl, npCtrl=None: np.zeros(2)
+    # sys_setup.control_ompl_to_numpy = control_ompl_to_numpy
+    return sys_setup
 
 
 def test_SystemSetup_init_0(dummy_r2_setup):
@@ -169,7 +175,7 @@ def test_hypothesis_SystemSetup_estimateRiskMetric_0(x0, y0, dur, brnch, dpth, s
     s0[0] = x0; s0[1] = y0
     
     # ~~~ ACT ~~~
-    r_s0 = ds.estimateRiskMetric(
+    r_s0, _, _ = ds.estimateRiskMetric(
         state = s0, 
         trajectory = None, 
         distance = dur,
@@ -206,7 +212,7 @@ def test_hypothesis_SystemSetup_estimateRiskMetric_1(x0, y0, dur, brnch, dpth, s
     s0[0] = x0; s0[1] = y0
     
     # ~~~ ACT ~~~
-    r_s0 = ds.estimateRiskMetric(
+    r_s0, _, _ = ds.estimateRiskMetric(
         state = s0, 
         trajectory = None, 
         distance = dur,
@@ -231,6 +237,8 @@ def test_SystemSetup_estimateRiskMetric_deterministic_0():
     s1 = si.allocState()
     s2 = si.allocState()
     s3 = si.allocState()
+    c = si.allocControl()
+    dur = 1.0
     s0[0] = x0; s0[1] = y0
     s1[0] = x0+1; s1[1] = y0
     s2[0] = x0-1; s2[1] = y0
@@ -238,9 +246,9 @@ def test_SystemSetup_estimateRiskMetric_deterministic_0():
     p1 = oc.PathControl(si)
     p2 = oc.PathControl(si)
     p3 = oc.PathControl(si)
-    p1.append(s0); p1.append(s1)
-    p2.append(s0); p2.append(s2)
-    p3.append(s0); p3.append(s3)
+    p1.append(s0, c, dur); p1.append(s1)
+    p2.append(s0, c, dur); p2.append(s2)
+    p3.append(s0, c, dur); p3.append(s3)
     samples = [p1, p2, p3]
 
     ## set state validity checker to always return false
@@ -248,7 +256,7 @@ def test_SystemSetup_estimateRiskMetric_deterministic_0():
     si.setStateValidityChecker(ob.StateValidityCheckerFn(partial(state_validity_fn, si)))
 
     # ~~~ ACT ~~~
-    r_s0 = ds.estimateRiskMetric(
+    r_s0, _ , _ = ds.estimateRiskMetric(
         state = s0, 
         trajectory = None, 
         distance = 1.0,

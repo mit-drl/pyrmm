@@ -18,40 +18,37 @@ def test_SingleIntegrator1DPPMSetup_estimateRiskMetric_0():
     s0[0] = 1.0
 
     # distance and depth does not reach boundary
-    assert np.isclose(0.0,
-        ds.estimateRiskMetric(
+    r, _, _ = ds.estimateRiskMetric(
             state=s0,
             trajectory=None,
             distance=0.2,
             branch_fact=8,
             depth=4,
             n_steps=2
-        )
     )
+    assert np.isclose(0.0, r)
 
     # distance and depth barely not reach boundary
-    assert np.isclose(0.0,
-        ds.estimateRiskMetric(
+    r, _, _ = ds.estimateRiskMetric(
             state=s0,
             trajectory=None,
             distance=0.25 - 1e-6,
             branch_fact=8,
             depth=4,
             n_steps=2
-        )
     )
+    assert np.isclose(0.0, r)
 
     # distance and depth barely passes boundary
-    assert np.isclose(1.0,
-        ds.estimateRiskMetric(
+    r, _, _ = ds.estimateRiskMetric(
             state=s0,
             trajectory=None,
             distance=0.25 + 1e-6,
             branch_fact=8,
             depth=4,
             n_steps=2
-        )
     )
+    assert np.isclose(1.0, r)
 
 @settings(deadline=500)
 @given(
@@ -74,7 +71,7 @@ def test_hypothesis_SingleIntegrator1DPPMSetup_estimateRiskMetric_0(x0, v, lb, u
     s0[0] = x0
 
     # ~~~ ACT ~~~
-    r = ds.estimateRiskMetric(
+    r, _, _ = ds.estimateRiskMetric(
         state=s0,
         trajectory=None,
         distance=dur,

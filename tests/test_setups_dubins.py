@@ -725,7 +725,7 @@ def test_DubinsPPMSetup_estimateRiskMetric_zero_risk_region_0():
         sampler.sampleUniformNear(ssamples[i], s_near, near_dist)
 
         # compute risk metric
-        rmetrics[i] = ds.estimateRiskMetric(ssamples[i], None, duration, branch_fact, tree_depth, n_steps)
+        rmetrics[i], _, _ = ds.estimateRiskMetric(ssamples[i], None, duration, branch_fact, tree_depth, n_steps)
 
         # print("Debug: risk metric={} at state ({},{},{})".format(rmetrics[i], ssamples[i].getX(), ssamples[i].getY(), ssamples[i].getYaw()))
 

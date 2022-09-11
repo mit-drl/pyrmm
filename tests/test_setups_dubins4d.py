@@ -12,8 +12,7 @@ from pyrmm.setups.dubins4d import Dubins4dReachAvoidSetup, \
     state_ompl_to_numpy, state_numpy_to_ompl, \
     update_pickler_dubins4dstate
 from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv
-from ompl import base as ob
-from ompl import control as oc
+
 def test_Dubins4DReachAvoidSetup_init_0():
     
     # ~~~ ARRANGE ~~~
@@ -286,7 +285,7 @@ def test_Dubins4dReachAvoidSetup_estimateRiskMetric_zero_risk_region_0():
         sampler.sampleUniformNear(ssamples[i], s_near, near_dist)
 
         # compute risk metric
-        rmetrics[i] = ds.estimateRiskMetric(ssamples[i], None, duration, branch_fact, tree_depth, n_steps)
+        rmetrics[i], _, _ = ds.estimateRiskMetric(ssamples[i], None, duration, branch_fact, tree_depth, n_steps)
 
         # print("Debug: risk metric={} at state ({},{},{})".format(rmetrics[i], ssamples[i].getX(), ssamples[i].getY(), ssamples[i].getYaw()))
 
@@ -321,7 +320,7 @@ def test_Dubins4dReachAvoidSetup_estimateRiskMetric_inevitable_region_0():
     # ~~~ ACT ~~~
 
     # compute risk metric at region of inevitable collision
-    rmetric = ds.estimateRiskMetric(s0, None, duration, branch_fact, tree_depth, n_steps)
+    rmetric, _, _ = ds.estimateRiskMetric(s0, None, duration, branch_fact, tree_depth, n_steps)
 
     # ~~~ ASSERT ~~~
 
@@ -502,10 +501,31 @@ def test_Dubins4dReachAvoidSetup_reduce_0():
     # check that obstacle is in modified location is setup copy
     assert np.isclose(ds_copy.env._obstacle.xc, 79.476)
 
+def test_Dubins4dReachAvoidSetup_control_ompl_to_numpy_0():
+    """check that ompl control object is properly converted to numpy"""
+    # ~~~ ARRANGE ~~~
+    env = Dubins4dReachAvoidEnv()
+    ds = Dubins4dReachAvoidSetup(env=env)
+
+    # specify control object
+    c = ds.space_info.allocControl()
+    c[0] = 0.5654
+    c[1] = 0.5224
+
+    # ~~~ ACT ~~~
+    # convert to numpy
+    np_c = ds.control_ompl_to_numpy(omplCtrl=c)
+
+    # ~~~ ASSERT ~~~
+    assert np.isclose(c[0], np_c[0])
+    assert np.isclose(c[1], np_c[1])
+
     
 if __name__ == "__main__":
     # test_Dubins4DReachAvoidStatePropagator_propagate_0()
     # test_Dubins4DReachAvoid_isPathValid_0()
     # test_Dubins4dReachAvoidStatePropagator_propagate_path_0()
     # test_Dubins4dReachAvoidSetup_observeState_1()
-    test_Dubins4dReachAvoidSetup_stateSampler_0()
+    # test_Dubins4dReachAvoidSetup_stateSampler_0()
+    # test_Dubins4dReachAvoidSetup_estimateRiskMetric_inevitable_region_0()
+    test_Dubins4dReachAvoidSetup_estimateRiskMetric_zero_risk_region_0()

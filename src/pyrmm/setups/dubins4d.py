@@ -138,6 +138,27 @@ class Dubins4dReachAvoidSetup(SystemSetup):
         np_state = state_ompl_to_numpy(omplState=state)
         return self.env._get_observation(state=np_state)
 
+    def control_ompl_to_numpy(self, omplCtrl, npCtrl=None):
+        """convert Dubins4d ompl control object to numpy array
+
+        Args:
+            omplCtrl : oc.Control
+                dubins4d control in ompl RealVectorControl format
+            npCtrl : ndarray (2,)
+                dubins4d control represented in np array with [turnrate, acceleration] ordering
+                if not None, input argument is modified in place, else returned
+        """
+        ret = False
+        if npCtrl is None:
+            npCtrl = np.empty(2,)
+            ret = True
+
+        npCtrl[0] = omplCtrl[0]
+        npCtrl[1] = omplCtrl[1]
+
+        if ret:
+            return npCtrl
+
         
 class Dubins4dReachAvoidStatePropagator(oc.StatePropagator):
     def __init__(self, spaceInformation):

@@ -74,6 +74,19 @@ class SingleIntegrator1DSetup(SystemSetup):
         '''
         return spaceInformation.satisfiesBounds(state)
 
+    def control_ompl_to_numpy(self, omplCtrl, npCtrl=None):
+        """convert single integrator ompl control object to numpy array
+        """
+        ret = False
+        if npCtrl is None:
+            npCtrl = np.empty(1,)
+            ret = True
+
+        npCtrl[0] = omplCtrl[0]
+
+        if ret:
+            return npCtrl
+
 class SingleIntegrator1DStatePropagator(oc.StatePropagator):
 
     def __init__(self, spaceInformation):

@@ -87,12 +87,20 @@ class HJReachDubins4dReachAvoidAgent():
 
     def update_hji_values(self):
         '''solve HJI value function on discrete grid'''
+        # self._hji_values = HJSolver(
+        #     dynamics_obj=self._dynamics, 
+        #     grid=self._grid,
+        #     multiple_value=[self._goal, self._obstacle],
+        #     tau=self._time_grid,
+        #     compMethod={ "TargetSetMode": "minVWithVTarget","ObstacleSetMode": "maxVWithObstacle"},
+        #     plot_option=PlotOptions(do_plot=False, plotDims=[0,1,3]),
+        #     saveAllTimeSteps=True)
         self._hji_values = HJSolver(
             dynamics_obj=self._dynamics, 
             grid=self._grid,
-            multiple_value=[self._goal, self._obstacle],
+            multiple_value=self._obstacle,
             tau=self._time_grid,
-            compMethod={ "TargetSetMode": "minVWithVTarget","ObstacleSetMode": "maxVWithObstacle"},
+            compMethod={ "TargetSetMode": "minVWithVTarget"},
             plot_option=PlotOptions(do_plot=False, plotDims=[0,1,3]),
             saveAllTimeSteps=True)
 
@@ -148,6 +156,12 @@ class HJReachDubins4dReachAvoidAgent():
 
         # extract hji value function on state space grid at furthest time horizon
         Vf = self._hji_values[..., 0]
+
+        # check if state is within solution grid
+        if not np.all([s>=g[0] and s<=g[-1] for s,g in zip(state, self._grid.grid_points)]):
+            # state outside of HJ PDE solution space, do not take active control
+            action[K_ACTIVE_CTRL] = False
+            return action
 
         # compute value function at furthest time-horizon at current state
         Vf_state = interpn(self._grid.grid_points, Vf, state)

@@ -25,16 +25,16 @@ g = Grid(np.array(GRID_LB), np.array(GRID_UB), 4, np.array(GRID_NSTEPS), [3])
 # Reachable set
 # NOTE: Should be a sphere in x,y but I don't yet fully understand how to interpret 
 # CylinderShape API
-goal = CylinderShape(g, [2,3], np.zeros(4), 0.5)
+goal = CylinderShape(g, [2,3], np.array([10.0, 0.0, 0.0, 0.0]), 0.5)
 
 # Avoid set
-obstacle = CylinderShape(g, [2,3], np.array([1.0, 1.0, 0.0, 0.0]), 0.5)
+obstacle = CylinderShape(g, [2,3], np.array([1.0, 0.0, 0.0, 0.0]), 0.9)
 
 # Look-back length and time step
-lookback_length = 0.25
-t_step = 0.05
+# lookback_length = 0.25
+# t_step = 0.05
 small_number = 1e-5
-tau = np.arange(start=0, stop=lookback_length + small_number, step=t_step)
+tau = np.arange(start=0, stop=TIME_HORIZON+small_number, step=TIME_STEP)
 
 # dynamics
 my_car = DubinsCar4D(uMode="min", dMode="max", dMin = [0.0,0.0], dMax = [0.0,0.0])
@@ -52,10 +52,14 @@ v_derivative = computeSpatDerivArray(g, V_final, deriv_dim=3, accuracy="low")
 th_derivative = computeSpatDerivArray(g, V_final, deriv_dim=4, accuracy="low")
 
 # specify arbitrary state
-x0 = -0.5
-y0 = -0.5
-v0 = 1.0
-th0 = math.pi/4
+# x0 = -0.5
+# y0 = -0.5
+# v0 = 1.0
+# th0 = math.pi/4
+x0 = 0.
+y0 = 0.
+v0 = 2.0
+th0 = 0
 X0 = [x0,y0,v0,th0]
 
 action = hjreach_agent.get_action(X0)

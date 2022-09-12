@@ -1,0 +1,28 @@
+import numpy as np
+from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv, CircleRegion
+from dubins4d_reachavoid import execute_hjreach_agent
+
+TIME_HORIZON = 1.0
+TIME_STEP = 0.1
+GRID_LB = [-15.0, -15.0, 0.0, -np.pi]
+GRID_UB = [15.0, 15.0, 4.0, np.pi]
+GRID_NSTEPS = [64, 64, 32, 32]
+
+env = Dubins4dReachAvoidEnv(time_accel_factor=10.0,render_mode="human")
+
+# place obstacle to guarantee collision
+env._obstacle = CircleRegion(xc=2.0, yc=0.0, r=0.9)
+env._goal = CircleRegion(xc=5.0, yc=5.0, r=1.0)
+env._Dubins4dReachAvoidEnv__state = np.array([0.0, 0.0, 0.1, 0.5])
+# clean the render collection and add the initial frame
+env.renderer.reset()
+env.renderer.render_step()
+
+hjreach_agent = execute_hjreach_agent(
+    env=env,
+    time_horizon = TIME_HORIZON,
+    time_step = TIME_STEP,
+    grid_lb = GRID_LB,
+    grid_ub = GRID_UB,
+    grid_nsteps = GRID_NSTEPS,
+    precompute_time_reset = True)

@@ -57,6 +57,7 @@ OS_RAY_MAX_DEFAULT = 5.0    # [m] maximum length of ray
 PROPAGATE_TIMESTEPS = 16
 MAX_EPISODE_SIM_TIME_DEFAULT = 100.0    # [s] simulated time
 TIME_ACCEL_FACTOR_DEFAULT = 1.0         # [s-sim-time/s-wall-clock-time] acceleration of simulation time
+BASE_SIM_TIME_STEP = 0.1                # [s] simulated time added to all steps
 
 # Control lyapunov QP parameters
 GAMMA_VMIN_DEFAULT=1    # parameter lower-bounding evolution of v-min speed barrier function
@@ -92,6 +93,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
         ray_length: float = OS_RAY_MAX_DEFAULT,
         max_episode_sim_time: float = MAX_EPISODE_SIM_TIME_DEFAULT,
         time_accel_factor: float = TIME_ACCEL_FACTOR_DEFAULT,
+        base_sim_time_step: float = BASE_SIM_TIME_STEP,
         gamma_vmin=GAMMA_VMIN_DEFAULT, 
         gamma_vmax=GAMMA_VMAX_DEFAULT,
         lambda_Vtheta=LAMBDA_VTHETA_DEFAULT, 
@@ -109,6 +111,8 @@ class Dubins4dReachAvoidEnv(gym.Env):
                 elapsed sim time before timeout termination critera
             time_accel_factor : float
                 sim time acceleration relative to wall clock time
+            base_sim_time_step : float
+                sim time added to all step_to_now calls
             gamma_vmax, gamma_vmin : float
                 parameter lower-bounding evolution of speed barrier function
             lambda_Vtheta, lambda_Vspeed : float
@@ -126,6 +130,9 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         assert time_accel_factor >= 1.0
         self._time_accel_factor = time_accel_factor         # [s-sim-time/s-wall-time] sim-time accleration factor relative to wall clock
+
+        assert base_sim_time_step >= 0
+        self._base_sim_time_step = base_sim_time_step
 
         # define state space bounds
         # [x [m], y [m], theta [rad], v [m/s]]
@@ -152,14 +159,22 @@ class Dubins4dReachAvoidEnv(gym.Env):
         # (private because solution algorithms should not know them)
         self.__dist = SimpleNamespace()
         self.__dist.ctrl = SimpleNamespace()
+        # self.__dist.ctrl.x_mean = 0.0
+        # self.__dist.ctrl.x_std = 0.01
+        # self.__dist.ctrl.y_mean = 0.0
+        # self.__dist.ctrl.y_std = 0.01
+        # self.__dist.ctrl.theta_mean = 0.0
+        # self.__dist.ctrl.theta_std = 0.001
+        # self.__dist.ctrl.v_mean = 0.0
+        # self.__dist.ctrl.v_std = 0.01
         self.__dist.ctrl.x_mean = 0.0
-        self.__dist.ctrl.x_std = 0.01
+        self.__dist.ctrl.x_std = 0.0
         self.__dist.ctrl.y_mean = 0.0
-        self.__dist.ctrl.y_std = 0.01
+        self.__dist.ctrl.y_std = 0.0
         self.__dist.ctrl.theta_mean = 0.0
-        self.__dist.ctrl.theta_std = 0.001
+        self.__dist.ctrl.theta_std = 0.0
         self.__dist.ctrl.v_mean = 0.0
-        self.__dist.ctrl.v_std = 0.01
+        self.__dist.ctrl.v_std = 0.0
 
         # control lyapunov function params for inactive control
         self.gamma_vmin = gamma_vmin
@@ -345,7 +360,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         # record wall-clock elapsed time and accumulate simulation time since last update
         wall_lap_time = time.time() - self._wall_clock_sync_time
-        sim_lap_time = wall_lap_time*self._time_accel_factor
+        sim_lap_time = wall_lap_time*self._time_accel_factor + self._base_sim_time_step
 
         # formulate lap time vector for physics propagation
         tvec = np.linspace(0, sim_lap_time, PROPAGATE_TIMESTEPS, endpoint=True)

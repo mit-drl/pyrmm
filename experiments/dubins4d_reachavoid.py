@@ -36,6 +36,7 @@ _SMALL_NUMBER = 1e-5
 K_INACTIVE_AGENT = 'inactive_agent'
 K_RANDOM_AGENT = 'random_agent'
 K_HJREACH_AGENT = 'hjreach_agent'
+K_HJREACH_CHEAT_AGENT = 'hjreach_cheat_agent'
 K_LRMM_AGENT = 'lrmm_agent'
 K_CBF_AGENT = 'cbf_agent'
 # K_N_TRIALS = 'n_trials'
@@ -156,7 +157,8 @@ def execute_hjreach_agent(env,
     time_step : float,
     grid_lb : ArrayLike,
     grid_ub : ArrayLike,
-    grid_nsteps : ArrayLike)->Dict:
+    grid_nsteps : ArrayLike,
+    precompute_time_reset:bool=False)->Dict:
     '''run HJ-Reachability agent until episode completion
 
     Args:
@@ -170,6 +172,12 @@ def execute_hjreach_agent(env,
             upper bounds on each dimension in discretized state grid
         grid_nsteps : ArrayLike[int]:
             number of discretization points each dimension of state grid
+        precompute_time_reset : bool
+            if true, environment sim time will be reset after HJ PDE has been solved
+            this is a HUGE advantage / "cheat" for the HJ-reach agent
+            since the environment is explicitly designed to punish long-compute times 
+            This is done because it take HJ-reach so long to compute, the
+            environment is always done before HJ-reach has a chance to take action
     '''
 
     # agent properties that can be instantiated a priori to environment
@@ -193,6 +201,11 @@ def execute_hjreach_agent(env,
 
     # instantiate the HJ-reach agent (which solves for HJI value function on grid)
     hjreach_agent = HJReachDubins4dReachAvoidAgent(grid=grid, dynamics=dynamics, goal=goal, obstacle=obstacle, time_grid=time_grid)
+
+    if precompute_time_reset:
+        # Note: this is a huge "cheat" in favor of HJ-Reachability agent
+        # as it removes the "penalty" of having a very long computation time
+        env._wall_clock_sync_time = time.time()
 
     while True:
 
@@ -359,13 +372,19 @@ DEFAULT_HJREACH_TIME_STEP = 0.1
 DEFAULT_HJREACH_GRID_LB = [-15.0, -15.0, 0.0, -np.pi]
 DEFAULT_HJREACH_GRID_UB = [15.0, 15.0, 4.0, np.pi]
 DEFAULT_HJREACH_GRID_NSTEPS = [64, 64, 32, 32]
-# DEFAULT_HJREACH_GRID_NSTEPS = [32, 32, 16, 16]
 HJReachConf = pbuilds(execute_hjreach_agent, 
     time_horizon = DEFAULT_HJREACH_TIME_HORIZON,
     time_step = DEFAULT_HJREACH_TIME_STEP,
     grid_lb = DEFAULT_HJREACH_GRID_LB,
     grid_ub = DEFAULT_HJREACH_GRID_UB,
     grid_nsteps = DEFAULT_HJREACH_GRID_NSTEPS)
+HJReachCheatConf = pbuilds(execute_hjreach_agent, 
+    time_horizon = DEFAULT_HJREACH_TIME_HORIZON,
+    time_step = DEFAULT_HJREACH_TIME_STEP,
+    grid_lb = DEFAULT_HJREACH_GRID_LB,
+    grid_ub = DEFAULT_HJREACH_GRID_UB,
+    grid_nsteps = DEFAULT_HJREACH_GRID_NSTEPS,
+    precompute_time_reset = True)
 
 DEFAULT_LRMM_CHKPT_FILE = (
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
@@ -426,6 +445,7 @@ agent_config_inputs = {
     K_INACTIVE_AGENT: InactiveAgentConf,
     K_RANDOM_AGENT: RandomAgentConf,
     K_HJREACH_AGENT: HJReachConf,
+    K_HJREACH_CHEAT_AGENT: HJReachCheatConf
 }
 ExpConfig = make_config(
     n_trials = DEFAULT_N_TRIALS,
@@ -473,7 +493,7 @@ def task_function(cfg: ExpConfig):
         for i in range(cfg.n_trials):
             try: 
                 results[agent_name][K_TRIAL_DATA].append(randagent_iter.next())
-            except ValueError:
+            except (ValueError, AttributeError) as error:
                 results[agent_name][K_TRIAL_DATA].append(None)
 
             if i%_MONITOR_RATE ==  0:

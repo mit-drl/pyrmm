@@ -46,8 +46,8 @@ CS_DVMAX = 0.5      # [m/s/s]
 # goal and obstacle params
 GOAL_R_MIN = 0.1
 GOAL_R_MAX = 1.0
-OBST_R_MIN = 2.0
-OBST_R_MAX = 5.0
+OBST_R_MIN = 4.0
+OBST_R_MAX = 8.0
 
 # observation space (OS) parameters
 OS_N_RAYS_DEFAULT = 12      # number of rays to cast
@@ -206,15 +206,35 @@ class Dubins4dReachAvoidEnv(gym.Env):
         self._cur_action[K_TURNRATE_CTRL][0] = 0.0
         self._cur_action[K_ACCEL_CTRL][0] = 0.0
 
-        # randomize goal, obstacle
-        goal_xc, goal_yc = self.state_space.sample()[:2]
-        goal_r = uniform(GOAL_R_MIN, GOAL_R_MAX)
-        self._goal = CircleRegion(xc=goal_xc, yc=goal_yc, r=goal_r)
+        # randomly generate goals and obstacles until 
+        # non-overlapping set with init state is found
 
-        # randomize obstacle (not meant for direct access)
-        obst_xc, obst_yc = self.state_space.sample()[:2]
-        obst_r = uniform(OBST_R_MIN, OBST_R_MAX)
-        self._obstacle = CircleRegion(xc=obst_xc, yc=obst_yc, r=obst_r)
+        while True:
+
+            # randomize goal, obstacle
+            goal_xc, goal_yc = self.state_space.sample()[:2]
+            goal_r = uniform(GOAL_R_MIN, GOAL_R_MAX)
+            goal_candidate = CircleRegion(xc=goal_xc, yc=goal_yc, r=goal_r)
+
+            # randomize obstacle (not meant for direct access)
+            obst_xc, obst_yc = self.state_space.sample()[:2]
+            obst_r = uniform(OBST_R_MIN, OBST_R_MAX)
+            obstacle_candidate = CircleRegion(xc=obst_xc, yc=obst_yc, r=obst_r)
+
+            goal_col, _, _ = goal_candidate.check_traj_intersection([self.__state])
+            obst_col, _, _ = obstacle_candidate.check_traj_intersection([self.__state])
+
+            if (
+                goal_col or
+                obst_col or
+                obst_r > np.sqrt((obst_xc-goal_xc)**2 + (obst_yc-goal_yc)**2) + goal_r 
+            ):
+                continue
+            else:
+                break
+
+        self._goal = goal_candidate
+        self._obstacle = obstacle_candidate
 
         # clean the render collection and add the initial frame
         self.renderer.reset()
@@ -527,7 +547,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         # heuristic that desired speed increase with distance to target
         dist_targ = np.sqrt(xhat*xhat + yhat*yhat)
-        vd = min((dist_targ/2)**2, dist_targ/2)
+        vd = min((dist_targ/10)**2, dist_targ/10, 2.0)
 
         # map theta into range [-pi,pi] to avoid windup of Vtheta
         theta = (deepcopy(theta) + np.pi) % (2 * np.pi) - np.pi
@@ -601,7 +621,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         ### Vspeed: Control Lyapunov Function for speed stabilization (relaxed) constraint ###
 
-        Vspeed = (v -vd)*82
+        Vspeed = (v -vd)**2
 
         # Lie derivative of Vspeed along f(x)
         LfVspeed = 0

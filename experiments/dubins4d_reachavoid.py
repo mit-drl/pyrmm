@@ -25,6 +25,7 @@ from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv, K_ACTI
 from pyrmm.hjreach.dubins4d_reachavoid_agent import HJReachDubins4dReachAvoidAgent
 from pyrmm.agents.dubins4d_reachavoid_agent import LRMMDubins4dReachAvoidAgent
 from pyrmm.cbfs.dubins4d_reachavoid_agent import CBFDubins4dReachAvoidAgent
+from pyrmm.modelgen.dubins4d import Dubins4dReachAvoidDataModule
 
 _CONFIG_NAME = "dubins4d_reachavoid_experiment"
 _MONITOR_RATE = 1
@@ -213,12 +214,21 @@ def execute_hjreach_agent(env,
     return info
 
 def execute_lrmm_agent(env,
-    chkpt_file, active_ctrl_risk_threshold):
+    chkpt_file, active_ctrl_risk_threshold, data_path):
+
+    # create data module from training data to
+    # access input/ouput scalers
+    dp = U.get_abs_pt_data_paths(datadir=data_path)
+    data_module = Dubins4dReachAvoidDataModule(dp,0,1,0,None)
+    data_module.setup('test')
     
     # create LRMM agent from checkpointed model
     lrmm_agent = LRMMDubins4dReachAvoidAgent(
         chkpt_file=chkpt_file, 
-        active_ctrl_risk_threshold=active_ctrl_risk_threshold
+        active_ctrl_risk_threshold=active_ctrl_risk_threshold,
+        observation_scaler=data_module.observation_scaler,
+        min_risk_ctrl_scaler=data_module.min_risk_ctrl_scaler,
+        min_risk_ctrl_dur_scaler=data_module.min_risk_ctrl_dur_scaler
     )
 
     # reset env to restart timing
@@ -363,9 +373,14 @@ DEFAULT_LRMM_CHKPT_FILE = (
     "version_0/checkpoints/epoch=2027-step=442103.ckpt"
 )
 DEFAULT_LRMM_ACITVE_CTRL_RISK_THRESHOLD = 0.8
+DEFAULT_LRMM_DATA_PATH= (
+    "/home/ross/Projects/AIIA/risk_metric_maps/" +
+    "outputs/2022-09-11/21-08-47/"
+)
 LRMMAgentConf = pbuilds(execute_lrmm_agent,
     chkpt_file = DEFAULT_LRMM_CHKPT_FILE,
-    active_ctrl_risk_threshold = DEFAULT_LRMM_ACITVE_CTRL_RISK_THRESHOLD)
+    active_ctrl_risk_threshold = DEFAULT_LRMM_ACITVE_CTRL_RISK_THRESHOLD,
+    data_path = DEFAULT_LRMM_DATA_PATH)
 
 # Configure CBF agent
 DEFAULT_VMIN = 0    # [M/S]

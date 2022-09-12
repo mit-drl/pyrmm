@@ -4,9 +4,11 @@ Class for defining an interactive guardian agent for the Dubins4d Reach-Avoid
     a learned risk metric map (LRMM) model
 """
 import torch
+import numpy as np
 
 from copy import deepcopy
 from numpy.typing import ArrayLike
+from typing import Callable
 
 from pyrmm.environments.dubins4d_reachavoid import \
     OS_N_RAYS_DEFAULT, Dubins4dReachAvoidEnv, \
@@ -16,7 +18,10 @@ from pyrmm.modelgen.modules import ShallowRiskCtrlMLP, RiskCtrlMetricModule
 class LRMMDubins4dReachAvoidAgent():
     def __init__(self,
         chkpt_file: str,
-        active_ctrl_risk_threshold: float
+        active_ctrl_risk_threshold: float,
+        observation_scaler : Callable,
+        min_risk_ctrl_scaler : Callable,
+        min_risk_ctrl_dur_scaler : Callable
     ):
         """
         Args:
@@ -24,8 +29,12 @@ class LRMMDubins4dReachAvoidAgent():
                 absolute path to pytorch lightning checkpoint
             active_ctrl_risk_threshold : float
                 risk estimate at which time active control is taken
+            data_module
         """
         self.active_ctrl_risk_threshold = active_ctrl_risk_threshold
+        self.observation_scaler = observation_scaler
+        self.min_risk_ctrl_scaler = min_risk_ctrl_scaler
+        self.min_risk_ctrl_dur_scaler = min_risk_ctrl_dur_scaler
 
         # form constants for reconstructing module from checkpoint
         # NOTE: this is pretty hacky, there has got to be a better
@@ -70,11 +79,26 @@ class LRMMDubins4dReachAvoidAgent():
         action = self.action_space.sample()
         action[K_ACTIVE_CTRL] = False
 
+        # scale observation to conform with model training scales
+        obs_scaled = torch.from_numpy(
+            np.float32(
+                self.observation_scaler.transform(
+                    observation.reshape(1,self.num_inputs)
+                )
+            )
+        ).reshape(self.num_inputs,)
+
         # run inference on trained model and unpack outputs
-        model_out = self.lrmm(torch.tensor(observation)).detach().numpy()
+        model_out = self.lrmm(obs_scaled).detach().numpy()
+
+        # inverse scale min-risk control and duration (risk est requires no scaling)
         risk_est = model_out[0]
-        min_risk_ctrl_est = model_out[1:1+self.num_ctrl_dims]
-        min_risk_ctrl_dur_est = model_out[-1]
+        min_risk_ctrl_est = self.min_risk_ctrl_scaler.inverse_transform(
+            model_out[1:1+self.num_ctrl_dims].reshape(1,self.num_ctrl_dims)
+        ).reshape(self.num_ctrl_dims,)
+        min_risk_ctrl_dur_est = self.min_risk_ctrl_dur_scaler.inverse_transform(
+            model_out[-1].reshape(1,1)
+        ).reshape(1,)[0]
 
         # determine if active control is to be taken
         if risk_est > self.active_ctrl_risk_threshold:

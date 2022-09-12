@@ -78,11 +78,11 @@ class LRMMDubins4dReachAvoidAgent():
 
         # determine if active control is to be taken
         if risk_est > self.active_ctrl_risk_threshold:
-            action[K_ACTIVE_CTRL] = False
+            action[K_ACTIVE_CTRL] = True
             action[K_TURNRATE_CTRL] = min_risk_ctrl_est[0]
             action[K_ACCEL_CTRL] = min_risk_ctrl_est[1]
         
-        return action
+        return action, min_risk_ctrl_dur_est
 
 
 # if __name__ == "__main__":

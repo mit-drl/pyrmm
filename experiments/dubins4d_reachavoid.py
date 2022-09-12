@@ -222,10 +222,13 @@ def execute_lrmm_agent(env,
     while True:
 
         # compute action at current state
-        action = lrmm_agent.get_action(observation=obs)
+        action, ctrl_dur = lrmm_agent.get_action(observation=obs)
 
         # employ action in environment
         obs, rew, done, info = env.step_to_now(action)
+
+        # wait part of ctrl duration (but enforce non-negative time)
+        time.sleep(max(0.1*ctrl_dur, 0.0))
 
         if done:
             break
@@ -395,13 +398,13 @@ CBFAgentConf = pbuilds(execute_cbf_agent,
     )
 
 # Top-level configuration of experiment
-DEFAULT_N_TRIALS = 4       # number of trials (episodes) per agent
+DEFAULT_N_TRIALS = 64       # number of trials (episodes) per agent
 agent_config_inputs = {
-    # K_INACTIVE_AGENT: InactiveAgentConf,
-    # K_RANDOM_AGENT: RandomAgentConf,
-    # K_HJREACH_AGENT: HJReachConf,
+    K_INACTIVE_AGENT: InactiveAgentConf,
+    K_RANDOM_AGENT: RandomAgentConf,
+    K_HJREACH_AGENT: HJReachConf,
     K_LRMM_AGENT: LRMMAgentConf,
-    # K_CBF_AGENT: CBFAgentConf
+    K_CBF_AGENT: CBFAgentConf
 }
 ExpConfig = make_config(
     n_trials = DEFAULT_N_TRIALS,

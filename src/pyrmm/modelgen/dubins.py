@@ -23,9 +23,9 @@ from pyrmm.modelgen.modules import \
 _CONFIG_NAME = "dubins_modelgen_app"
 # _NUM_MODEL_INPUTS = 8
 
-##############################################
-### SYSTEM-SPECIFIC FUNCTSIONS AND CLASSES ###
-##############################################
+#############################################
+### SYSTEM-SPECIFIC FUNCTIONS AND CLASSES ###
+#############################################
 
 def se2_to_numpy(se2):
     '''convert OMPL SE2StateInternal object to numpy array'''
@@ -145,24 +145,27 @@ DataConf = pbuilds(DubinsPPMDataModule,
     batch_size=64, 
     num_workers=4,
     compile_verify_func=verify_hydrazen_rmm_data
-    )
+)
 
 # ModelConf = pbuilds(single_layer_nn_bounded_output,  
 #     num_neurons=64)
 ModelConf = pbuilds(ShallowRiskCtrlMLP,  
-    num_neurons=64)
+    num_neurons=64
+)
 
 OptimConf = pbuilds(optim.Adam)
 
 PLModuleConf = pbuilds(RiskCtrlMetricModule,  
     # model=ModelConf, 
-    optimizer=OptimConf)
+    optimizer=OptimConf
+)
 
 TrainerConf = pbuilds(Trainer, 
     max_epochs=2028, 
     precision=64, 
     reload_dataloaders_every_n_epochs=1, 
-    progress_bar_refresh_rate=0)
+    progress_bar_refresh_rate=0
+)
 
 ExperimentConfig = make_config(
     "train_data",
@@ -221,9 +224,6 @@ def task_function(cfg: ExperimentConfig):
     hlog.info("training:elapsed_time:{:.4f}".format(time.time()-train_start_time))
     for k, v in trainer.logged_metrics.items():
         hlog.info("trianing:metrics:{}:{}".format(k,v))
-        # result_summary['training']['metrics'][k] = v.detach().numpy()
-        # if k.startswith('val'):
-        #     result_summary['training']['metrics'][k] = v
 
     if obj.test_data is not None:
 
@@ -272,10 +272,6 @@ def task_function(cfg: ExperimentConfig):
         hlog.info('maximum absolute risk metric error: {}'.format(torch.max(torch.abs(test_pred_rmetrics_pt - test_targ_rmetrics_pt))))
         test_full_data = zip(test_ssamples, test_pred_rmetrics_pt.detach().numpy(), test_observations)
         U.plot_dubins_data(Path(test_dp), desc='Inferred', data=test_full_data, show=obj.show_test_data)
-
-    # write result summary to file
-    # with open('result_summary.yaml', 'w') as result_file:
-    #     yaml.dump(result_summary, result_file, default_flow_style=False)
 
 
 if __name__ == "__main__":

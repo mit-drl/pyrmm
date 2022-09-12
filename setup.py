@@ -18,6 +18,8 @@ setup(name="pyrmm",
     install_requires=[
         "numpy",
         "torch",
+        "pytorch-lightning",
+        "scikit-learn",
         "gitpython",
     ]
     )

@@ -1,6 +1,4 @@
 scipy
-pytorch-lightning
-scikit-learn
 pandas
 tensorboard
 matplotlib

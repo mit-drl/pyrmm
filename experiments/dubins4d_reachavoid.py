@@ -23,6 +23,7 @@ from odp.Shapes import CylinderShape
 
 from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv, K_ACTIVE_CTRL
 from pyrmm.hjreach.dubins4d_reachavoid_agent import HJReachDubins4dReachAvoidAgent
+from pyrmm.agents.dubins4d_reachavoid_agent import LRMMDubins4dReachAvoidAgent
 from pyrmm.cbfs.dubins4d_reachavoid_agent import CBFDubins4dReachAvoidAgent
 
 _CONFIG_NAME = "dubins4d_reachavoid_experiment"
@@ -34,6 +35,7 @@ _SMALL_NUMBER = 1e-5
 K_INACTIVE_AGENT = 'inactive_agent'
 K_RANDOM_AGENT = 'random_agent'
 K_HJREACH_AGENT = 'hjreach_agent'
+K_LRMM_AGENT = 'lrmm_agent'
 K_CBF_AGENT = 'cbf_agent'
 # K_N_TRIALS = 'n_trials'
 # K_TIME_ACCEL = 'time_accel'
@@ -205,6 +207,31 @@ def execute_hjreach_agent(env,
 
     return info
 
+def execute_lrmm_agent(env,
+    chkpt_file, active_ctrl_risk_threshold):
+    
+    # create LRMM agent from checkpointed model
+    lrmm_agent = LRMMDubins4dReachAvoidAgent(
+        chkpt_file=chkpt_file, 
+        active_ctrl_risk_threshold=active_ctrl_risk_threshold
+    )
+
+    # reset env to restart timing
+    obs, info = env.reset()
+
+    while True:
+
+        # compute action at current state
+        action = lrmm_agent.get_action(observation=obs)
+
+        # employ action in environment
+        obs, rew, done, info = env.step_to_now(action)
+
+        if done:
+            break
+
+    return info
+
 def execute_cbf_agent(env,
     vmin, vmax,
     u1min, u1max,
@@ -321,6 +348,16 @@ HJReachConf = pbuilds(execute_hjreach_agent,
     grid_ub = DEFAULT_HJREACH_GRID_UB,
     grid_nsteps = DEFAULT_HJREACH_GRID_NSTEPS)
 
+DEFAULT_LRMM_CHKPT_FILE = (
+    "/home/ross/Projects/AIIA/risk_metric_maps/" +
+    "outputs/2022-09-11/22-10-44/lightning_logs/" +
+    "version_0/checkpoints/epoch=2027-step=442103.ckpt"
+)
+DEFAULT_LRMM_ACITVE_CTRL_RISK_THRESHOLD = 0.8
+LRMMAgentConf = pbuilds(execute_lrmm_agent,
+    chkpt_file = DEFAULT_LRMM_CHKPT_FILE,
+    active_ctrl_risk_threshold = DEFAULT_LRMM_ACITVE_CTRL_RISK_THRESHOLD)
+
 # Configure CBF agent
 DEFAULT_VMIN = 0    # [M/S]
 DEFAULT_VMAX = 2    # [M/S]
@@ -360,10 +397,11 @@ CBFAgentConf = pbuilds(execute_cbf_agent,
 # Top-level configuration of experiment
 DEFAULT_N_TRIALS = 4       # number of trials (episodes) per agent
 agent_config_inputs = {
-    K_INACTIVE_AGENT: InactiveAgentConf,
-    K_RANDOM_AGENT: RandomAgentConf,
-    K_HJREACH_AGENT: HJReachConf,
-    K_CBF_AGENT: CBFAgentConf
+    # K_INACTIVE_AGENT: InactiveAgentConf,
+    # K_RANDOM_AGENT: RandomAgentConf,
+    # K_HJREACH_AGENT: HJReachConf,
+    K_LRMM_AGENT: LRMMAgentConf,
+    # K_CBF_AGENT: CBFAgentConf
 }
 ExpConfig = make_config(
     n_trials = DEFAULT_N_TRIALS,

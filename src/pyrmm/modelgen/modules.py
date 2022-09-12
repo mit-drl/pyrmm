@@ -34,6 +34,41 @@ def single_layer_nn_bounded_output(num_inputs: int, num_neurons: int) -> nn.Modu
         nn.Sigmoid(),
     )
 
+class ShallowRiskCtrlMLP(nn.Module):
+    def __init__(self,
+        num_inputs: int,
+        num_ctrl_dims: int, 
+        num_neurons: int):
+        """shallow feed-forward neural network for outputing bounded risk and control values
+
+        Args:
+            num_inputs : int
+                number of inputs to neural network. Should align with observation space
+            num_ctrl_dims : int
+                number of control dimensions. Should align with control space
+            num_neurons : int
+                number of neurons in layer
+        """
+        super().__init__()
+        self.num_ctrl_dims = num_ctrl_dims
+        self.fc1 = nn.Linear(num_inputs, num_neurons)
+        self.fc2 = nn.Linear(num_neurons, 2+num_ctrl_dims)
+
+    def forward(self, x):
+        # pass all inputs through first linear layer and ELU activation
+        x = F.elu(self.fc1(x))
+        x = self.fc2(x)
+
+        # bound risks probabilities to range [0,1] 
+        risks = torch.sigmoid(x.narrow(-1,0,1))
+
+        # separate controls and control durations from risks
+        ctrls = x.narrow(-1,1,self.num_ctrl_dims)
+        durs = x.narrow(-1,-1,1)
+        
+        return torch.cat((risks, ctrls, durs), -1)
+
+
 def linear_nn():
     return nn.Sequential(
         nn.Linear(3,1)

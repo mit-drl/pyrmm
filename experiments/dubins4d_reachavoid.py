@@ -42,6 +42,7 @@ K_CBF_AGENT = 'cbf_agent'
 # K_N_CORES = 'n_cores'
 K_TRIAL_DATA = 'trial_data'
 K_AGGREGATE_DATA = 'aggregate_data'
+K_ERROR_RATE = 'error_rate'
 K_AVG_POLICY_COMPUTE_WALL_TIME = 'avg_policy_compute_wall_time'
 K_AVG_WALL_CLOCK_TIME_PER_EPISODE = 'avg_wall_clock_time_per_episode'
 K_AVG_STEPS_PER_EPISODE = 'avg_steps_per_episode'
@@ -69,16 +70,20 @@ def aggregate_agent_metrics(trial_data:List)->Dict:
     '''
     agg_data = dict()
 
-    agg_data[K_AVG_POLICY_COMPUTE_WALL_TIME] = np.sum([t['cum_wall_clock_time'] for t in trial_data]) / np.sum([t['n_env_steps'] for t in trial_data])
-    agg_data[K_AVG_WALL_CLOCK_TIME_PER_EPISODE] = np.mean([t['cum_wall_clock_time'] for t in trial_data])
-    agg_data[K_AVG_STEPS_PER_EPISODE] = np.mean([t['n_env_steps'] for t in trial_data])
-    agg_data[K_AVG_SIM_TIME_PER_EPISODE] = np.mean([t['cum_sim_time'] for t in trial_data])
-    agg_data[K_AVG_ACTIVE_CTRL_STEPS] = np.mean([t['n_active_ctrl_env_steps'] for t in trial_data])
-    agg_data[K_AVG_ACTIVE_CTRL_SIM_TIME] = np.mean([t['active_ctrl_sim_time'] for t in trial_data]) 
-    agg_data[K_GOAL_COMPLETION_RATE] = len([t for t in trial_data if np.isclose(t['cum_reward'],1.0)])/len(trial_data)
-    agg_data[K_OBST_COLLISION_RATE] = len([t for t in trial_data if np.isclose(t['cum_reward'],-1.0)])/len(trial_data)
-    agg_data[K_TIMEOUT_RATE] = len([t for t in trial_data if np.isclose(t['cum_reward'],0.0)])/len(trial_data)
-    agg_data[K_AVG_SIM_TIME_TO_GOAL] = np.mean([t['cum_sim_time'] for t in trial_data if np.isclose(t['cum_reward'],1.0)])
+    agg_data[K_ERROR_RATE] = len([t for t in trial_data if t is None])/len(trial_data)
+
+    # non-errored data
+    dat = [t for t in trial_data if t is not None]
+    agg_data[K_AVG_POLICY_COMPUTE_WALL_TIME] = np.sum([t['cum_wall_clock_time'] for t in dat]) / np.sum([t['n_env_steps'] for t in dat])
+    agg_data[K_AVG_WALL_CLOCK_TIME_PER_EPISODE] = np.mean([t['cum_wall_clock_time'] for t in dat])
+    agg_data[K_AVG_STEPS_PER_EPISODE] = np.mean([t['n_env_steps'] for t in dat])
+    agg_data[K_AVG_SIM_TIME_PER_EPISODE] = np.mean([t['cum_sim_time'] for t in dat])
+    agg_data[K_AVG_ACTIVE_CTRL_STEPS] = np.mean([t['n_active_ctrl_env_steps'] for t in dat])
+    agg_data[K_AVG_ACTIVE_CTRL_SIM_TIME] = np.mean([t['active_ctrl_sim_time'] for t in dat]) 
+    agg_data[K_GOAL_COMPLETION_RATE] = len([t for t in dat if np.isclose(t['cum_reward'],1.0)])/len(dat)
+    agg_data[K_OBST_COLLISION_RATE] = len([t for t in dat if np.isclose(t['cum_reward'],-1.0)])/len(dat)
+    agg_data[K_TIMEOUT_RATE] = len([t for t in dat if np.isclose(t['cum_reward'],0.0)])/len(dat)
+    agg_data[K_AVG_SIM_TIME_TO_GOAL] = np.mean([t['cum_sim_time'] for t in dat if np.isclose(t['cum_reward'],1.0)])
 
     return agg_data
 
@@ -451,7 +456,15 @@ def task_function(cfg: ExpConfig):
         # track multiprocess progress
         results[agent_name] = {K_TRIAL_DATA:[]}
         for i in range(cfg.n_trials):
-            results[agent_name][K_TRIAL_DATA].append(randagent_iter.next())
+            try: 
+                results[agent_name][K_TRIAL_DATA].append(randagent_iter.next())
+            except ValueError:
+                results[agent_name][K_TRIAL_DATA].append(None)
+                # if str(e) == "Physics propagation failed resulting in NaN states":
+                #     results[agent_name][K_TRIAL_DATA].append(None)
+                # else:
+                #     raise
+
             if i%_MONITOR_RATE ==  0:
                 print("{} trial: completed {} of {} after {:.2f}".format(agent_name, i+1, cfg.n_trials, time.time()-t_start,))
 

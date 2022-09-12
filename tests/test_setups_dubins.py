@@ -646,8 +646,8 @@ def test_hypothesis_DubinsPPMSetup_propagator_clipped_ctrl(speed, min_turn_radiu
     assert np.isclose(np.cos(s1().getYaw()), np.cos(exp_yaw1))
     exp_x1 = x0 + exp_turn_radius * ctrl_sign * (np.sin(exp_yaw1) - np.sin(yaw0))
     exp_y1 = y0 + exp_turn_radius * ctrl_sign * (-np.cos(exp_yaw1) + np.cos(yaw0))
-    assert np.isclose(s1().getX(), exp_x1, rtol=1e-3)
-    assert np.isclose(s1().getY(), exp_y1, rtol=1e-3)
+    assert np.isclose(s1().getX(), exp_x1, rtol=1e-2)
+    assert np.isclose(s1().getY(), exp_y1, rtol=1e-2)
 
 def test_DubinsPPMSetup_sampleReachableSet_0():
     '''test that propagator arrives at expected state'''

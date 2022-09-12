@@ -14,8 +14,11 @@ from pytorch_lightning import Trainer, seed_everything, Callback
 from hydra_zen import builds, make_custom_builds_fn, make_config, instantiate
 
 import pyrmm.utils.utils as U
-from pyrmm.modelgen.modules import RiskMetricDataModule, RiskMetricModule, \
-    RiskMetricTrainingData, single_layer_nn_bounded_output
+from pyrmm.setups.dubins import DubinsPPMSetup
+from pyrmm.modelgen.modules import \
+    RiskCtrlMetricDataModule, RiskCtrlMetricModule, \
+    RiskCtrlMetricTrainingData, ShallowRiskCtrlMLP
+    #single_layer_nn_bounded_output
 
 _CONFIG_NAME = "dubins_modelgen_app"
 # _NUM_MODEL_INPUTS = 8
@@ -28,7 +31,7 @@ def se2_to_numpy(se2):
     '''convert OMPL SE2StateInternal object to numpy array'''
     return np.array([se2.getX(), se2.getY(), se2.getYaw()])
 
-class DubinsPPMDataModule(RiskMetricDataModule):
+class DubinsPPMDataModule(RiskCtrlMetricDataModule):
     def __init__(self,
         datapaths: List[str],
         val_ratio: float, 
@@ -43,7 +46,7 @@ class DubinsPPMDataModule(RiskMetricDataModule):
             num_workers=num_workers,
             compile_verify_func=compile_verify_func)
 
-    def raw_data_to_numpy(self, raw_data:RiskMetricTrainingData):
+    def raw_data_to_numpy(self, raw_data:RiskCtrlMetricTrainingData):
         '''convert raw data (e.g. OMPL objects) to numpy arrays'''
 
         # catch "ragged" array that would be caused by data with 
@@ -53,11 +56,15 @@ class DubinsPPMDataModule(RiskMetricDataModule):
             state_samples= np.concatenate([se2_to_numpy(s).reshape(1,3) for s in raw_data.state_samples], axis=0)
             risk_metrics = np.asarray(raw_data.risk_metrics).reshape(-1,1)
             observations = np.asarray(raw_data.observations)
+            min_risk_ctrls = np.asarray(raw_data.min_risk_ctrls)
+            min_risk_ctrl_durs = np.asarray(raw_data.min_risk_ctrl_durs).reshape(-1,1)
 
-        return RiskMetricTrainingData(
+        return RiskCtrlMetricTrainingData(
             state_samples= state_samples,
             risk_metrics = risk_metrics,
             observations = observations,
+            min_risk_ctrls=min_risk_ctrls,
+            min_risk_ctrl_durs=min_risk_ctrl_durs
         )
 
 class InputMonitor(Callback):
@@ -140,12 +147,14 @@ DataConf = pbuilds(DubinsPPMDataModule,
     compile_verify_func=verify_hydrazen_rmm_data
     )
 
-ModelConf = pbuilds(single_layer_nn_bounded_output,  
+# ModelConf = pbuilds(single_layer_nn_bounded_output,  
+#     num_neurons=64)
+ModelConf = pbuilds(ShallowRiskCtrlMLP,  
     num_neurons=64)
 
 OptimConf = pbuilds(optim.Adam)
 
-PLModuleConf = pbuilds(RiskMetricModule,  
+PLModuleConf = pbuilds(RiskCtrlMetricModule,  
     # model=ModelConf, 
     optimizer=OptimConf)
 
@@ -197,12 +206,13 @@ def task_function(cfg: ExperimentConfig):
 
     # extract the trained model input size from the observation data
     num_model_inputs = data_module.observation_shape[1]
+    num_ctrl_dims = data_module.control_shape[1]
 
     # finish instantiating the trainer
     trainer = obj.trainer(callbacks=[InputMonitor(), CheckBatchGradient()])
 
     # finish instantiating pytorch lightning model and module
-    pl_model = obj.pl_model(num_inputs=num_model_inputs)
+    pl_model = obj.pl_model(num_inputs=num_model_inputs, num_ctrl_dims=num_ctrl_dims)
     pl_module = obj.pl_module(num_inputs=num_model_inputs, model=pl_model)
 
     # train the model

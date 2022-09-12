@@ -205,7 +205,8 @@ class DubinsPPMSetup(SystemSetup):
         assert len(self.lidar_angles) > 0
         return [self.cast_ray(state, theta, self.lidar_resolution) for theta in self.lidar_angles]
 
-    def control_ompl_to_numpy(self, omplCtrl, npCtrl=None):
+    @staticmethod
+    def control_ompl_to_numpy(omplCtrl, npCtrl=None):
         """convert Dubins4d ompl control object to numpy array
 
         Args:

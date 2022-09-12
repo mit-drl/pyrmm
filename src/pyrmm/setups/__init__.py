@@ -172,7 +172,10 @@ class SystemSetup:
 
         # recursion base: state is failure or leaf node without base estimation function
         if z or (depth==0 and base_estimate_fn is None):
-            return float(z), None, None
+            base_ctrl = self.space_info.allocControl()
+            for i in range(self.space_info.getControlSpace().getDimension()):
+                base_ctrl[i] = 0.0
+            return float(z), self.control_ompl_to_numpy(base_ctrl), 0.0
 
         # recursion base: leaf node with base estimation function
         if depth == 0 and base_estimate_fn is not None:

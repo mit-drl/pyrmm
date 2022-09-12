@@ -32,8 +32,8 @@ pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 Dubins4dReachAvoidSetupConfig = pbuilds(Dubins4dReachAvoidSetup)
 
 # Default sampler and risk estimator configs
-_DEFAULT_N_ENVIRONMENTS = 2048
-_DEFAULT_N_SAMPLES_PER_ENV = 512
+_DEFAULT_N_ENVIRONMENTS = 512
+_DEFAULT_N_SAMPLES_PER_ENV = 32
 _DEFAULT_DURATION = 2.0
 _DEFAULT_N_BRANCHES = 32
 _DEFAULT_TREE_DEPTH = 2

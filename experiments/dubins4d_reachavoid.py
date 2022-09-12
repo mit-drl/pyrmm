@@ -233,7 +233,7 @@ def execute_lrmm_agent(env,
         obs, rew, done, info = env.step_to_now(action)
 
         # wait part of ctrl duration (but enforce non-negative time)
-        time.sleep(max(0.1*ctrl_dur, 0.0))
+        # time.sleep(max(0.1*ctrl_dur, 0.0))
 
         if done:
             break
@@ -460,10 +460,6 @@ def task_function(cfg: ExpConfig):
                 results[agent_name][K_TRIAL_DATA].append(randagent_iter.next())
             except ValueError:
                 results[agent_name][K_TRIAL_DATA].append(None)
-                # if str(e) == "Physics propagation failed resulting in NaN states":
-                #     results[agent_name][K_TRIAL_DATA].append(None)
-                # else:
-                #     raise
 
             if i%_MONITOR_RATE ==  0:
                 print("{} trial: completed {} of {} after {:.2f}".format(agent_name, i+1, cfg.n_trials, time.time()-t_start,))

@@ -495,7 +495,7 @@ def task_function(cfg: ExpConfig):
             # results[agent_name][K_TRIAL_DATA].append(randagent_iter.next())
             try: 
                 results[agent_name][K_TRIAL_DATA].append(randagent_iter.next())
-            except (ValueError, AttributeError) as error:
+            except:
                 results[agent_name][K_TRIAL_DATA].append(None)
 
             if i%_MONITOR_RATE ==  0:

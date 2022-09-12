@@ -492,6 +492,7 @@ def task_function(cfg: ExpConfig):
         # track multiprocess progress
         results[agent_name] = {K_TRIAL_DATA:[]}
         for i in range(cfg.n_trials):
+            # results[agent_name][K_TRIAL_DATA].append(randagent_iter.next())
             try: 
                 results[agent_name][K_TRIAL_DATA].append(randagent_iter.next())
             except (ValueError, AttributeError) as error:

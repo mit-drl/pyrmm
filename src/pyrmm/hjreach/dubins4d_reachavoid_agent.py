@@ -178,10 +178,10 @@ class HJReachDubins4dReachAvoidAgent():
         action[K_ACTIVE_CTRL] = True
 
         # Compute spatial derivatives of final value function at every discrete state on grid
-        delVf_delx = computeSpatDerivArray(self._grid.grid_points, Vf, deriv_dim=1, accuracy="low")
-        delVf_dely = computeSpatDerivArray(self._grid.grid_points, Vf, deriv_dim=2, accuracy="low")
-        delVf_delv = computeSpatDerivArray(self._grid.grid_points, Vf, deriv_dim=3, accuracy="low")
-        delVf_delth = computeSpatDerivArray(self._grid.grid_points, Vf, deriv_dim=4, accuracy="low")
+        delVf_delx = computeSpatDerivArray(self._grid, Vf, deriv_dim=1, accuracy="low")
+        delVf_dely = computeSpatDerivArray(self._grid, Vf, deriv_dim=2, accuracy="low")
+        delVf_delv = computeSpatDerivArray(self._grid, Vf, deriv_dim=3, accuracy="low")
+        delVf_delth = computeSpatDerivArray(self._grid, Vf, deriv_dim=4, accuracy="low")
 
         # interpolate spatial derivative at state
         grad_Vf_state = (

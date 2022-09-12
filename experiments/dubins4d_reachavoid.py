@@ -340,10 +340,11 @@ RandomAgentConf = pbuilds(execute_random_agent, max_delay=DEFAULT_RANDOM_AGENT_M
 
 # Configure HJ-reach agent
 DEFAULT_HJREACH_TIME_HORIZON = 1.0
-DEFAULT_HJREACH_TIME_STEP = 0.05
+DEFAULT_HJREACH_TIME_STEP = 0.1
 DEFAULT_HJREACH_GRID_LB = [-15.0, -15.0, 0.0, -np.pi]
 DEFAULT_HJREACH_GRID_UB = [15.0, 15.0, 4.0, np.pi]
 DEFAULT_HJREACH_GRID_NSTEPS = [64, 64, 32, 32]
+# DEFAULT_HJREACH_GRID_NSTEPS = [32, 32, 16, 16]
 HJReachConf = pbuilds(execute_hjreach_agent, 
     time_horizon = DEFAULT_HJREACH_TIME_HORIZON,
     time_step = DEFAULT_HJREACH_TIME_STEP,
@@ -398,7 +399,7 @@ CBFAgentConf = pbuilds(execute_cbf_agent,
     )
 
 # Top-level configuration of experiment
-DEFAULT_N_TRIALS = 64       # number of trials (episodes) per agent
+DEFAULT_N_TRIALS = 256       # number of trials (episodes) per agent
 agent_config_inputs = {
     K_INACTIVE_AGENT: InactiveAgentConf,
     K_RANDOM_AGENT: RandomAgentConf,

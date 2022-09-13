@@ -22,7 +22,9 @@ from odp.dynamics import DubinsCar4D as DubinsCar4DODP
 from odp.Grid import Grid
 from odp.Shapes import CylinderShape
 
-from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv, K_ACTIVE_CTRL, K_ACCEL_CTRL
+from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv, \
+    K_ACTIVE_CTRL, K_ACCEL_CTRL, \
+    CS_DTHETAMIN, CS_DTHETAMAX, CS_DVMIN, CS_DVMAX, SS_VMIN, SS_VMAX
 from pyrmm.hjreach.dubins4d_reachavoid_agent import HJReachDubins4dReachAvoidAgent
 from pyrmm.agents.dubins4d_reachavoid_agent import LRMMDubins4dReachAvoidAgent
 from pyrmm.cbfs.dubins4d_reachavoid_agent import CBFDubins4dReachAvoidAgent
@@ -458,16 +460,18 @@ LRMMAgentConf = pbuilds(execute_lrmm_agent,
     data_path = DEFAULT_LRMM_DATA_PATH)
 
 # Configure CBF agent
-DEFAULT_VMIN = 0    # [M/S]
-DEFAULT_VMAX = 2    # [M/S]
-DEFAULT_U1MIN = -0.2    # [RAD/S]
-DEFAULT_U1MAX = 0.2     # [RAD/S]
-DEFAULT_U2MIN = -0.5    # [M/S/S]
-DEFAULT_U2MAX = 0.5     # [M/S/S]
+# DEFAULT_VMIN = 0    # [M/S]
+# DEFAULT_VMAX = 2    # [M/S]
+# DEFAULT_U1MIN = -0.2    # [RAD/S]
+# DEFAULT_U1MAX = 0.2     # [RAD/S]
+# DEFAULT_U2MIN = -0.5    # [M/S/S]
+# DEFAULT_U2MAX = 0.5     # [M/S/S]
 DEFAULT_ALPHA_P1 = 0.7535
 DEFAULT_ALPHA_P2 = 0.6664
-DEFAULT_ALPHA_Q1 = 1.0045
-DEFAULT_ALPHA_Q2 = 1.0267
+# DEFAULT_ALPHA_Q1 = 1.0045
+# DEFAULT_ALPHA_Q2 = 1.0267
+DEFAULT_ALPHA_Q1 = 1 # these are enforced as ints anyway in cbf agent
+DEFAULT_ALPHA_Q2 = 1 # these are enforced as ints anyway in cbf agent
 DEFAULT_GAMMA_VMAX = 1
 DEFAULT_GAMMA_VMIN = 1
 DEFAULT_LAMBDA_VTHETA = 1
@@ -475,12 +479,12 @@ DEFAULT_LAMBDA_VSPEED = 1
 DEFAULT_P_VTHETA = 1
 DEFAULT_P_VSPEED = 1
 CBFAgentConf = pbuilds(execute_cbf_agent,
-    vmin = DEFAULT_VMIN,
-    vmax = DEFAULT_VMAX,
-    u1min = DEFAULT_U1MIN,
-    u1max = DEFAULT_U1MAX,
-    u2min = DEFAULT_U2MIN,
-    u2max = DEFAULT_U2MAX,
+    vmin = SS_VMIN,
+    vmax = SS_VMAX,
+    u1min = CS_DTHETAMIN,
+    u1max = CS_DTHETAMAX,
+    u2min = CS_DVMIN,
+    u2max = CS_DVMAX,
     alpha_p1 = DEFAULT_ALPHA_P1,
     alpha_p2 = DEFAULT_ALPHA_P2,
     alpha_q1 = DEFAULT_ALPHA_Q1,

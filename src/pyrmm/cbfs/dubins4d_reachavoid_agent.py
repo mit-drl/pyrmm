@@ -15,6 +15,8 @@ from pyrmm.environments.dubins4d_reachavoid import \
     Dubins4dReachAvoidEnv, CircleRegion, cvx_qp_solver, \
     K_ACTIVE_CTRL, K_TURNRATE_CTRL, K_ACCEL_CTRL
 
+OBSTACLE_INFLATION_FACTOR = 0.05
+
 class CBFDubins4dReachAvoidAgent():
     def __init__(self,
         goal: CircleRegion,
@@ -105,13 +107,14 @@ class CBFDubins4dReachAvoidAgent():
             lambda_Vtheta= self.lambda_Vtheta,
             lambda_Vspeed= self.lambda_Vspeed,
             p_Vtheta= self.p_Vtheta,
-            p_Vspeed= self.p_Vspeed
+            p_Vspeed= self.p_Vspeed,
+            obst_inflate_fact=OBSTACLE_INFLATION_FACTOR
         )
 
         # check if feasible solution found
         if ctrl_n_del is not None:
             # check barrier function  for equality; if so take active a control
-            if np.any(np.isclose(np.dot(G_safety, ctrl_n_del), h_safety, rtol=1e-2)):
+            if np.any(np.isclose(np.dot(G_safety, ctrl_n_del), h_safety, rtol=1e-1, atol=1e-1)):
                 # at least one safety constraint active, apply active safety control
                 action[K_ACTIVE_CTRL] = True
                 action[K_TURNRATE_CTRL][0] = ctrl_n_del[0]
@@ -130,7 +133,8 @@ class CBFDubins4dReachAvoidAgent():
         alpha_p1, alpha_p2, alpha_q1, alpha_q2,
         gamma_vmin, gamma_vmax,
         lambda_Vtheta, lambda_Vspeed,
-        p_Vtheta, p_Vspeed) -> ArrayLike:
+        p_Vtheta, p_Vspeed,
+        obst_inflate_fact=0.0) -> ArrayLike:
         '''Defines and solves quadratic program for dubins4d CBF+CLF with circular obstacles
         
         Args:
@@ -160,6 +164,8 @@ class CBFDubins4dReachAvoidAgent():
                 parameter upper-bounding evolution of headding and speed lyapunov functions
             p_Vtheta, p_Vspeed : float
                 penalty in objective function on heading and speed slack variables that relax stability constraints
+            obst_inflate_fact : float
+                inflates obstacle to give a bit more margin for time stepping. 0.0 means no inflation
 
             
         Returns:
@@ -196,6 +202,11 @@ class CBFDubins4dReachAvoidAgent():
         assert p_Vtheta > 0
         assert p_Vspeed > 0
 
+        # set exponents to integers to avoid complex numbers
+        # According to Wei Xiao, it is common to enforce integer exponents
+        alpha_q1 = int(alpha_q1)
+        alpha_q2 = int(alpha_q2)
+
         # unpack state vars for simple handling
         x, y, theta, v = state
         xd, yd = target
@@ -224,11 +235,11 @@ class CBFDubins4dReachAvoidAgent():
         for obs in obstacles:
 
             # control barrier function
-            b = (x - obs.xc)**2 + (y - obs.yc)**2 - obs.r**2
+            b = (x - obs.xc)**2 + (y - obs.yc)**2 - (obs.r*(1.0+obst_inflate_fact))**2
 
-            if np.less(b, 0.0):
-                # barrier function already violate, return None for control
-                return None, None, None
+            # if np.less(b, 0.0):
+            #     # barrier function already violate, return None for control
+            #     return None, None, None
 
             # 1st order Lie derivative along f(x)
             Lfb = 2*v*((x-obs.xc)*np.cos(theta) + (y-obs.yc)*np.sin(theta))
@@ -244,9 +255,9 @@ class CBFDubins4dReachAvoidAgent():
             Lfa1p0 = alpha_q1*alpha_p1*Lfb * b**(alpha_q1-1)
 
             temp_var = Lfb + alpha_p1 * b**alpha_q1
-            if np.less(temp_var, 0.0):
-                # barrier function already violate, return None for control
-                return None, None, None
+            # if np.less(temp_var, 0.0):
+            #     # barrier function already violate, return None for control
+            #     return None, None, None
             a2p1 = alpha_p2 * (temp_var)**alpha_q2
 
             # form QP inequality matrices and vectors

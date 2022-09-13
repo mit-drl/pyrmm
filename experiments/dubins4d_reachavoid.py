@@ -454,8 +454,8 @@ agent_config_inputs = {
     K_CBF_AGENT: CBFAgentConf,
     K_INACTIVE_AGENT: InactiveAgentConf,
     K_RANDOM_AGENT: RandomAgentConf,
+    K_HJREACH_CHEAT_AGENT: HJReachCheatConf,
     K_HJREACH_AGENT: HJReachConf,
-    K_HJREACH_CHEAT_AGENT: HJReachCheatConf
 }
 ExpConfig = make_config(
     n_trials = DEFAULT_N_TRIALS,

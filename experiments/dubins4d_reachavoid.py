@@ -6,6 +6,7 @@ import time
 import multiprocessing
 import logging
 import pickle
+import pprint
 import numpy as np
 
 from copy import deepcopy
@@ -96,7 +97,7 @@ def aggregate_agent_metrics(trial_data:List)->Dict:
 
     return agg_data
 
-def execute_inactive_agent(env, delay:float)->Dict:
+def execute_inactive_agent(env_n_seed, delay:float)->Dict:
     '''run agent than never takes active control (env CLF always controls)
 
     Args:
@@ -110,13 +111,15 @@ def execute_inactive_agent(env, delay:float)->Dict:
             dictionary of episode metric info
     '''
     assert delay > 0
+
+    env, seed = env_n_seed
     
     # set constant inactive action
     action = env.action_space.sample()
     action[K_ACTIVE_CTRL] = False
 
     # reset env to restart timing
-    env.reset()
+    env.reset(seed=seed)
 
     while True:
         # random delay to allow system to propagate
@@ -130,7 +133,7 @@ def execute_inactive_agent(env, delay:float)->Dict:
 
     return info
 
-def execute_full_braking_agent(env)->Dict:
+def execute_full_braking_agent(env_n_seed)->Dict:
     '''run agent that always takes active control and just slams on brakes
 
     Args:
@@ -143,6 +146,7 @@ def execute_full_braking_agent(env)->Dict:
         info : Dict
             dictionary of episode metric info
     '''
+    env, seed = env_n_seed
     
     # set constant inactive action
     action = env.action_space.sample()
@@ -150,7 +154,7 @@ def execute_full_braking_agent(env)->Dict:
     action[K_ACCEL_CTRL] = env.action_space[K_ACCEL_CTRL].low
 
     # reset env to restart timing
-    obs, info = env.reset()
+    obs, info = env.reset(seed=seed)
 
     while True:
 
@@ -162,7 +166,7 @@ def execute_full_braking_agent(env)->Dict:
 
     return info
 
-def execute_random_agent(env, max_delay:float)->Dict:
+def execute_random_agent(env_n_seed, max_delay:float)->Dict:
     '''run random agent until episode completion
 
     Args:
@@ -175,9 +179,10 @@ def execute_random_agent(env, max_delay:float)->Dict:
         info : Dict
             dictionary of episode metric info
     '''
+    env, seed = env_n_seed
 
     # reset env to restart timing
-    env.reset()
+    env.reset(seed=seed)
 
     while True:
         # random delay to allow system to propagate
@@ -191,7 +196,7 @@ def execute_random_agent(env, max_delay:float)->Dict:
 
     return info
 
-def execute_hjreach_agent(env,
+def execute_hjreach_agent(env_n_seed,
     time_horizon : float,
     time_step : float,
     grid_lb : ArrayLike,
@@ -219,6 +224,8 @@ def execute_hjreach_agent(env,
             environment is always done before HJ-reach has a chance to take action
     '''
 
+    env, seed = env_n_seed
+
     # agent properties that can be instantiated a priori to environment
     dynamics = DubinsCar4DODP(uMode="min", dMode="max", dMin = [0.0,0.0], dMax = [0.0,0.0])
     time_grid = np.arange(start=0, stop=time_horizon + _SMALL_NUMBER, step=time_step)
@@ -230,7 +237,7 @@ def execute_hjreach_agent(env,
         periodicDims=[3])
 
     # reset env to restart timing and get obstacle and goal locations
-    obs, info = env.reset()
+    obs, info = env.reset(seed=seed)
 
     # extract and encode explicit obstacle and goal regions
     # NOTE: this access private information about the enviornment, giving HJ-reach
@@ -283,8 +290,10 @@ def execute_hjreach_agent(env,
 
     return info
 
-def execute_lrmm_agent(env,
+def execute_lrmm_agent(env_n_seed,
     chkpt_file, active_ctrl_risk_threshold, data_path):
+
+    env, seed = env_n_seed
 
     # create data module from training data to
     # access input/ouput scalers
@@ -302,7 +311,7 @@ def execute_lrmm_agent(env,
     )
 
     # reset env to restart timing
-    obs, info = env.reset()
+    obs, info = env.reset(seed=seed)
 
     while True:
 
@@ -320,7 +329,7 @@ def execute_lrmm_agent(env,
 
     return info
 
-def execute_cbf_agent(env,
+def execute_cbf_agent(env_n_seed,
     vmin, vmax,
     u1min, u1max,
     u2min, u2max,
@@ -348,8 +357,10 @@ def execute_cbf_agent(env,
             penalty in objective function on heading and speed slack variables that relax stability constraints
     '''
 
+    env, seed = env_n_seed
+
     # reset env to restart timing and get obstacle and goal locations
-    obs, info = env.reset()
+    obs, info = env.reset(seed=seed)
 
     # instantiate CBF agent
     # NOTE: this access private information about the enviornment, giving HJ-reach
@@ -529,8 +540,12 @@ log = logging.getLogger(__name__)
 @hydra.main(config_path=None, config_name=_CONFIG_NAME)
 def task_function(cfg: ExpConfig):
 
-    # instantiate the experiment objects
-    # obj = instantiate(cfg)
+    log.info("Dubins4d Reach-Avoid Experiment\ntrials per agent:{}\n".format(cfg.n_trials))
+
+    # create random seeds so that all environments have same 
+    # obstacle sets, goals, and initial states for each agent
+    seeds = np.random.randint(10000, size=cfg.n_trials)
+    seeds = [int(s) for s in seeds] # need to make these ints, not np.int64
 
     # create storage for results
     results = dict()
@@ -546,12 +561,15 @@ def task_function(cfg: ExpConfig):
         else:
             envs = [instantiate(cfg.env)() for _ in range(cfg.n_trials)]
 
+        # zip environments and seeds together so that they can be passed as one argument to imap
+        envs_n_seeds = zip(envs, seeds)
+
         # create partial function for distributing envs to random agent executor
         p_agent_runner = partial(instantiate(getattr(cfg,agent_name)))
 
         # use iterative map for process tracking
         t_start = time.time()
-        randagent_iter = pool.imap(p_agent_runner, envs)
+        randagent_iter = pool.imap(p_agent_runner, envs_n_seeds)
 
         # track multiprocess progress
         results[agent_name] = {K_TRIAL_DATA:[]}
@@ -572,7 +590,8 @@ def task_function(cfg: ExpConfig):
         results[agent_name][K_AGGREGATE_DATA] = aggregate_agent_metrics(results[agent_name][K_TRIAL_DATA])
 
         # log aggregate results
-        log.info("Agent: {} trials complete with aggregated results:\n{}".format(agent_name, results[agent_name][K_AGGREGATE_DATA]))
+        agg_data_str = pprint.pformat(results[agent_name][K_AGGREGATE_DATA])
+        log.info("\nAgent: {} trials complete with aggregated results:\n{}".format(agent_name, agg_data_str))
 
     # save (pickle) results
     with open(_SAVE_FNAME+'.pkl', 'wb') as handle:

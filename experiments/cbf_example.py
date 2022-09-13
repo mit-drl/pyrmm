@@ -27,7 +27,7 @@ DEFAULT_P_VSPEED = 1
 
 
 info = execute_cbf_agent(
-    env=env,
+    env_n_seed=(env, 1),
     vmin = DEFAULT_VMIN,
     vmax = DEFAULT_VMAX,
     u1min = DEFAULT_U1MIN,
@@ -43,7 +43,7 @@ info = execute_cbf_agent(
     lambda_Vtheta = DEFAULT_LAMBDA_VTHETA,
     lambda_Vspeed = DEFAULT_LAMBDA_VSPEED,
     p_Vtheta = DEFAULT_P_VTHETA,
-    p_Vspeed = DEFAULT_P_VSPEED
+    p_Vspeed = DEFAULT_P_VSPEED,
 )
 
 print(info)

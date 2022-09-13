@@ -19,10 +19,10 @@ DEFAULT_LRMM_DATA_PATH= (
 )
 
 info = execute_lrmm_agent(
-    env=env,
+    env_n_seed=(env,1),
     chkpt_file = DEFAULT_LRMM_CHKPT_FILE,
     active_ctrl_risk_threshold = DEFAULT_LRMM_ACITVE_CTRL_RISK_THRESHOLD,
-    data_path = DEFAULT_LRMM_DATA_PATH
+    data_path = DEFAULT_LRMM_DATA_PATH,
 )
 
 print(info)

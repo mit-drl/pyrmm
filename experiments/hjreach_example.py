@@ -20,7 +20,7 @@ GRID_UB = [15.0, 15.0, 4.0, np.pi]
 GRID_NSTEPS = [64, 64, 32, 32]
 
 info = execute_hjreach_agent(
-    env=env,
+    env_n_seed=(env,1),
     time_horizon = TIME_HORIZON,
     time_step = TIME_STEP,
     grid_lb = GRID_LB,

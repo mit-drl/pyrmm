@@ -206,7 +206,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
         to ensure that the environment is rendered at the correct framerate in
         human-mode.
         """
-        self.render_window_size = 512  # The size of the PyGame window
+        self.render_window_size = 1024  # The size of the PyGame window
         if self.render_mode == "human":
             import pygame  # import here to avoid pygame dependency with no render
 
@@ -223,26 +223,22 @@ class Dubins4dReachAvoidEnv(gym.Env):
         self.reset()
 
     def reset(self, seed=None):
-        # seed random number generator self.np_random
+        # seed all random number generators (environment, numpy, and gym spaces)
         super().reset(seed=seed)
-
-        # specify zero action for environment init
-        self._cur_action = self.action_space.sample()
-        self._cur_action[K_ACTIVE_CTRL] = 0
-        self._cur_action[K_TURNRATE_CTRL][0] = 0.0
-        self._cur_action[K_ACCEL_CTRL][0] = 0.0
-
+        prng = np.random.RandomState(seed)
+        self.state_space.np_random.seed(seed)
+        # self.action_space.np_random.seed(seed)
 
         # randomize obstacle biasing first obstacle toward center
         self._obstacles = []
-        obst_xc, obst_yc = np.random.normal(
+        obst_xc, obst_yc = prng.normal(
             scale=(self.state_space.high[0]-self.state_space.low[0])/10.0, 
             size=2)
-        obst_r = uniform(self._obstacle_min_rad, self._obstacle_max_rad)
+        obst_r = prng.uniform(self._obstacle_min_rad, self._obstacle_max_rad)
         self._obstacles.append(CircleRegion(xc=obst_xc, yc=obst_yc, r=obst_r))
         while len(self._obstacles) < self._n_obstacles:
             obst_xc, obst_yc = self.state_space.sample()[:2]
-            obst_r = uniform(self._obstacle_min_rad, self._obstacle_max_rad)
+            obst_r = prng.uniform(self._obstacle_min_rad, self._obstacle_max_rad)
             self._obstacles.append(CircleRegion(xc=obst_xc, yc=obst_yc, r=obst_r))
 
         while True:
@@ -273,6 +269,12 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
             self._goal = goal_candidate
             break
+
+        # specify zero action for environment init
+        self._cur_action = self.action_space.sample()
+        self._cur_action[K_ACTIVE_CTRL] = 0
+        self._cur_action[K_TURNRATE_CTRL][0] = 0.0
+        self._cur_action[K_ACCEL_CTRL][0] = 0.0
 
         # clean the render collection and add the initial frame
         self.renderer.reset()
@@ -776,6 +778,27 @@ class Dubins4dReachAvoidEnv(gym.Env):
             # radius=self._goal.r,
         )
 
+        # Now draw ray casts so everything else is on top of these
+        rend_agnt_xy = self.map_state_to_render_window(self.__state[SS_XIND], self.__state[SS_YIND])
+        try: 
+            observation = self._get_observation(self.__state)
+            ray_lens = observation[5:]
+            for i in range(self._n_rays):
+                rel_angle = 2*np.pi/self._n_rays * i
+                abs_angle = rel_angle + self.__state[SS_THETAIND]
+                abs_end_x = ray_lens[i]*np.cos(abs_angle) + self.__state[SS_XIND]
+                abs_end_y = ray_lens[i]*np.sin(abs_angle) + self.__state[SS_YIND]
+                rend_end_pos_xy = self.map_state_to_render_window(abs_end_x, abs_end_y)
+                pygame.draw.line(
+                    canvas,
+                    color=(200,200,200),
+                    width=2,
+                    start_pos=rend_agnt_xy,
+                    end_pos=rend_end_pos_xy
+                )
+        except:
+            pass
+
         # Now draw obstacles
         for obst in self._obstacles:
             rend_obst_xy = self.map_state_to_render_window(obst.xc, obst.yc)
@@ -788,7 +811,6 @@ class Dubins4dReachAvoidEnv(gym.Env):
             )
 
         # Now we draw the agent
-        rend_agnt_xy = self.map_state_to_render_window(self.__state[SS_XIND], self.__state[SS_YIND])
         agnt_color = (255,0,0) if self._cur_action[K_ACTIVE_CTRL] else (0,0,255)
         # rend_agnt_r = abs(np.array(rend_agnt_xy) - self.map_state_to_render_window(self._goal.xc+self._goal.r, self._goal.yc))[0]
         pygame.draw.circle(
@@ -801,6 +823,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
         pygame.draw.line(
             canvas,
             color=agnt_color,
+            width=5,
             start_pos=rend_agnt_xy,
             end_pos=self.map_state_to_render_window(
                 self.__state[SS_XIND] + self.__state[SS_VIND]*np.cos(self.__state[SS_THETAIND]), 

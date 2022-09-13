@@ -833,10 +833,10 @@ def test_hypothesis_DubinsPPMSetup_cast_ray(x0, y0, yaw0, theta, res):
     assert np.less_equal(l, exp_l+res)
 
 @given(
-    st.floats(min_value=-1e3, max_value=1e3, allow_nan=False, allow_infinity=False),
-    st.floats(min_value=-1e3, max_value=1e3, allow_nan=False, allow_infinity=False),
-    st.floats(min_value=-10*np.pi, max_value=10*np.pi, allow_nan=False, allow_infinity=False),
-    st.floats(min_value=1e-3, max_value=100, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=-1e2, max_value=1e2, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=-1e2, max_value=1e2, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=-3*np.pi, max_value=3*np.pi, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=1e-3, max_value=10, allow_nan=False, allow_infinity=False),
     st.integers(min_value=1, max_value=16)
 )
 def test_hypothesis_DubinsPPMSetup_observeState(x0, y0, yaw0, res, n_rays):

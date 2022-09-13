@@ -226,43 +226,52 @@ class Dubins4dReachAvoidEnv(gym.Env):
         # seed random number generator self.np_random
         super().reset(seed=seed)
 
-        # randomize initial state (x [m], y [m], theta [rad], v [m/s])
-        # (private because solution algs should not know this explicitly)
-        self.__state = self.state_space.sample()
-
         # specify zero action for environment init
         self._cur_action = self.action_space.sample()
         self._cur_action[K_ACTIVE_CTRL] = 0
         self._cur_action[K_TURNRATE_CTRL][0] = 0.0
         self._cur_action[K_ACCEL_CTRL][0] = 0.0
 
-        # randomly generate goals and obstacles until 
-        # non-overlapping set with init state is found
+
+        # randomize obstacle biasing first obstacle toward center
+        self._obstacles = []
+        obst_xc, obst_yc = np.random.normal(
+            scale=(self.state_space.high[0]-self.state_space.low[0])/10.0, 
+            size=2)
+        obst_r = uniform(self._obstacle_min_rad, self._obstacle_max_rad)
+        self._obstacles.append(CircleRegion(xc=obst_xc, yc=obst_yc, r=obst_r))
+        while len(self._obstacles) < self._n_obstacles:
+            obst_xc, obst_yc = self.state_space.sample()[:2]
+            obst_r = uniform(self._obstacle_min_rad, self._obstacle_max_rad)
+            self._obstacles.append(CircleRegion(xc=obst_xc, yc=obst_yc, r=obst_r))
+
+        while True:
+            # randomize initial state (x [m], y [m], theta [rad], v [m/s])
+            # until one is found not intersecting obstacles
+            # (private because solution algs should not know this explicitly)
+            state_candidate = self.state_space.sample()
+            os_cols = [obst.check_traj_intersection([state_candidate]) for obst in self._obstacles]
+            os_cols,_,_ = zip(*os_cols)
+            if any(os_cols):
+                continue
+
+            self.__state = state_candidate
+            break
 
         while True:
 
-            # randomize goal, obstacle
+            # randomize goal locations ensuring not subset of obstacle region
+            # and no collision with current state
             goal_xc, goal_yc = self.state_space.sample()[:2]
             goal_r = uniform(GOAL_R_MIN, GOAL_R_MAX)
             goal_candidate = CircleRegion(xc=goal_xc, yc=goal_yc, r=goal_r)
-            goal_col, _, _ = goal_candidate.check_traj_intersection([self.__state])
-            if goal_col:
+            gs_col, _, _ = goal_candidate.check_traj_intersection([self.__state])
+            og_col_fn = lambda obst: np.sqrt((obst.xc-goal_xc)**2 + (obst.yc-goal_yc)**2) + goal_r < obst.r
+            og_cols = [og_col_fn(obst) for obst in self._obstacles]
+            if any(og_cols) or gs_col:
                 continue
+
             self._goal = goal_candidate
-
-
-            self._obstacles = []
-            while len(self._obstacles) < self._n_obstacles:
-                # randomize obstacle (not meant for direct access)
-                obst_xc, obst_yc = self.state_space.sample()[:2]
-                obst_r = uniform(self._obstacle_min_rad, self._obstacle_max_rad)
-                obstacle_candidate = CircleRegion(xc=obst_xc, yc=obst_yc, r=obst_r)
-                obst_col, _, _ = obstacle_candidate.check_traj_intersection([self.__state])
-                obst_goal_measure = np.sqrt((obst_xc-goal_xc)**2 + (obst_yc-goal_yc)**2) + goal_r
-                if obst_col or obst_r > obst_goal_measure:
-                    continue
-                self._obstacles.append(obstacle_candidate)
-            
             break
 
         # clean the render collection and add the initial frame

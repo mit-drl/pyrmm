@@ -9,7 +9,9 @@ from dubins4d_reachavoid import execute_hjreach_agent
 env = Dubins4dReachAvoidEnv(
     time_accel_factor=10.0,
     render_mode="human",
-    n_obstacles=1)
+    n_obstacles=1,
+    obstacle_min_rad=4.5, 
+    obstacle_max_rad=11.5)
 
 TIME_HORIZON = 2.0
 TIME_STEP = 0.1

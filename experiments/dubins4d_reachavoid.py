@@ -542,7 +542,7 @@ def task_function(cfg: ExpConfig):
 
         # create list of environment objects to be distributed during multiprocessing
         if agent_name in [K_HJREACH_AGENT, K_HJREACH_CHEAT_AGENT]:
-            envs = [instantiate(cfg.env)(n_obstacles=1, obstacle_min_rad=4.5, obstacle_max_rad=11.) for _ in range(cfg.n_trials)]
+            envs = [instantiate(cfg.env)(n_obstacles=1, obstacle_min_rad=4.5, obstacle_max_rad=11.5) for _ in range(cfg.n_trials)]
         else:
             envs = [instantiate(cfg.env)() for _ in range(cfg.n_trials)]
 

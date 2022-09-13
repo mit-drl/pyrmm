@@ -373,8 +373,8 @@ def test_hypothesis_DubinsPPMSetup_propagate_path_clipped_ctrl(speed, min_turn_r
     exp_yaw1 = bnd_ctrl * dur + yaw0
     exp_x1 = x0 + exp_turn_radius * ctrl_sign * (np.sin(exp_yaw1) - np.sin(yaw0))
     exp_y1 = y0 + exp_turn_radius * ctrl_sign * (-np.cos(exp_yaw1) + np.cos(yaw0))
-    assert np.isclose(path.getState(nsteps-1).getX(), exp_x1, rtol=1e-4)
-    assert np.isclose(path.getState(nsteps-1).getY(), exp_y1, rtol=1e-4)
+    assert np.isclose(path.getState(nsteps-1).getX(), exp_x1, rtol=1e-3)
+    assert np.isclose(path.getState(nsteps-1).getY(), exp_y1, rtol=1e-3)
     assert np.isclose(np.sin(path.getState(nsteps-1).getYaw()), np.sin(exp_yaw1))
     assert np.isclose(np.cos(path.getState(nsteps-1).getYaw()), np.cos(exp_yaw1))
     bnd_ctrl_obj = cspace.allocControl()

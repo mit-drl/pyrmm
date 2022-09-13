@@ -162,6 +162,52 @@ class Dubins4dReachAvoidSetup(SystemSetup):
         if ret:
             return npCtrl
 
+    def base_risk_estimator(self, state):
+        """heuristic for estimate risk at leaf node of tree"""
+
+        # get observation of state
+        obs = self.observeState(state)
+
+        # compute stopping time
+        v = obs[4]
+        
+        if v >= 0:
+            a_min = self.env.action_space[K_ACCEL_CTRL].low[0]
+            assert a_min < 0
+        else:
+            # this is an edge case where dynamics propagated beyond 
+            # the v>0 constraint
+            a_min = self.env.action_space[K_ACCEL_CTRL].high[0]
+            assert a_min > 0
+
+        t_s = -v/a_min
+        assert t_s > 0
+
+        # compute stopping distance
+        d_s = 0.5*a_min*t_s*t_s + v*t_s
+
+        if d_s >= 0:
+            r0 = obs[5]
+        else:
+            # negative stopping distance, ie. negative intial velocity
+            # is an edge case and uncertain behavior. Use 
+            # minimum of all ray casts
+            r0 = min(obs[5:])
+
+        # stopping distance as fraction of forward ray cast length
+        if r0 <= 0:
+            risk_est = 1.0
+        else:
+            risk_est = min(abs(d_s)/r0, 1.0)
+        assert risk_est >= 0 and risk_est <= 1.0
+
+        # min risk control and control duration 
+        # (although these are more for consistency in return pattern
+        # and should not be directly applied)
+        min_risk_ctrl_est = np.array([0, a_min])
+        min_risk_ctrl_dur_est = t_s
+
+        return risk_est, min_risk_ctrl_est, min_risk_ctrl_dur_est
         
 class Dubins4dReachAvoidStatePropagator(oc.StatePropagator):
     def __init__(self, spaceInformation):

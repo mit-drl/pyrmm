@@ -48,6 +48,10 @@ def sample_risk_metrics(sysset:SystemSetup, cfg_obj, multiproc:bool=True, prfx:s
         if i%_MONITOR_RATE ==  0:
             print("{}State sampling and ray casting: completed {} of {}".format(prfx, i, len(states)))
 
+    if hasattr(sysset, 'base_risk_estimator'):
+        base_estimate_fn = partial(sysset.base_risk_estimator)
+    else:
+        base_estimate_fn = None
 
     partial_estimateRiskMetric = partial(
             sysset.estimateRiskMetric, 
@@ -56,7 +60,8 @@ def sample_risk_metrics(sysset:SystemSetup, cfg_obj, multiproc:bool=True, prfx:s
             branch_fact=getattr(cfg_obj, U.N_BRANCHES),
             depth=getattr(cfg_obj, U.TREE_DEPTH),
             n_steps=getattr(cfg_obj, U.N_STEPS),
-            policy=getattr(cfg_obj, U.POLICY)
+            policy=getattr(cfg_obj, U.POLICY),
+            base_estimate_fn=base_estimate_fn
         )
     t_start = time.time()
 

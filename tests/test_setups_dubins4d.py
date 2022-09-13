@@ -205,7 +205,7 @@ def test_Dubins4dReachAvoidSetup_observeState_1():
     beta = np.pi - theta - alpha
     b = obst_r * np.sin(beta)/np.sin(theta)
     assert np.isclose(obs[6], b, rtol=1e-2)
-    assert np.allclose(obs[7:-1], 5.0)
+    assert np.allclose(obs[7:-1], 10.0)
     assert np.isclose(obs[-1], b, rtol=1e-2)
 
 def test_Dubins4dReachAvoidSetup_observeState_2():

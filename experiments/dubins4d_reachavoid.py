@@ -22,7 +22,7 @@ from odp.dynamics import DubinsCar4D as DubinsCar4DODP
 from odp.Grid import Grid
 from odp.Shapes import CylinderShape
 
-from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv, K_ACTIVE_CTRL
+from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv, K_ACTIVE_CTRL, K_ACCEL_CTRL
 from pyrmm.hjreach.dubins4d_reachavoid_agent import HJReachDubins4dReachAvoidAgent
 from pyrmm.agents.dubins4d_reachavoid_agent import LRMMDubins4dReachAvoidAgent
 from pyrmm.cbfs.dubins4d_reachavoid_agent import CBFDubins4dReachAvoidAgent
@@ -40,6 +40,7 @@ K_HJREACH_AGENT = 'hjreach_agent'
 K_HJREACH_CHEAT_AGENT = 'hjreach_cheat_agent'
 K_LRMM_AGENT = 'lrmm_agent'
 K_CBF_AGENT = 'cbf_agent'
+K_FULL_BRAKING_AGENT = 'full_braking_agent'
 # K_N_TRIALS = 'n_trials'
 # K_TIME_ACCEL = 'time_accel'
 # K_N_CORES = 'n_cores'
@@ -108,7 +109,7 @@ def execute_inactive_agent(env, delay:float)->Dict:
     
     # set constant inactive action
     action = env.action_space.sample()
-    action['active_ctrl'] = False
+    action[K_ACTIVE_CTRL] = False
 
     # reset env to restart timing
     env.reset()
@@ -116,6 +117,38 @@ def execute_inactive_agent(env, delay:float)->Dict:
     while True:
         # random delay to allow system to propagate
         time.sleep(delay)
+
+        # random action for next time interval
+        obs, rew, done, info = env.step_to_now(action)
+
+        if done:
+            break
+
+    return info
+
+def execute_full_braking_agent(env)->Dict:
+    '''run agent that always takes active control and just slams on brakes
+
+    Args:
+        env : Dubins4dReachAvoidEnv
+            gym environment for agent interaction
+        delay : float [s]
+            fixed delay between steps
+
+    Returns 
+        info : Dict
+            dictionary of episode metric info
+    '''
+    
+    # set constant inactive action
+    action = env.action_space.sample()
+    action[K_ACTIVE_CTRL] = True
+    action[K_ACCEL_CTRL] = env.action_space[K_ACCEL_CTRL].low
+
+    # reset env to restart timing
+    obs, info = env.reset()
+
+    while True:
 
         # random action for next time interval
         obs, rew, done, info = env.step_to_now(action)
@@ -386,6 +419,9 @@ InactiveAgentConf = pbuilds(execute_inactive_agent, delay=DEFAULT_INACTIVE_AGENT
 DEFAULT_RANDOM_AGENT_MAX_DELAY = 0.1
 RandomAgentConf = pbuilds(execute_random_agent, max_delay=DEFAULT_RANDOM_AGENT_MAX_DELAY)
 
+# Configure agent that is always braking
+FullBrakingAgentConf = pbuilds(execute_full_braking_agent)
+
 # Configure HJ-reach agent
 DEFAULT_HJREACH_TIME_HORIZON = 2.0
 DEFAULT_HJREACH_TIME_STEP = 0.1
@@ -464,6 +500,7 @@ agent_config_inputs = {
     K_CBF_AGENT: CBFAgentConf,
     K_INACTIVE_AGENT: InactiveAgentConf,
     K_RANDOM_AGENT: RandomAgentConf,
+    K_FULL_BRAKING_AGENT: FullBrakingAgentConf,
     K_HJREACH_CHEAT_AGENT: HJReachCheatConf,
     K_HJREACH_AGENT: HJReachConf,
 }

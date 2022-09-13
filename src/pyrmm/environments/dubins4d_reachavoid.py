@@ -52,7 +52,7 @@ N_OBST = 5
 
 # observation space (OS) parameters
 OS_N_RAYS_DEFAULT = 12      # number of rays to cast
-OS_RAY_MAX_DEFAULT = 5.0    # [m] maximum length of ray
+OS_RAY_MAX_DEFAULT = 10.0    # [m] maximum length of ray
 
 # number of time steps to analyze per system propagation
 PROPAGATE_TIMESTEPS = 16

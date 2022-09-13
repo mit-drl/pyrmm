@@ -205,7 +205,8 @@ class SystemSetup:
                 branch_fact=branch_fact,
                 depth=depth-1,
                 n_steps=n_steps,
-                policy=policy
+                policy=policy,
+                base_estimate_fn=base_estimate_fn
             )
 
             # store minimum risk control

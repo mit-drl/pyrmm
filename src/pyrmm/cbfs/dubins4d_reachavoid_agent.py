@@ -111,7 +111,7 @@ class CBFDubins4dReachAvoidAgent():
         # check if feasible solution found
         if ctrl_n_del is not None:
             # check barrier function  for equality; if so take active a control
-            if np.any(np.isclose(np.dot(G_safety, ctrl_n_del), h_safety, rtol=1e-4)):
+            if np.any(np.isclose(np.dot(G_safety, ctrl_n_del), h_safety, rtol=1e-2)):
                 # at least one safety constraint active, apply active safety control
                 action[K_ACTIVE_CTRL] = True
                 action[K_TURNRATE_CTRL][0] = ctrl_n_del[0]

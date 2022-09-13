@@ -208,6 +208,47 @@ def test_Dubins4dReachAvoidSetup_observeState_1():
     assert np.allclose(obs[7:-1], 5.0)
     assert np.isclose(obs[-1], b, rtol=1e-2)
 
+def test_Dubins4dReachAvoidSetup_observeState_2():
+    """check observation from within an obstacle"""
+
+    # ~~~ ARRANGE ~~~
+    env = Dubins4dReachAvoidEnv()
+    env._obstacles[0].xc = 0.0
+    env._obstacles[0].yc = 0.0
+    for j in range(1,env._n_obstacles):
+        env._obstacles[j].xc = 100
+        env._obstacles[j].yc = 100
+    obst_r = 0.5 + 1e-3
+    env._obstacles[0].r = obst_r
+    env._goal.xc = 0.0
+    env._goal.yc = 1.0
+    d4d_setup = Dubins4dReachAvoidSetup(env=env)
+
+    # create state
+    np_s0 = np.array([0., 0., 0., 0.])
+    s0 = d4d_setup.space_info.allocState()
+    state_numpy_to_ompl(np_s0, s0)
+
+    # ~~~ ACT ~~~
+    # observe state
+    obs = d4d_setup.observeState(state=s0)
+
+    # ~~~ ASSERT ~~~
+    assert len(obs) == 17
+    # sim time
+    assert np.isclose(obs[0], 0)
+
+    # goal relative position
+    assert np.isclose(obs[1], 0)
+    assert np.isclose(obs[2], 1)
+
+    # absolute heading and velocity
+    assert np.isclose(obs[3], 0)
+    assert np.isclose(obs[4], 0)
+
+    # ray cast
+    assert np.allclose(obs[5:], 0.0)
+
 def test_Dubins4dReachAvoidSetup_stateSampler_0():
     """check that state sampler samples expected region and is not trivial in any dimension"""
     # ~~~ ARRANGE ~~~

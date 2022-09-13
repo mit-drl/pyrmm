@@ -8,6 +8,7 @@ import logging
 import pickle
 import numpy as np
 
+from copy import deepcopy
 from pathlib import Path
 from functools import partial
 from hydra.core.config_store import ConfigStore
@@ -198,19 +199,28 @@ def execute_hjreach_agent(env,
     # NOTE: this access private information about the enviornment, giving HJ-reach
     # and advantage
     goal = CylinderShape(grid=grid, ignore_dims=[2,3], center=np.array([env._goal.xc, env._goal.yc, 0, 0]), radius=env._goal.r)
-    obstacles = []
-    for i in range(env._n_obstacles):
-        obstacles.append(
-            CylinderShape(
-                grid=grid, 
-                ignore_dims=[2,3], 
-                center=np.array([env._obstacles[i].xc, env._obstacles[i].yc, 0, 0]), 
-                radius=env._obstacles[i].r
-            )
-        )
+    
+    if not len(env._obstacles) == 1:
+        raise NotImplementedError("No implementation for HJSolver with more than one obstacle")
+    obstacle = CylinderShape(
+        grid=grid, 
+        ignore_dims=[2,3], 
+        center=np.array([env._obstacles[0].xc, env._obstacles[0].yc, 0, 0]), 
+        radius=env._obstacles[0].r
+    )
+    # obstacles = []
+    # for i in range(env._n_obstacles):
+    #     obstacles.append(
+    #         CylinderShape(
+    #             grid=grid, 
+    #             ignore_dims=[2,3], 
+    #             center=np.array([env._obstacles[i].xc, env._obstacles[i].yc, 0, 0]), 
+    #             radius=env._obstacles[i].r
+    #         )
+    #     )
 
     # instantiate the HJ-reach agent (which solves for HJI value function on grid)
-    hjreach_agent = HJReachDubins4dReachAvoidAgent(grid=grid, dynamics=dynamics, goal=goal, obstacles=obstacles, time_grid=time_grid)
+    hjreach_agent = HJReachDubins4dReachAvoidAgent(grid=grid, dynamics=dynamics, goal=goal, obstacle=obstacle, time_grid=time_grid)
 
     if precompute_time_reset:
         # Note: this is a huge "cheat" in favor of HJ-Reachability agent
@@ -222,7 +232,7 @@ def execute_hjreach_agent(env,
         # get current state and transform to odp's x-y-v-theta ordering
         # NOTE: this access private information about the enviornment, giving HJ-reach
         # and advantage
-        state = env._Dubins4dReachAvoidEnv__state
+        state = deepcopy(env._Dubins4dReachAvoidEnv__state)
         state[2], state[3] = state[3], state[2]
 
         # compute action at current state
@@ -363,7 +373,7 @@ pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
 # Configure environment
 DEFAULT_TIME_ACCEL = 10.0   # sim-tim acceleration factor
-EnvConf = builds(Dubins4dReachAvoidEnv,
+EnvConf = pbuilds(Dubins4dReachAvoidEnv,
     time_accel_factor=DEFAULT_TIME_ACCEL
 )
 
@@ -377,10 +387,10 @@ DEFAULT_RANDOM_AGENT_MAX_DELAY = 0.1
 RandomAgentConf = pbuilds(execute_random_agent, max_delay=DEFAULT_RANDOM_AGENT_MAX_DELAY)
 
 # Configure HJ-reach agent
-DEFAULT_HJREACH_TIME_HORIZON = 1.0
+DEFAULT_HJREACH_TIME_HORIZON = 2.0
 DEFAULT_HJREACH_TIME_STEP = 0.1
-DEFAULT_HJREACH_GRID_LB = [-15.0, -15.0, 0.0, -np.pi]
-DEFAULT_HJREACH_GRID_UB = [15.0, 15.0, 4.0, np.pi]
+DEFAULT_HJREACH_GRID_LB = [-15.0, -15.0, 0.0, -np.pi-0.1]
+DEFAULT_HJREACH_GRID_UB = [15.0, 15.0, 4.0, np.pi+0.1]
 DEFAULT_HJREACH_GRID_NSTEPS = [64, 64, 32, 32]
 HJReachConf = pbuilds(execute_hjreach_agent, 
     time_horizon = DEFAULT_HJREACH_TIME_HORIZON,
@@ -488,8 +498,10 @@ def task_function(cfg: ExpConfig):
         pool = multiprocessing.Pool(cfg.n_cores)
 
         # create list of environment objects to be distributed during multiprocessing
-        # envs = [Dubins4dReachAvoidEnv(time_accel_factor=cfg.time_accel) for i in range(cfg.n_trials)]
-        envs = [instantiate(cfg.env) for _ in range(cfg.n_trials)]
+        if agent_name in [K_HJREACH_AGENT, K_HJREACH_CHEAT_AGENT]:
+            envs = [instantiate(cfg.env)(n_obstacles=1, obstacle_min_rad=4.0, obstacle_max_rad=8.0) for _ in range(cfg.n_trials)]
+        else:
+            envs = [instantiate(cfg.env) for _ in range(cfg.n_trials)]
 
         # create partial function for distributing envs to random agent executor
         p_agent_runner = partial(instantiate(getattr(cfg,agent_name)))

@@ -26,7 +26,7 @@ DEFAULT_P_VTHETA = 1
 DEFAULT_P_VSPEED = 1
 
 
-execute_cbf_agent(
+info = execute_cbf_agent(
     env=env,
     vmin = DEFAULT_VMIN,
     vmax = DEFAULT_VMAX,
@@ -45,3 +45,5 @@ execute_cbf_agent(
     p_Vtheta = DEFAULT_P_VTHETA,
     p_Vspeed = DEFAULT_P_VSPEED
 )
+
+print(info)

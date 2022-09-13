@@ -6,6 +6,7 @@ from copy import deepcopy
 from typing import List
 from numpy.typing import ArrayLike
 from scipy.interpolate import interpn
+from collections import Iterable
 
 from odp.Grid import Grid
 from odp.dynamics import DubinsCar4D
@@ -20,7 +21,7 @@ class HJReachDubins4dReachAvoidAgent():
         grid: Grid,
         dynamics: DubinsCar4D,
         goal: CylinderShape,
-        obstacles: List[CylinderShape],
+        obstacle: CylinderShape,
         time_grid: ArrayLike):
 
         # specify action space from environment
@@ -30,7 +31,7 @@ class HJReachDubins4dReachAvoidAgent():
         self._grid = grid
         self._dynamics = dynamics
         self._goal = goal
-        self._obstacles = obstacles
+        self._obstacle = obstacle
         self._time_grid = time_grid
 
         # Solve for HJI value function on discrete state space grid
@@ -70,11 +71,11 @@ class HJReachDubins4dReachAvoidAgent():
         self.update_hji_values()
 
     @property
-    def obstacles(self):
-        return self._obstacles
-    @obstacles.setter
-    def obstacles(self, new_obstacles:List[CylinderShape]):
-        self._obstacles = new_obstacles
+    def obstacle(self):
+        return self._obstacle
+    @obstacle.setter
+    def obstacle(self, new_obstacle:CylinderShape):
+        self._obstacle = new_obstacle
         self.update_hji_values()
 
     @property
@@ -98,9 +99,10 @@ class HJReachDubins4dReachAvoidAgent():
         self._hji_values = HJSolver(
             dynamics_obj=self._dynamics, 
             grid=self._grid,
-            multiple_value=self._obstacles,
+            multiple_value=self._obstacle,
             tau=self._time_grid,
-            compMethod={ "TargetSetMode": "minVWithVTarget"},
+            # compMethod={ "TargetSetMode": "minVWithVTarget"},
+            compMethod={ "TargetSetMode": "minVWithV0"},
             plot_option=PlotOptions(do_plot=False, plotDims=[0,1,3]),
             saveAllTimeSteps=True)
 

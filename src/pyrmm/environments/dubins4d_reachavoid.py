@@ -96,6 +96,8 @@ class Dubins4dReachAvoidEnv(gym.Env):
         time_accel_factor: float = TIME_ACCEL_FACTOR_DEFAULT,
         base_sim_time_step: float = BASE_SIM_TIME_STEP,
         n_obstacles: int = N_OBST,
+        obstacle_min_rad: float = OBST_R_MIN,
+        obstacle_max_rad: float = OBST_R_MAX,
         gamma_vmin=GAMMA_VMIN_DEFAULT, 
         gamma_vmax=GAMMA_VMAX_DEFAULT,
         lambda_Vtheta=LAMBDA_VTHETA_DEFAULT, 
@@ -130,6 +132,11 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         assert n_obstacles >= 0
         self._n_obstacles = n_obstacles
+
+        assert obstacle_min_rad > 0
+        assert obstacle_max_rad >= obstacle_min_rad
+        self._obstacle_min_rad = obstacle_min_rad
+        self._obstacle_max_rad = obstacle_max_rad
 
         # Timing parameters
         assert max_episode_sim_time > 0
@@ -247,7 +254,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
             while len(self._obstacles) < self._n_obstacles:
                 # randomize obstacle (not meant for direct access)
                 obst_xc, obst_yc = self.state_space.sample()[:2]
-                obst_r = uniform(OBST_R_MIN, OBST_R_MAX)
+                obst_r = uniform(self._obstacle_min_rad, self._obstacle_max_rad)
                 obstacle_candidate = CircleRegion(xc=obst_xc, yc=obst_yc, r=obst_r)
                 obst_col, _, _ = obstacle_candidate.check_traj_intersection([self.__state])
                 obst_goal_measure = np.sqrt((obst_xc-goal_xc)**2 + (obst_yc-goal_yc)**2) + goal_r

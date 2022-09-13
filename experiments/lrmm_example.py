@@ -17,9 +17,12 @@ DEFAULT_LRMM_DATA_PATH= (
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
     "outputs/2022-09-11/21-08-47/"
 )
-execute_lrmm_agent(
+
+info = execute_lrmm_agent(
     env=env,
     chkpt_file = DEFAULT_LRMM_CHKPT_FILE,
     active_ctrl_risk_threshold = DEFAULT_LRMM_ACITVE_CTRL_RISK_THRESHOLD,
     data_path = DEFAULT_LRMM_DATA_PATH
 )
+
+print(info)

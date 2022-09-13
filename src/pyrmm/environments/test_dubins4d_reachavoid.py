@@ -134,7 +134,7 @@ def test_propagate_realtime_system_undisturbed_zero_ctrl(dubins4d_reachavoid_env
     exp_y = s0[3] * np.sin(s0[2]) * (t_elapsed + env._base_sim_time_step)
     exp_theta = s0[2]
     exp_v = s0[3]
-    assert np.isclose(env._Dubins4dReachAvoidEnv__state[0], exp_x, rtol=1e-2)
+    assert np.isclose(env._Dubins4dReachAvoidEnv__state[0], exp_x, rtol=1e-1)
     assert np.isclose(env._Dubins4dReachAvoidEnv__state[1], exp_y)
     assert np.isclose(env._Dubins4dReachAvoidEnv__state[2], exp_theta)
     assert np.isclose(env._Dubins4dReachAvoidEnv__state[3], exp_v)

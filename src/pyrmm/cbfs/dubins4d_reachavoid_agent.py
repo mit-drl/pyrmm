@@ -18,7 +18,7 @@ from pyrmm.environments.dubins4d_reachavoid import \
 class CBFDubins4dReachAvoidAgent():
     def __init__(self,
         goal: CircleRegion,
-        obstacle: CircleRegion,
+        obstacles: List[CircleRegion],
         vmin, vmax,
         u1min, u1max,
         u2min, u2max,
@@ -50,7 +50,7 @@ class CBFDubins4dReachAvoidAgent():
         self.action_space = deepcopy(Dubins4dReachAvoidEnv.action_space)
 
         self.goal = goal
-        self.obstacle = obstacle
+        self.obstacles = obstacles
         self.vmin = vmin
         self.vmax = vmax
         self.u1min = u1min
@@ -89,7 +89,7 @@ class CBFDubins4dReachAvoidAgent():
         ctrl_n_del, G_safety, h_safety = self._solve_cbf_clf_qp(
             state = state,
             target = [self.goal.xc, self.goal.yc],
-            obstacles = [self.obstacle],
+            obstacles = self.obstacles,
             vmin = self.vmin,
             vmax = self.vmax,
             u1min = self.u1min,

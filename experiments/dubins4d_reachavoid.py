@@ -198,10 +198,19 @@ def execute_hjreach_agent(env,
     # NOTE: this access private information about the enviornment, giving HJ-reach
     # and advantage
     goal = CylinderShape(grid=grid, ignore_dims=[2,3], center=np.array([env._goal.xc, env._goal.yc, 0, 0]), radius=env._goal.r)
-    obstacle = CylinderShape(grid=grid, ignore_dims=[2,3], center=np.array([env._obstacle.xc, env._obstacle.yc, 0, 0]), radius=env._obstacle.r)
+    obstacles = []
+    for i in range(env._n_obstacles):
+        obstacles.append(
+            CylinderShape(
+                grid=grid, 
+                ignore_dims=[2,3], 
+                center=np.array([env._obstacles[i].xc, env._obstacles[i].yc, 0, 0]), 
+                radius=env._obstacles[i].r
+            )
+        )
 
     # instantiate the HJ-reach agent (which solves for HJI value function on grid)
-    hjreach_agent = HJReachDubins4dReachAvoidAgent(grid=grid, dynamics=dynamics, goal=goal, obstacle=obstacle, time_grid=time_grid)
+    hjreach_agent = HJReachDubins4dReachAvoidAgent(grid=grid, dynamics=dynamics, goal=goal, obstacles=obstacles, time_grid=time_grid)
 
     if precompute_time_reset:
         # Note: this is a huge "cheat" in favor of HJ-Reachability agent
@@ -299,7 +308,7 @@ def execute_cbf_agent(env,
     # NOTE: this access private information about the enviornment, giving HJ-reach
     # and advantage
     cbf_agent = CBFDubins4dReachAvoidAgent(
-        goal=env._goal, obstacle=env._obstacle,
+        goal=env._goal, obstacles=env._obstacles,
         vmin = vmin,
         vmax = vmax,
         u1min = u1min,

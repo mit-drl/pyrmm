@@ -48,8 +48,8 @@ def test_Dubins4DReachAvoid_isStateValid_1():
     d4d_setup = Dubins4dReachAvoidSetup(env=env)
     is_valid_fn = d4d_setup.space_info.getStateValidityChecker()
     s0 = d4d_setup.space_info.allocState()
-    s0[0][0] = float(env._obstacle.xc)
-    s0[0][1] = float(env._obstacle.yc)
+    s0[0][0] = float(env._obstacles[0].xc)
+    s0[0][1] = float(env._obstacles[0].yc)
 
     # ~~~ ACT ~~~
     is_valid = is_valid_fn.isValid(s0)
@@ -78,8 +78,9 @@ def test_Dubins4DReachAvoid_isPathValid_0():
     """check that unobstructed path is valid"""
     # ~~~ ARRANGE ~~~
     env = Dubins4dReachAvoidEnv()
-    env._obstacle.xc = 100
-    env._obstacle.yc = 100
+    for j in range(env._n_obstacles):
+        env._obstacles[j].xc = 100
+        env._obstacles[j].yc = 100
     d4d_setup = Dubins4dReachAvoidSetup(env=env)
 
     # create state
@@ -105,8 +106,11 @@ def test_Dubins4DReachAvoid_isPathValid_1():
     """check that obstructed path is invalid"""
     # ~~~ ARRANGE ~~~
     env = Dubins4dReachAvoidEnv()
-    env._obstacle.xc = 0
-    env._obstacle.yc = 0
+    env._obstacles[0].xc = 0
+    env._obstacles[0].yc = 0
+    for j in range(1,env._n_obstacles):
+        env._obstacles[j].xc = 100
+        env._obstacles[j].yc = 100
     d4d_setup = Dubins4dReachAvoidSetup(env=env)
 
     # create state
@@ -161,10 +165,13 @@ def test_Dubins4dReachAvoidSetup_observeState_1():
 
     # ~~~ ARRANGE ~~~
     env = Dubins4dReachAvoidEnv()
-    env._obstacle.xc = 1.0
-    env._obstacle.yc = 0.0
+    env._obstacles[0].xc = 1.0
+    env._obstacles[0].yc = 0.0
+    for j in range(1,env._n_obstacles):
+        env._obstacles[j].xc = 100
+        env._obstacles[j].yc = 100
     obst_r = 0.5 + 1e-3
-    env._obstacle.r = obst_r
+    env._obstacles[0].r = obst_r
     env._goal.xc = 0.0
     env._goal.yc = 1.0
     d4d_setup = Dubins4dReachAvoidSetup(env=env)
@@ -259,8 +266,9 @@ def test_Dubins4dReachAvoidSetup_estimateRiskMetric_zero_risk_region_0():
 
     # create environment and move obstacle far away
     env = Dubins4dReachAvoidEnv()
-    env._obstacle.xc = 100.
-    env._obstacle.yc = 100.
+    for j in range(env._n_obstacles):
+        env._obstacles[j].xc = 100
+        env._obstacles[j].yc = 100
 
     # create system setup
     ds = Dubins4dReachAvoidSetup(env=env)
@@ -303,9 +311,12 @@ def test_Dubins4dReachAvoidSetup_estimateRiskMetric_inevitable_region_0():
 
     # create environment and move obstacle far away
     env = Dubins4dReachAvoidEnv()
-    env._obstacle.xc = 1.0
-    env._obstacle.yc = 1.0
-    env._obstacle.r = 1.2
+    env._obstacles[0].xc = 1.0
+    env._obstacles[0].yc = 1.0
+    env._obstacles[0].r = 1.2
+    for j in range(1,env._n_obstacles):
+        env._obstacles[j].xc = 100
+        env._obstacles[j].yc = 100
 
     # create system setup
     ds = Dubins4dReachAvoidSetup(env=env)
@@ -487,19 +498,19 @@ def test_Dubins4dReachAvoidSetup_reduce_0():
     """check that pickling-unpickling setup object with modified env"""
     # ~~~ ARRANGE ~~~
     env = Dubins4dReachAvoidEnv()
-    env._obstacle.xc = -51.388
+    env._obstacles[0].xc = -51.388
     ds = Dubins4dReachAvoidSetup(env=env)
 
     # ~~~ ACT ~~~
     # modify env object to see if reproduced in setup object
-    env._obstacle.xc = 79.476
+    env._obstacles[0].xc = 79.476
 
     # pickle and unpickle setup object
     ds_copy = pickle.loads(pickle.dumps(ds))
 
     # ~~~ ASSERT ~~~
     # check that obstacle is in modified location is setup copy
-    assert np.isclose(ds_copy.env._obstacle.xc, 79.476)
+    assert np.isclose(ds_copy.env._obstacles[0].xc, 79.476)
 
 def test_Dubins4dReachAvoidSetup_control_ompl_to_numpy_0():
     """check that ompl control object is properly converted to numpy"""

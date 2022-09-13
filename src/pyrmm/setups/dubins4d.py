@@ -95,13 +95,13 @@ class Dubins4dReachAvoidSetup(SystemSetup):
         np_state = state_ompl_to_numpy(state).reshape(1,4)
 
         # check obstacle collision
-        is_collision, _, _ = self.env._obstacle.check_traj_intersection(np_state)
-
-        # check speed bounds
-        # is_speed_valid = spaceInformation.getStateSpace().getSubspace(2).satisfiesBounds(state[2])
+        for obst in self.env._obstacles:
+            is_collision, _, _ = obst.check_traj_intersection(np_state)
+            if is_collision:
+                return False
 
         # is_valid = is_speed_valid and not is_collision
-        return not is_collision
+        return True
 
     def isPathValid(self, path):
         '''check if path intersects obstacles in ppm image using bresenham lines
@@ -121,9 +121,12 @@ class Dubins4dReachAvoidSetup(SystemSetup):
         np_traj = np.array([state_ompl_to_numpy(path.getState(i)) for i in range(path.getStateCount())])
 
         # check collision validity
-        any_collision, _, _ = self.env._obstacle.check_traj_intersection(np_traj)
+        for obst in self.env._obstacles:
+            any_collision, _, _ = obst.check_traj_intersection(np_traj)
+            if any_collision:
+                return False
         
-        return not any_collision
+        return True
 
     def observeState(self, state):
         '''query observation from a particular state

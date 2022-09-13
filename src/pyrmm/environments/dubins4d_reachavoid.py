@@ -46,8 +46,9 @@ CS_DVMAX = 0.5      # [m/s/s]
 # goal and obstacle params
 GOAL_R_MIN = 0.1
 GOAL_R_MAX = 1.0
-OBST_R_MIN = 4.0
-OBST_R_MAX = 8.0
+OBST_R_MIN = 2.0
+OBST_R_MAX = 5.0
+N_OBST = 5
 
 # observation space (OS) parameters
 OS_N_RAYS_DEFAULT = 12      # number of rays to cast
@@ -94,6 +95,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
         max_episode_sim_time: float = MAX_EPISODE_SIM_TIME_DEFAULT,
         time_accel_factor: float = TIME_ACCEL_FACTOR_DEFAULT,
         base_sim_time_step: float = BASE_SIM_TIME_STEP,
+        n_obstacles: int = N_OBST,
         gamma_vmin=GAMMA_VMIN_DEFAULT, 
         gamma_vmax=GAMMA_VMAX_DEFAULT,
         lambda_Vtheta=LAMBDA_VTHETA_DEFAULT, 
@@ -113,6 +115,8 @@ class Dubins4dReachAvoidEnv(gym.Env):
                 sim time acceleration relative to wall clock time
             base_sim_time_step : float
                 sim time added to all step_to_now calls
+            n_obstacles : int
+                number of obstacles to generate
             gamma_vmax, gamma_vmin : float
                 parameter lower-bounding evolution of speed barrier function
             lambda_Vtheta, lambda_Vspeed : float
@@ -123,6 +127,9 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode  # Define the attribute render_mode in your environment
+
+        assert n_obstacles >= 0
+        self._n_obstacles = n_obstacles
 
         # Timing parameters
         assert max_episode_sim_time > 0
@@ -230,26 +237,25 @@ class Dubins4dReachAvoidEnv(gym.Env):
             goal_xc, goal_yc = self.state_space.sample()[:2]
             goal_r = uniform(GOAL_R_MIN, GOAL_R_MAX)
             goal_candidate = CircleRegion(xc=goal_xc, yc=goal_yc, r=goal_r)
-
-            # randomize obstacle (not meant for direct access)
-            obst_xc, obst_yc = self.state_space.sample()[:2]
-            obst_r = uniform(OBST_R_MIN, OBST_R_MAX)
-            obstacle_candidate = CircleRegion(xc=obst_xc, yc=obst_yc, r=obst_r)
-
             goal_col, _, _ = goal_candidate.check_traj_intersection([self.__state])
-            obst_col, _, _ = obstacle_candidate.check_traj_intersection([self.__state])
-
-            if (
-                goal_col or
-                obst_col or
-                obst_r > np.sqrt((obst_xc-goal_xc)**2 + (obst_yc-goal_yc)**2) + goal_r 
-            ):
+            if goal_col:
                 continue
-            else:
-                break
+            self._goal = goal_candidate
 
-        self._goal = goal_candidate
-        self._obstacle = obstacle_candidate
+
+            self._obstacles = []
+            while len(self._obstacles) < self._n_obstacles:
+                # randomize obstacle (not meant for direct access)
+                obst_xc, obst_yc = self.state_space.sample()[:2]
+                obst_r = uniform(OBST_R_MIN, OBST_R_MAX)
+                obstacle_candidate = CircleRegion(xc=obst_xc, yc=obst_yc, r=obst_r)
+                obst_col, _, _ = obstacle_candidate.check_traj_intersection([self.__state])
+                obst_goal_measure = np.sqrt((obst_xc-goal_xc)**2 + (obst_yc-goal_yc)**2) + goal_r
+                if obst_col or obst_r > obst_goal_measure:
+                    continue
+                self._obstacles.append(obstacle_candidate)
+            
+            break
 
         # clean the render collection and add the initial frame
         self.renderer.reset()
@@ -397,7 +403,10 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         # check goal and obstacle collisions
         gcol_any, _, gcol_edge = self._goal.check_traj_intersection(state_traj)
-        ocol_any, _, ocol_edge = self._obstacle.check_traj_intersection(state_traj)
+        ocols = [obst.check_traj_intersection(state_traj) for obst in self._obstacles]
+        ocol_anys, _, ocol_edges = zip(*ocols)
+        ocol_any = np.any(ocol_anys)
+        # ocol_any, _, ocol_edge = self._obstacle.check_traj_intersection(state_traj)
 
         # reward is sparse [-1,0,1] if goal is reached before obstacle
         rew = 0
@@ -407,7 +416,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
             else:
                 # inspect which was encountered first: goal or obstacle
                 first_goal_edge = np.where(gcol_edge)[0][0]
-                first_obst_edge = np.where(ocol_edge)[0][0]
+                first_obst_edge = np.min([np.where(ocol_edges[i])[0][0] for i in range(self._n_obstacles) if ocol_anys[i]])
                 if first_goal_edge < first_obst_edge:
                     rew = 1
                 else:
@@ -460,7 +469,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
             state=state, 
             sim_time=self._sim_time, 
             goal=self._goal,
-            obstacle=self._obstacle,
+            obstacles=self._obstacles,
             n_rays=self._n_rays,
             ray_length=self._max_ray_length,
             obs_dtype=self.observation_space.dtype)
@@ -475,7 +484,10 @@ class Dubins4dReachAvoidEnv(gym.Env):
             info[K_CUM_ACTIVE_CTRL_SIM_TIME] = self._active_ctrl_sim_time
             info[K_CUM_WALL_CLOCK_TIME] = self._wall_clock_elapsed_time
             info[K_CUM_SIM_TIME] = self._sim_time
-            info[K_AVG_POLICY_COMPUTE_TIME] = self._wall_clock_elapsed_time/self._n_env_steps
+            info[K_AVG_POLICY_COMPUTE_TIME] = (
+                0.0 if self._n_env_steps==0 else
+                self._wall_clock_elapsed_time/self._n_env_steps
+            )
             info[K_CUM_REWARD] = self._cum_reward
 
         return info
@@ -562,7 +574,8 @@ class Dubins4dReachAvoidEnv(gym.Env):
 
         # heuristic that desired speed increase with distance to target
         dist_targ = np.sqrt(xhat*xhat + yhat*yhat)
-        vd = min((dist_targ/10)**2, dist_targ/10, 2.0)
+        # vd = min((dist_targ/10)**2, dist_targ/10, 2.0)
+        vd = (dist_targ/10)**2
 
         # map theta into range [-pi,pi] to avoid windup of Vtheta
         theta = (deepcopy(theta) + np.pi) % (2 * np.pi) - np.pi
@@ -744,28 +757,32 @@ class Dubins4dReachAvoidEnv(gym.Env):
             radius=rend_goal_r
             # radius=self._goal.r,
         )
-        # Now draw obstacle
-        rend_obst_xy = self.map_state_to_render_window(self._obstacle.xc, self._obstacle.yc)
-        rend_obst_r = abs(np.array(rend_obst_xy) - self.map_state_to_render_window(self._obstacle.xc+self._obstacle.r, self._obstacle.yc))[0]
-        pygame.draw.circle(
-            canvas,
-            color=(255, 0, 0),
-            center=rend_obst_xy,
-            radius=rend_obst_r,
-        )
+
+        # Now draw obstacles
+        for obst in self._obstacles:
+            rend_obst_xy = self.map_state_to_render_window(obst.xc, obst.yc)
+            rend_obst_r = abs(np.array(rend_obst_xy) - self.map_state_to_render_window(obst.xc+obst.r, obst.yc))[0]
+            pygame.draw.circle(
+                canvas,
+                color=(255, 0, 0),
+                center=rend_obst_xy,
+                radius=rend_obst_r,
+            )
+
         # Now we draw the agent
         rend_agnt_xy = self.map_state_to_render_window(self.__state[SS_XIND], self.__state[SS_YIND])
+        agnt_color = (255,0,0) if self._cur_action[K_ACTIVE_CTRL] else (0,0,255)
         # rend_agnt_r = abs(np.array(rend_agnt_xy) - self.map_state_to_render_window(self._goal.xc+self._goal.r, self._goal.yc))[0]
         pygame.draw.circle(
             canvas,
-            color=(0, 0, 255),
+            color=agnt_color,
             center=rend_agnt_xy,
             radius=5,
         )
         # Now draw agent heading
         pygame.draw.line(
             canvas,
-            color=(0, 0, 255),
+            color=agnt_color,
             start_pos=rend_agnt_xy,
             end_pos=self.map_state_to_render_window(
                 self.__state[SS_XIND] + self.__state[SS_VIND]*np.cos(self.__state[SS_THETAIND]), 
@@ -797,7 +814,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
             pygame.quit()
 
 
-def _get_observation(state, sim_time, goal, obstacle, n_rays, ray_length, obs_dtype):
+def _get_observation(state, sim_time, goal, obstacles, n_rays, ray_length, obs_dtype):
     '''formats observation of system according to observation space
 
     Args:
@@ -807,8 +824,8 @@ def _get_observation(state, sim_time, goal, obstacle, n_rays, ray_length, obs_dt
             simulation time when observation taken
         goal : CircleRegion
             goal region
-        obstacle : CircleRegion
-            obstacle region
+        obstacle : List
+            list of obstacle regions
         n_rays : int
             number of ray casts to observe
         ray_length : float
@@ -849,15 +866,15 @@ def _get_observation(state, sim_time, goal, obstacle, n_rays, ray_length, obs_dt
         # create Linestring from start to end to represent ray
         ray = LineString([abs_start_pt, abs_end_pt])
 
-        # intersect LineString with obstacle Polygon
-        if ray.intersects(obstacle.polygon):
-            ray_obst_inter = ray.intersection(obstacle.polygon)
+        obs_ray[i] = ray_length
+        for obst in obstacles:
+            # intersect LineString with obstacle Polygon
+            if ray.intersects(obst.polygon):
+                ray_obst_inter = ray.intersection(obst.polygon)
 
-            # get distance from point to intersection
-            obs_ray[i] = abs_start_pt.distance(ray_obst_inter)
+                # get distance from point to intersection
+                obs_ray[i] = min(obs_ray[i], abs_start_pt.distance(ray_obst_inter))
 
-        else:
-            obs_ray[i] = ray_length
 
     observation = np.concatenate((obs, obs_ray), dtype=obs_dtype)
     # if not self.observation_space.contains(observation):

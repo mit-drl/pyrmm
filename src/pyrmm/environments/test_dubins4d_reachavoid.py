@@ -3,7 +3,7 @@ import pytest
 import time
 import numpy as np
 
-from .dubins4d_reachavoid import Dubins4dReachAvoidEnv, CircleRegion
+from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv, CircleRegion
 from scipy.integrate import odeint
 
 def get_dubins4d_reachavoid_env_undisturbed():
@@ -115,8 +115,8 @@ def test_propagate_realtime_system_undisturbed_zero_ctrl(dubins4d_reachavoid_env
     env = dubins4d_reachavoid_env_undisturbed
 
     # reset environment to capture precise timing
-    t_start = time.time()
     env.reset()
+    t_start = time.time()
 
     # specify initial state and control
     s0 = np.array([0, 0, 0, 1])
@@ -125,14 +125,13 @@ def test_propagate_realtime_system_undisturbed_zero_ctrl(dubins4d_reachavoid_env
 
     # ~~ ACT ~~
     # wait a fixed amount of time and then propagate system
-    time.sleep(0.1434317)
+    time.sleep(0.3434317)
     t_elapsed = time.time() - t_start
     env._propagate_realtime_system(ctrl=u)
 
-
     # ~~ ASSERT ~~
-    exp_x = s0[3] * np.cos(s0[2]) * t_elapsed
-    exp_y = s0[3] * np.sin(s0[2]) * t_elapsed
+    exp_x = s0[3] * np.cos(s0[2]) * (t_elapsed + env._base_sim_time_step)
+    exp_y = s0[3] * np.sin(s0[2]) * (t_elapsed + env._base_sim_time_step)
     exp_theta = s0[2]
     exp_v = s0[3]
     assert np.isclose(env._Dubins4dReachAvoidEnv__state[0], exp_x, rtol=1e-2)
@@ -230,8 +229,8 @@ def test_step_to_now_inactive_ctrl_0(dubins4d_reachavoid_env_undisturbed):
     goal = CircleRegion(5, 0, 1)
 
     # reset environment to capture precise timing
-    t_start = time.time()
     env.reset()
+    t_start = time.time()
     env._Dubins4dReachAvoidEnv__state = s0  # (x [m], y [m], theta [rad], v [m/s])
     env._goal = goal
 
@@ -268,8 +267,8 @@ def test_step_to_now_active_ctrl_0(dubins4d_reachavoid_env_undisturbed):
     c0['accel_ctrl'][0] = 0
 
     # reset environment to capture precise timing
-    t_start = time.time()
     env.reset()
+    t_start = time.time()
     env._Dubins4dReachAvoidEnv__state = s0  # (x [m], y [m], theta [rad], v [m/s])
     env._cur_action = c0
 
@@ -280,11 +279,11 @@ def test_step_to_now_active_ctrl_0(dubins4d_reachavoid_env_undisturbed):
     env.step_to_now(env.action_space.sample())
 
     # ~~ ASSERT ~~
-    exp_x = s0[3] * np.cos(s0[2]) * t_elapsed
-    exp_y = s0[3] * np.sin(s0[2]) * t_elapsed
+    exp_x = s0[3] * np.cos(s0[2]) * (t_elapsed + env._base_sim_time_step)
+    exp_y = s0[3] * np.sin(s0[2]) * (t_elapsed + env._base_sim_time_step)
     exp_theta = s0[2]
     exp_v = s0[3]
-    assert np.isclose(env._Dubins4dReachAvoidEnv__state[0], exp_x, rtol=1e-2)
+    assert np.isclose(env._Dubins4dReachAvoidEnv__state[0], exp_x, rtol=1e-1)
     assert np.isclose(env._Dubins4dReachAvoidEnv__state[1], exp_y)
     assert np.isclose(env._Dubins4dReachAvoidEnv__state[2], exp_theta)
     assert np.isclose(env._Dubins4dReachAvoidEnv__state[3], exp_v)
@@ -319,7 +318,9 @@ def test_step_to_now_active_ctrl_rew_and_done_0(dubins4d_reachavoid_env_undistur
         env._Dubins4dReachAvoidEnv__state = s0  # (x [m], y [m], theta [rad], v [m/s])
         env._cur_action = c0
         env._goal = goals[i]
-        env._obstacle = obstacles[i]
+        env._obstacles[0] = obstacles[i]
+        for j in range(1,env._n_obstacles):
+            env._obstacles[j] = CircleRegion(100,100,1)
 
         # ~~ ACT ~~
         # wait a fixed amount of time and then propagate system
@@ -362,20 +363,14 @@ def test_get_observation_obstacle_0():
         # reset environment to capture precise timing
         env.reset()
         env._Dubins4dReachAvoidEnv__state = states[i]  # (x [m], y [m], theta [rad], v [m/s])
-        env._obstacle = obstacles[i]
+        env._obstacles[0] = obstacles[i]
+        for j,_ in enumerate(env._obstacles[1:]):
+            # move other obstacles out of the way
+            env._obstacles[j+1] = CircleRegion(100, 100, 1)
 
         # ~~ ACT ~~
         # wait a fixed amount of time and then propagate system
         obs = env._get_observation(state=env._Dubins4dReachAvoidEnv__state)
-        # obs = env._get_observation(
-        #     state=env._Dubins4dReachAvoidEnv__state, 
-        #     sim_time=env._sim_time, 
-        #     goal=env._goal,
-        #     obstacle=env._obstacle,
-        #     n_rays=env._n_rays,
-        #     ray_length=env._max_ray_length,
-        #     obs_dtype=env.observation_space.dtype
-        # )
 
         # ~~ ASSERT ~~
         assert np.isclose(obs[5], exp_len_5[i])
@@ -461,5 +456,6 @@ def test_check_traj_intersection_2():
 
 if __name__ == "__main__":
     # test_propagate_realtime_system_undisturbed_inactive_ctrl(None)
-    # test_step_to_now_active_ctrl_rew_and_done_0(None)
-    test_get_observation_obstacle_0(None)
+    test_step_to_now_active_ctrl_rew_and_done_0(None)
+    # test_get_observation_obstacle_0()
+    # test_propagate_realtime_system_undisturbed_zero_ctrl(None)

@@ -76,6 +76,7 @@ K_CUM_WALL_CLOCK_TIME = 'cum_wall_clock_time'
 K_CUM_SIM_TIME = 'cum_sim_time'
 K_AVG_POLICY_COMPUTE_TIME = 'avg_policy_compute_time'
 K_CUM_REWARD = 'cum_reward'
+K_FINAL_SPEED = 'final_speed'
 
 class Dubins4dReachAvoidEnv(gym.Env):
 
@@ -496,6 +497,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
                 self._wall_clock_elapsed_time/self._n_env_steps
             )
             info[K_CUM_REWARD] = self._cum_reward
+            info[K_FINAL_SPEED] = self.__state[SS_VIND]
 
         return info
 

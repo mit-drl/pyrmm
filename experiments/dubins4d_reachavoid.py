@@ -59,6 +59,7 @@ K_GOAL_COMPLETION_RATE = 'goal_completion_rate'
 K_OBST_COLLISION_RATE = 'obst_collision_rate'
 K_TIMEOUT_RATE = 'timeout_rate'
 K_AVG_SIM_TIME_TO_GOAL = 'avg_sim_time_to_goal'
+K_AVG_COLLISION_SPEED = 'avg_collision_speed'
 
 def aggregate_agent_metrics(trial_data:List)->Dict:
     '''compute metrics for agent performance for sequence of trials (episodes)
@@ -91,6 +92,7 @@ def aggregate_agent_metrics(trial_data:List)->Dict:
         agg_data[K_OBST_COLLISION_RATE] = len([t for t in dat if np.isclose(t['cum_reward'],-1.0)])/len(dat)
         agg_data[K_TIMEOUT_RATE] = len([t for t in dat if np.isclose(t['cum_reward'],0.0)])/len(dat)
         agg_data[K_AVG_SIM_TIME_TO_GOAL] = np.mean([t['cum_sim_time'] for t in dat if np.isclose(t['cum_reward'],1.0)])
+        agg_data[K_AVG_COLLISION_SPEED] = np.mean([t['final_speed'] for t in dat if np.isclose(t['cum_reward'], -1.0)])
 
     return agg_data
 
@@ -500,13 +502,13 @@ CBFAgentConf = pbuilds(execute_cbf_agent,
 # Top-level configuration of experiment
 DEFAULT_N_TRIALS = 256       # number of trials (episodes) per agent
 agent_config_inputs = {
-    K_LRMM_AGENT: LRMMAgentConf,
-    K_CBF_AGENT: CBFAgentConf,
-    K_INACTIVE_AGENT: InactiveAgentConf,
-    K_RANDOM_AGENT: RandomAgentConf,
-    K_FULL_BRAKING_AGENT: FullBrakingAgentConf,
+    # K_LRMM_AGENT: LRMMAgentConf,
+    # K_CBF_AGENT: CBFAgentConf,
+    # K_INACTIVE_AGENT: InactiveAgentConf,
+    # K_RANDOM_AGENT: RandomAgentConf,
+    # K_FULL_BRAKING_AGENT: FullBrakingAgentConf,
     K_HJREACH_CHEAT_AGENT: HJReachCheatConf,
-    K_HJREACH_AGENT: HJReachConf,
+    # K_HJREACH_AGENT: HJReachConf,
 }
 ExpConfig = make_config(
     n_trials = DEFAULT_N_TRIALS,
@@ -540,7 +542,7 @@ def task_function(cfg: ExpConfig):
 
         # create list of environment objects to be distributed during multiprocessing
         if agent_name in [K_HJREACH_AGENT, K_HJREACH_CHEAT_AGENT]:
-            envs = [instantiate(cfg.env)(n_obstacles=1, obstacle_min_rad=4.0, obstacle_max_rad=8.0) for _ in range(cfg.n_trials)]
+            envs = [instantiate(cfg.env)(n_obstacles=1, obstacle_min_rad=4.5, obstacle_max_rad=11.) for _ in range(cfg.n_trials)]
         else:
             envs = [instantiate(cfg.env)() for _ in range(cfg.n_trials)]
 

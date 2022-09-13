@@ -501,7 +501,7 @@ def task_function(cfg: ExpConfig):
         if agent_name in [K_HJREACH_AGENT, K_HJREACH_CHEAT_AGENT]:
             envs = [instantiate(cfg.env)(n_obstacles=1, obstacle_min_rad=4.0, obstacle_max_rad=8.0) for _ in range(cfg.n_trials)]
         else:
-            envs = [instantiate(cfg.env) for _ in range(cfg.n_trials)]
+            envs = [instantiate(cfg.env)() for _ in range(cfg.n_trials)]
 
         # create partial function for distributing envs to random agent executor
         p_agent_runner = partial(instantiate(getattr(cfg,agent_name)))

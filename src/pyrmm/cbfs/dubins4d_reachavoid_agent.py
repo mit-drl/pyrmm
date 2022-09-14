@@ -13,9 +13,10 @@ from typing import List
 
 from pyrmm.environments.dubins4d_reachavoid import \
     Dubins4dReachAvoidEnv, CircleRegion, cvx_qp_solver, \
-    K_ACTIVE_CTRL, K_TURNRATE_CTRL, K_ACCEL_CTRL
+    K_ACTIVE_CTRL, K_TURNRATE_CTRL, K_ACCEL_CTRL, SS_VIND
 
 OBSTACLE_INFLATION_FACTOR = 0.05
+LOW_SPEED_THESHOLD = 0.05
 
 class CBFDubins4dReachAvoidAgent():
     def __init__(self,
@@ -112,13 +113,19 @@ class CBFDubins4dReachAvoidAgent():
         )
 
         # check if feasible solution found
-        if ctrl_n_del is not None:
-            # check barrier function  for equality; if so take active a control
-            if np.any(np.isclose(np.dot(G_safety, ctrl_n_del), h_safety, rtol=1e-1, atol=1e-1)):
-                # at least one safety constraint active, apply active safety control
-                action[K_ACTIVE_CTRL] = True
-                action[K_TURNRATE_CTRL][0] = ctrl_n_del[0]
-                action[K_ACCEL_CTRL][0] = ctrl_n_del[1]
+        # if ctrl_n_del is not None:
+        # check barrier function  for equality; if so take active a control
+        if (np.any(np.isclose(np.dot(G_safety, ctrl_n_del), h_safety, rtol=1e-1, atol=1e-1))):
+            # at least one safety constraint active, apply active safety control
+            action[K_ACTIVE_CTRL] = True
+            action[K_TURNRATE_CTRL][0] = ctrl_n_del[0]
+            action[K_ACCEL_CTRL][0] = ctrl_n_del[1]
+
+        if state[SS_VIND] < LOW_SPEED_THESHOLD:
+            # Hack: Keep system at stop if stopped
+            action[K_ACTIVE_CTRL] = True
+            action[K_TURNRATE_CTRL][0] = 0
+            action[K_ACCEL_CTRL][0] = self.u2min
 
         return action
 

@@ -47,6 +47,7 @@ K_FULL_BRAKING_AGENT = 'full_braking_agent'
 # K_N_TRIALS = 'n_trials'
 # K_TIME_ACCEL = 'time_accel'
 # K_N_CORES = 'n_cores'
+K_ENVIRONMENT_SEEDS = 'environment_seeds'
 K_TRIAL_DATA = 'trial_data'
 K_AGGREGATE_DATA = 'aggregate_data'
 K_ERROR_RATE = 'error_rate'
@@ -674,6 +675,7 @@ def task_function(cfg: ExpConfig):
 
     # create storage for results
     results = dict()
+    results[K_ENVIRONMENT_SEEDS] = seeds
 
     for agent_name in agent_config_inputs.keys():
 

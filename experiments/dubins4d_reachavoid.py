@@ -56,13 +56,29 @@ K_AVG_STEPS_PER_EPISODE = 'avg_steps_per_episode'
 K_AVG_SIM_TIME_PER_EPISODE = 'avg_sim_time_per_episode'
 K_AVG_ACTIVE_CTRL_STEPS = 'avg_active_ctrl_steps'
 K_AVG_ACTIVE_CTRL_SIM_TIME = 'avg_active_ctrl_sim_time'
-K_GOAL_COMPLETION_RATE = 'goal_completion_rate'
-K_OBST_COLLISION_RATE = 'obst_collision_rate'
-K_TIMEOUT_RATE = 'timeout_rate'
 K_AVG_SIM_TIME_TO_GOAL = 'avg_sim_time_to_goal'
 K_AVG_COLLISION_SPEED = 'avg_collision_speed'
+K_STD_POLICY_COMPUTE_WALL_TIME = 'std_policy_compute_wall_time'
+K_STD_WALL_CLOCK_TIME_PER_EPISODE = 'std_wall_clock_time_per_episode'
+K_STD_STEPS_PER_EPISODE = 'std_steps_per_episode'
+K_STD_SIM_TIME_PER_EPISODE = 'std_sim_time_per_episode'
+K_STD_ACTIVE_CTRL_STEPS = 'std_active_ctrl_steps'
+K_STD_ACTIVE_CTRL_SIM_TIME = 'std_active_ctrl_sim_time'
+K_STD_SIM_TIME_TO_GOAL = 'std_sim_time_to_goal'
+K_STD_COLLISION_SPEED = 'std_collision_speed'
+K_TOT_GOAL_COMPLETION_RATIO = 'total_goal_completion_ratio'
+K_TOT_OBST_COLLISION_RATIO = 'total_obst_collision_ratio'
+K_TOT_TIMEOUT_RATIO = 'total_timeout_ratio'
 
-def aggregate_agent_metrics(trial_data:List)->Dict:
+K_BATCH_SIZE = 'batch_size'
+K_AVG_GOAL_COMPLETION_RATIO = "avg_goal_completion_ratio"
+K_STD_GOAL_COMPLETION_RATIO = "std_goal_completion_ratio"
+K_AVG_OBST_COLLISION_RATIO = "avg_obst_collision_ratio"
+K_STD_OBST_COLLISION_RATIO = "std_obst_completion_ratio"
+K_AVG_TIMEOUT_RATIO = "avg_timeout_ratio"
+K_STD_TIMEOUT_RATIO = "std_timeout_ratio"
+
+def aggregate_agent_metrics(trial_data:List, batch_size)->Dict:
     '''compute metrics for agent performance for sequence of trials (episodes)
     Returns:
         AVG_POLICY_COMPUTE_WALL_TIME : average wall-clock computation time of agent's policy per step
@@ -82,18 +98,97 @@ def aggregate_agent_metrics(trial_data:List)->Dict:
 
     # non-errored data
     dat = [t for t in trial_data if t is not None]
-    if len(dat) > 0:
-        agg_data[K_AVG_POLICY_COMPUTE_WALL_TIME] = np.sum([t['cum_wall_clock_time'] for t in dat]) / np.sum([t['n_env_steps'] for t in dat])
-        agg_data[K_AVG_WALL_CLOCK_TIME_PER_EPISODE] = np.mean([t['cum_wall_clock_time'] for t in dat])
-        agg_data[K_AVG_STEPS_PER_EPISODE] = np.mean([t['n_env_steps'] for t in dat])
-        agg_data[K_AVG_SIM_TIME_PER_EPISODE] = np.mean([t['cum_sim_time'] for t in dat])
-        agg_data[K_AVG_ACTIVE_CTRL_STEPS] = np.mean([t['n_active_ctrl_env_steps'] for t in dat])
-        agg_data[K_AVG_ACTIVE_CTRL_SIM_TIME] = np.mean([t['active_ctrl_sim_time'] for t in dat]) 
-        agg_data[K_GOAL_COMPLETION_RATE] = len([t for t in dat if np.isclose(t['cum_reward'],1.0)])/len(dat)
-        agg_data[K_OBST_COLLISION_RATE] = len([t for t in dat if np.isclose(t['cum_reward'],-1.0)])/len(dat)
-        agg_data[K_TIMEOUT_RATE] = len([t for t in dat if np.isclose(t['cum_reward'],0.0)])/len(dat)
-        agg_data[K_AVG_SIM_TIME_TO_GOAL] = np.mean([t['cum_sim_time'] for t in dat if np.isclose(t['cum_reward'],1.0)])
-        agg_data[K_AVG_COLLISION_SPEED] = np.mean([t['final_speed'] for t in dat if np.isclose(t['cum_reward'], -1.0)])
+    n_dat = len(dat)
+    if n_dat > 0:
+
+        # policy computation time
+        avg_policy_wall_times_per_ep = [t['cum_wall_clock_time']/t['n_env_steps'] for t in dat if t['n_env_steps']>0]
+        agg_data[K_AVG_POLICY_COMPUTE_WALL_TIME] = np.mean(avg_policy_wall_times_per_ep)
+        agg_data[K_STD_POLICY_COMPUTE_WALL_TIME] = np.std(avg_policy_wall_times_per_ep)
+
+        # simulation timing
+        wall_clock_time_per_ep = [t['cum_wall_clock_time'] for t in dat]
+        agg_data[K_AVG_WALL_CLOCK_TIME_PER_EPISODE] = np.mean(wall_clock_time_per_ep)
+        agg_data[K_STD_WALL_CLOCK_TIME_PER_EPISODE] = np.std([t['cum_wall_clock_time'] for t in dat])
+
+        steps_per_ep = [t['n_env_steps'] for t in dat]
+        agg_data[K_AVG_STEPS_PER_EPISODE] = np.mean(steps_per_ep)
+        agg_data[K_STD_STEPS_PER_EPISODE] = np.std(steps_per_ep)
+
+        sim_time_per_ep = [t['cum_sim_time'] for t in dat]
+        agg_data[K_AVG_SIM_TIME_PER_EPISODE] = np.mean(sim_time_per_ep)
+        agg_data[K_STD_SIM_TIME_PER_EPISODE] = np.std(sim_time_per_ep)
+
+        ctrl_steps_per_ep = [t['n_active_ctrl_env_steps'] for t in dat]
+        agg_data[K_AVG_ACTIVE_CTRL_STEPS] = np.mean(ctrl_steps_per_ep)
+        agg_data[K_STD_ACTIVE_CTRL_STEPS] = np.std(ctrl_steps_per_ep)
+
+        ctrl_sim_time_per_ep = [t['active_ctrl_sim_time'] for t in dat]
+        agg_data[K_AVG_ACTIVE_CTRL_SIM_TIME] = np.mean(ctrl_sim_time_per_ep) 
+        agg_data[K_STD_ACTIVE_CTRL_SIM_TIME] = np.std(ctrl_sim_time_per_ep) 
+
+        sim_times_to_goal = [t['cum_sim_time'] for t in dat if np.isclose(t['cum_reward'],1.0)]
+        agg_data[K_AVG_SIM_TIME_TO_GOAL] = np.mean(sim_times_to_goal)
+        agg_data[K_STD_SIM_TIME_TO_GOAL] = np.std(sim_times_to_goal)
+
+        if 'final_speed' in dat[0].keys():
+            obst_collision_speeds = [t['final_speed'] for t in dat if np.isclose(t['cum_reward'], -1.0)]
+            agg_data[K_AVG_COLLISION_SPEED] = np.mean(obst_collision_speeds)
+            agg_data[K_STD_COLLISION_SPEED] = np.std(obst_collision_speeds)
+
+        agg_data[K_TOT_GOAL_COMPLETION_RATIO] = len([t for t in dat if np.isclose(t['cum_reward'],1.0)])/len(dat)
+        agg_data[K_TOT_OBST_COLLISION_RATIO] = len([t for t in dat if np.isclose(t['cum_reward'],-1.0)])/len(dat)
+        agg_data[K_TOT_TIMEOUT_RATIO] = len([t for t in dat if np.isclose(t['cum_reward'],0.0)])/len(dat)
+
+        # data from independent sub-batches to compute
+        # goal, obstacle, and timeout statistics
+        agg_data[K_BATCH_SIZE] = None
+        if batch_size is not None and batch_size <= n_dat:
+            agg_data[K_BATCH_SIZE] = batch_size
+            # goal_counts = []
+            # obst_counts = []
+            # tout_counts = []
+            goal_ratios = []
+            obst_ratios = []
+            tout_ratios = []
+            real_batch_sizes = []
+            for i in range(0,n_dat,batch_size):
+                batch = dat[i:i+batch_size]
+                bsize = len(batch)
+                assert bsize > 0
+                real_batch_sizes.append(bsize)
+                # goal_counts.append(len([t for t in batch if np.isclose(t['cum_reward'],1.0)]))
+                # obst_counts.append(len([t for t in batch if np.isclose(t['cum_reward'],-1.0)]))
+                # tout_counts.append(len([t for t in batch if np.isclose(t['cum_reward'],0.0)]))
+                goal_ratios.append(len([t for t in batch if np.isclose(t['cum_reward'],1.0)])/bsize)
+                obst_ratios.append(len([t for t in batch if np.isclose(t['cum_reward'],-1.0)])/bsize)
+                tout_ratios.append(len([t for t in batch if np.isclose(t['cum_reward'],0.0)])/bsize)
+
+            # gcnts_avg = np.average(goal_counts, weights=real_batch_sizes)
+            # gcnts_std = np.sqrt(np.average((goal_counts-gcnts_avg)**2, weights=real_batch_sizes))
+            grats_avg = np.average(goal_ratios, weights=real_batch_sizes)
+            grats_std = np.sqrt(np.average((goal_ratios-grats_avg)**2, weights=real_batch_sizes))
+            agg_data[K_AVG_GOAL_COMPLETION_RATIO] = grats_avg
+            agg_data[K_STD_GOAL_COMPLETION_RATIO] = grats_std
+
+            # ocnts_avg = np.average(obst_counts, weights=real_batch_sizes)
+            # ocnts_std = np.sqrt(np.average((obst_counts-ocnts_avg)**2, weights=real_batch_sizes))
+            # agg_data[K_AVG_OBST_COLLISION_RATIO] = ocnts_avg
+            # agg_data[K_STD_OBST_COLLISION_RATIO] = ocnts_std
+            orats_avg = np.average(obst_ratios, weights=real_batch_sizes)
+            orats_std = np.sqrt(np.average((obst_ratios-orats_avg)**2, weights=real_batch_sizes))
+            agg_data[K_AVG_OBST_COLLISION_RATIO] = orats_avg
+            agg_data[K_STD_OBST_COLLISION_RATIO] = orats_std
+
+            # tcnts_avg = np.average(tout_counts, weights=real_batch_sizes)
+            # tcnts_std = np.sqrt(np.average((tout_counts-tcnts_avg)**2, weights=real_batch_sizes))
+            # agg_data[K_AVG_TIMEOUT_RATIO] = tcnts_avg
+            # agg_data[K_STD_TIMEOUT_RATIO] = tcnts_std
+            trats_avg = np.average(tout_ratios, weights=real_batch_sizes)
+            trats_std = np.sqrt(np.average((tout_ratios-trats_avg)**2, weights=real_batch_sizes))
+            agg_data[K_AVG_TIMEOUT_RATIO] = trats_avg
+            agg_data[K_STD_TIMEOUT_RATIO] = trats_std
+
 
     return agg_data
 
@@ -538,7 +633,8 @@ CBFAgentConf = pbuilds(execute_cbf_agent,
     )
 
 # Top-level configuration of experiment
-DEFAULT_N_TRIALS = 256       # number of trials (episodes) per agent
+DEFAULT_N_TRIALS = 2048       # number of trials (episodes) per agent
+DEFAULT_BATCH_SIZE = 64       # 32 batches of 64 trials = 2048 total trials   
 agent_config_inputs = {
     K_LRMM_AGENT: LRMMAgentConf,
     K_CBF_AGENT: CBFAgentConf,
@@ -550,6 +646,7 @@ agent_config_inputs = {
 }
 ExpConfig = make_config(
     n_trials = DEFAULT_N_TRIALS,
+    batch_size = DEFAULT_BATCH_SIZE,
     n_cores = multiprocessing.cpu_count(),
     env = EnvConf,
     exclude =[],
@@ -618,15 +715,19 @@ def task_function(cfg: ExpConfig):
         pool.join()
 
         # compute aggregate metrics
-        results[agent_name][K_AGGREGATE_DATA] = aggregate_agent_metrics(results[agent_name][K_TRIAL_DATA])
+        results[agent_name][K_AGGREGATE_DATA] = aggregate_agent_metrics(results[agent_name][K_TRIAL_DATA], batch_size=cfg.batch_size)
+
+        # save (pickled) agent data
+        with open(_SAVE_FNAME+"_"+agent_name+".pkl", "wb") as handle:
+            pickle.dump(results[agent_name], handle)
 
         # log aggregate results
         agg_data_str = pprint.pformat(results[agent_name][K_AGGREGATE_DATA])
         log.info("\nAgent: {} trials complete with aggregated results:\n{}".format(agent_name, agg_data_str))
 
     # save (pickle) results
-    with open(_SAVE_FNAME+'.pkl', 'wb') as handle:
-        pickle.dump(results, handle)
+    # with open(_SAVE_FNAME+'.pkl', 'wb') as handle:
+    #     pickle.dump(results, handle)
 
 
 

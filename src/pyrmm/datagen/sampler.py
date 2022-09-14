@@ -40,7 +40,12 @@ def sample_risk_metrics(sysset:SystemSetup, cfg_obj, multiproc:bool=True, prfx:s
 
         # assign state
         states[i] = sysset.space_info.allocState()
-        sampler.sampleUniform(states[i])
+
+        # sample only valid states
+        while True:
+            sampler.sampleUniform(states[i])
+            if sysset.space_info.isValid(states[i]):
+                break
 
         # get observation from state
         observations[i] = sysset.observeState(states[i])

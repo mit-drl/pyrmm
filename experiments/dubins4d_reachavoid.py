@@ -97,21 +97,17 @@ def aggregate_agent_metrics(trial_data:List)->Dict:
 
     return agg_data
 
-def execute_inactive_agent(env_n_seed, delay:float)->Dict:
+def execute_inactive_agent(env_n_seed)->Dict:
     '''run agent than never takes active control (env CLF always controls)
 
     Args:
         env : Dubins4dReachAvoidEnv
             gym environment for agent interaction
-        delay : float [s]
-            fixed delay between steps
 
     Returns 
         info : Dict
             dictionary of episode metric info
     '''
-    assert delay > 0
-
     env, seed = env_n_seed
     
     # set constant inactive action
@@ -122,8 +118,6 @@ def execute_inactive_agent(env_n_seed, delay:float)->Dict:
     env.reset(seed=seed)
 
     while True:
-        # random delay to allow system to propagate
-        time.sleep(delay)
 
         # random action for next time interval
         obs, rew, done, info = env.step_to_now(action)
@@ -166,7 +160,7 @@ def execute_full_braking_agent(env_n_seed)->Dict:
 
     return info
 
-def execute_random_agent(env_n_seed, max_delay:float)->Dict:
+def execute_random_agent(env_n_seed)->Dict:
     '''run random agent until episode completion
 
     Args:
@@ -185,8 +179,6 @@ def execute_random_agent(env_n_seed, max_delay:float)->Dict:
     env.reset(seed=seed)
 
     while True:
-        # random delay to allow system to propagate
-        time.sleep(np.random.uniform(0,max_delay))
 
         # random action for next time interval
         obs, rew, done, info = env.step_to_now(env.action_space.sample())
@@ -202,6 +194,8 @@ def execute_hjreach_agent(env_n_seed,
     grid_lb : ArrayLike,
     grid_ub : ArrayLike,
     grid_nsteps : ArrayLike,
+    acc_min : float, acc_max : float,
+    omg_min : float, omg_max : float,
     precompute_time_reset:bool=False)->Dict:
     '''run HJ-Reachability agent until episode completion
 
@@ -216,6 +210,10 @@ def execute_hjreach_agent(env_n_seed,
             upper bounds on each dimension in discretized state grid
         grid_nsteps : ArrayLike[int]:
             number of discretization points each dimension of state grid
+        acc_min, acc_max : float
+            bounds of acceleration control [m/s/s]
+        omg_min, omg_max : float
+            bounds of turnrate control [rad/s]
         precompute_time_reset : bool
             if true, environment sim time will be reset after HJ PDE has been solved
             this is a HUGE advantage / "cheat" for the HJ-reach agent
@@ -227,8 +225,23 @@ def execute_hjreach_agent(env_n_seed,
     env, seed = env_n_seed
 
     # agent properties that can be instantiated a priori to environment
-    dynamics = DubinsCar4DODP(uMode="min", dMode="max", dMin = [0.0,0.0], dMax = [0.0,0.0])
+
+    # In ODP's nomenclature, our obstacle encoded as "goal" in 
+    # during backward reachable set computation, 
+    # Therfore use uMode=max avoid the "goal" (which is actually obstacle)
+    # (very confusing nomenclature, I know)
+    # See https://github.com/SFU-MARS/optimized_dp/blob/master/odp/dynamics/DubinsCar4D.py
+    dynamics = DubinsCar4DODP(
+        uMode="max",    
+        dMode="min", 
+        uMin=[acc_min, omg_min],  # [accel, turnrate] ordering
+        uMax=[acc_max, omg_max],  # [accel, turnrate] ordering
+        dMin = [0.0,0.0], 
+        dMax = [0.0,0.0]
+    )
+
     time_grid = np.arange(start=0, stop=time_horizon + _SMALL_NUMBER, step=time_step)
+
     grid = Grid(
         minBounds=np.asarray(grid_lb), 
         maxBounds=np.asarray(grid_ub), 
@@ -430,19 +443,17 @@ EnvConf = pbuilds(Dubins4dReachAvoidEnv,
 )
 
 # Configure inactive agent
-DEFAULT_INACTIVE_AGENT_DELAY = 0.05
-InactiveAgentConf = pbuilds(execute_inactive_agent, delay=DEFAULT_INACTIVE_AGENT_DELAY)
+InactiveAgentConf = pbuilds(execute_inactive_agent)
 
 # Configure random agent
 # e.g. configure random agent max_delay so it's recorded by hydra
-DEFAULT_RANDOM_AGENT_MAX_DELAY = 0.1
-RandomAgentConf = pbuilds(execute_random_agent, max_delay=DEFAULT_RANDOM_AGENT_MAX_DELAY)
+RandomAgentConf = pbuilds(execute_random_agent)
 
 # Configure agent that is always braking
 FullBrakingAgentConf = pbuilds(execute_full_braking_agent)
 
 # Configure HJ-reach agent
-DEFAULT_HJREACH_TIME_HORIZON = 2.0
+DEFAULT_HJREACH_TIME_HORIZON = 4.0
 DEFAULT_HJREACH_TIME_STEP = 0.1
 DEFAULT_HJREACH_GRID_LB = [-15.0, -15.0, 0.0, -np.pi-0.1]
 DEFAULT_HJREACH_GRID_UB = [15.0, 15.0, 4.0, np.pi+0.1]
@@ -452,24 +463,32 @@ HJReachConf = pbuilds(execute_hjreach_agent,
     time_step = DEFAULT_HJREACH_TIME_STEP,
     grid_lb = DEFAULT_HJREACH_GRID_LB,
     grid_ub = DEFAULT_HJREACH_GRID_UB,
-    grid_nsteps = DEFAULT_HJREACH_GRID_NSTEPS)
+    grid_nsteps = DEFAULT_HJREACH_GRID_NSTEPS,
+    acc_min = CS_DVMIN,
+    acc_max = CS_DVMAX,
+    omg_min = CS_DTHETAMIN,
+    omg_max = CS_DTHETAMAX)
 HJReachCheatConf = pbuilds(execute_hjreach_agent, 
     time_horizon = DEFAULT_HJREACH_TIME_HORIZON,
     time_step = DEFAULT_HJREACH_TIME_STEP,
     grid_lb = DEFAULT_HJREACH_GRID_LB,
     grid_ub = DEFAULT_HJREACH_GRID_UB,
     grid_nsteps = DEFAULT_HJREACH_GRID_NSTEPS,
+    acc_min = CS_DVMIN,
+    acc_max = CS_DVMAX,
+    omg_min = CS_DTHETAMIN,
+    omg_max = CS_DTHETAMAX,
     precompute_time_reset = True)
 
 DEFAULT_LRMM_ACITVE_CTRL_RISK_THRESHOLD = 0.85
 DEFAULT_LRMM_CHKPT_FILE = (
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
-    "outputs/2022-09-13/18-04-23/lightning_logs/" +
-    "version_0/checkpoints/epoch=2027-step=20279.ckpt"
+    "outputs/2022-09-13/20-37-59/lightning_logs/" +
+    "version_0/checkpoints/epoch=2027-step=83147.ckpt"
 )
 DEFAULT_LRMM_DATA_PATH= (
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
-    "outputs/2022-09-13/17-35-48/"
+    "outputs/2022-09-13/19-18-23/"
 )
 LRMMAgentConf = pbuilds(execute_lrmm_agent,
     chkpt_file = DEFAULT_LRMM_CHKPT_FILE,

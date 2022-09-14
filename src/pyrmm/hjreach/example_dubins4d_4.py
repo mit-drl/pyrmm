@@ -37,7 +37,16 @@ small_number = 1e-5
 tau = np.arange(start=0, stop=TIME_HORIZON+small_number, step=TIME_STEP)
 
 # dynamics
-my_car = DubinsCar4D(uMode="min", dMode="max", dMin = [0.0,0.0], dMax = [0.0,0.0])
+# obstacle encoded as "goal" in back reach set computation, uMode=max avoids "goal" 
+# (very confusing nomenclature, I know)
+# See https://github.com/SFU-MARS/optimized_dp/blob/master/odp/dynamics/DubinsCar4D.py
+my_car = DubinsCar4D(
+    uMode="max",    
+    dMode="min", 
+    uMin=[-0.5, -0.2],  # [accel, turnrate] ordering
+    uMax=[0.5, 0.2],  # [accel, turnrate] ordering
+    dMin = [0.0,0.0], 
+    dMax = [0.0,0.0])
 
 # form HJ-Reach-based agent for Dubins4d Reach-Avoid environment
 hjreach_agent = HJReachDubins4dReachAvoidAgent(grid=g, dynamics=my_car, goal=goal, obstacle=obstacle, time_grid=tau)

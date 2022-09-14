@@ -533,6 +533,7 @@ ExpConfig = make_config(
     n_trials = DEFAULT_N_TRIALS,
     n_cores = multiprocessing.cpu_count(),
     env = EnvConf,
+    exclude =[],
     **agent_config_inputs
     # random_agent = RandomAgentConf
 )
@@ -559,6 +560,9 @@ def task_function(cfg: ExpConfig):
     results = dict()
 
     for agent_name in agent_config_inputs.keys():
+
+        if agent_name in cfg.exclude:
+            continue
 
         # create pool of multiprocess jobs
         pool = multiprocessing.Pool(cfg.n_cores)

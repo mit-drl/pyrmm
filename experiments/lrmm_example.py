@@ -13,12 +13,12 @@ DEFAULT_LRMM_CHKPT_FILE = (
     "outputs/2022-09-13/18-04-23/lightning_logs/" +
     "version_0/checkpoints/epoch=2027-step=20279.ckpt"
 )
-DEFAULT_LRMM_ACITVE_CTRL_RISK_THRESHOLD = 0.9
+DEFAULT_LRMM_ACITVE_CTRL_RISK_THRESHOLD = 0.75
 DEFAULT_LRMM_DATA_PATH= (
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
     "outputs/2022-09-13/17-35-48/"
 )
-info = execute_lrmm_agent((env,4),
+info = execute_lrmm_agent((env,14),
     chkpt_file = DEFAULT_LRMM_CHKPT_FILE,
     active_ctrl_risk_threshold = DEFAULT_LRMM_ACITVE_CTRL_RISK_THRESHOLD,
     data_path = DEFAULT_LRMM_DATA_PATH,

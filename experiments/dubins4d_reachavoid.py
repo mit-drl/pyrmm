@@ -461,12 +461,12 @@ HJReachCheatConf = pbuilds(execute_hjreach_agent,
     grid_nsteps = DEFAULT_HJREACH_GRID_NSTEPS,
     precompute_time_reset = True)
 
+DEFAULT_LRMM_ACITVE_CTRL_RISK_THRESHOLD = 0.85
 DEFAULT_LRMM_CHKPT_FILE = (
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
     "outputs/2022-09-13/18-04-23/lightning_logs/" +
     "version_0/checkpoints/epoch=2027-step=20279.ckpt"
 )
-DEFAULT_LRMM_ACITVE_CTRL_RISK_THRESHOLD = 0.8
 DEFAULT_LRMM_DATA_PATH= (
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
     "outputs/2022-09-13/17-35-48/"

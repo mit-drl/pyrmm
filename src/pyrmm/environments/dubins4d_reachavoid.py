@@ -259,7 +259,7 @@ class Dubins4dReachAvoidEnv(gym.Env):
             # randomize goal locations ensuring not subset of obstacle region
             # and no collision with current state
             goal_xc, goal_yc = self.state_space.sample()[:2]
-            goal_r = uniform(GOAL_R_MIN, GOAL_R_MAX)
+            goal_r = prng.uniform(GOAL_R_MIN, GOAL_R_MAX)
             goal_candidate = CircleRegion(xc=goal_xc, yc=goal_yc, r=goal_r)
             gs_col, _, _ = goal_candidate.check_traj_intersection([self.__state])
             og_col_fn = lambda obst: np.sqrt((obst.xc-goal_xc)**2 + (obst.yc-goal_yc)**2) + goal_r < obst.r

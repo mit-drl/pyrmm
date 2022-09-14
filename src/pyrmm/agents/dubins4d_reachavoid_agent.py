@@ -6,6 +6,7 @@ Class for defining an interactive guardian agent for the Dubins4d Reach-Avoid
 import torch
 import numpy as np
 
+from collections import deque
 from copy import deepcopy
 from numpy.typing import ArrayLike
 from typing import Callable
@@ -16,6 +17,9 @@ from pyrmm.environments.dubins4d_reachavoid import \
 from pyrmm.modelgen.modules import \
     single_layer_nn_bounded_output, OnlyRiskMetricModule, \
     ShallowRiskCtrlMLP, RiskCtrlMetricModule
+
+DEQUE_LEN = 20
+ALL_STOP_THRESHOLD = 0.98
 
 class LRMMOnlyRiskDubins4dReachAvoidAgent():
     def __init__(self,
@@ -73,6 +77,9 @@ class LRMMOnlyRiskDubins4dReachAvoidAgent():
         # specify action space from environment
         self.action_space = deepcopy(Dubins4dReachAvoidEnv.action_space)
 
+        # define deque to hold history of recent risk values [oldest -> newest]
+        self.risk_deque = deque(DEQUE_LEN*[self.active_ctrl_risk_threshold], maxlen=DEQUE_LEN)
+
     def get_action(self, observation: ArrayLike):
         '''given environment observation, determine risk metric
         and apply safety controller if needed
@@ -103,20 +110,37 @@ class LRMMOnlyRiskDubins4dReachAvoidAgent():
         assert len(risk_est) == 1
         risk_est = risk_est[0]
 
+        # add risk to risk deque and compute mean
+        self.risk_deque.append(risk_est)
+        risk_avg = np.mean(self.risk_deque)
+
         # determine if active control is to be taken
-        if risk_est > self.active_ctrl_risk_threshold:
+        if (risk_est > self.active_ctrl_risk_threshold or 
+            risk_avg > self.active_ctrl_risk_threshold
+            ):
             action[K_ACTIVE_CTRL] = True
 
-            if risk_est > 0.95:
-                # apply full braking
-                action[K_TURNRATE_CTRL] = 0.0
-                action[K_ACCEL_CTRL] = self.u2min
+            # if risk_est > 0.95:
+            #     # apply full braking
+            #     action[K_TURNRATE_CTRL] = 0.0
+            #     action[K_ACCEL_CTRL] = self.u2min
+            # else:
+            #     # apply slowing and turning control
+            #     action[K_TURNRATE_CTRL] = (
+            #         self.u1max if obs[6] > obs[-1] else self.u1min
+            #     )
+            #     action[K_ACCEL_CTRL] = self.u2min*max(obs[4]**2,1.0)
+
+            # apply slowing and turning control
+            if np.isclose(obs[6], obs[-1]):
+                turn_ctrl = 0.0
+            elif obs[6] > obs[-1]:
+                turn_ctrl = self.u1max  
             else:
-                # apply slowing and turning control
-                action[K_TURNRATE_CTRL] = (
-                    self.u1max if obs[6] > obs[-1] else self.u1min
-                )
-                action[K_ACCEL_CTRL] = self.u2min*max(abs(obs[4]),1.0)
+                turn_ctrl = self.u1min
+            action[K_TURNRATE_CTRL] = turn_ctrl
+            # action[K_ACCEL_CTRL] = self.u2min*max(obs[4]**2,1.0)
+            action[K_ACCEL_CTRL] = self.u2min
         
         return action
 

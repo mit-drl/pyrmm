@@ -57,6 +57,7 @@ K_AVG_STEPS_PER_EPISODE = 'avg_steps_per_episode'
 K_AVG_SIM_TIME_PER_EPISODE = 'avg_sim_time_per_episode'
 K_AVG_ACTIVE_CTRL_STEPS = 'avg_active_ctrl_steps'
 K_AVG_ACTIVE_CTRL_SIM_TIME = 'avg_active_ctrl_sim_time'
+K_AVG_ACTIVE_CTRL_SIM_TIME_RATIO = 'avg_active_ctrl_sim_time_ratio'
 K_AVG_SIM_TIME_TO_GOAL = 'avg_sim_time_to_goal'
 K_AVG_COLLISION_SPEED = 'avg_collision_speed'
 K_STD_POLICY_COMPUTE_WALL_TIME = 'std_policy_compute_wall_time'
@@ -65,6 +66,7 @@ K_STD_STEPS_PER_EPISODE = 'std_steps_per_episode'
 K_STD_SIM_TIME_PER_EPISODE = 'std_sim_time_per_episode'
 K_STD_ACTIVE_CTRL_STEPS = 'std_active_ctrl_steps'
 K_STD_ACTIVE_CTRL_SIM_TIME = 'std_active_ctrl_sim_time'
+K_STD_ACTIVE_CTRL_SIM_TIME_RATIO = 'std_active_ctrl_sim_time_ratio'
 K_STD_SIM_TIME_TO_GOAL = 'std_sim_time_to_goal'
 K_STD_COLLISION_SPEED = 'std_collision_speed'
 K_TOT_GOAL_COMPLETION_RATIO = 'total_goal_completion_ratio'
@@ -127,6 +129,10 @@ def aggregate_agent_metrics(trial_data:List, batch_size)->Dict:
         ctrl_sim_time_per_ep = [t['active_ctrl_sim_time'] for t in dat]
         agg_data[K_AVG_ACTIVE_CTRL_SIM_TIME] = np.mean(ctrl_sim_time_per_ep) 
         agg_data[K_STD_ACTIVE_CTRL_SIM_TIME] = np.std(ctrl_sim_time_per_ep) 
+
+        ctrl_sim_time_ratio_per_ep = [t['active_ctrl_sim_time']/t['cum_sim_time'] for t in dat]
+        agg_data[K_AVG_ACTIVE_CTRL_SIM_TIME_RATIO] = np.mean(ctrl_sim_time_ratio_per_ep) 
+        agg_data[K_STD_ACTIVE_CTRL_SIM_TIME_RATIO] = np.std(ctrl_sim_time_ratio_per_ep) 
 
         sim_times_to_goal = [t['cum_sim_time'] for t in dat if np.isclose(t['cum_reward'],1.0)]
         agg_data[K_AVG_SIM_TIME_TO_GOAL] = np.mean(sim_times_to_goal)

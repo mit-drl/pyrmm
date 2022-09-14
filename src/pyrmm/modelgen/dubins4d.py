@@ -18,8 +18,8 @@ from pyrmm.setups.dubins4d import \
     state_ompl_to_numpy, \
     update_pickler_dubins4dstate
 from pyrmm.modelgen.modules import \
-    RiskCtrlMetricDataModule, RiskCtrlMetricModule, \
-    RiskCtrlMetricTrainingData, ShallowRiskCtrlMLP
+    OnlyRiskMetricDataModule, OnlyRiskMetricModule, \
+    OnlyRiskMetricTrainingData, single_layer_nn_bounded_output
 
 _CONFIG_NAME = "dubins4d_modelgen_app"
 
@@ -27,7 +27,7 @@ _CONFIG_NAME = "dubins4d_modelgen_app"
 ### SYSTEM-SPECIFIC FUNCTIONS AND CLASSES ###
 #############################################
 
-class Dubins4dReachAvoidDataModule(RiskCtrlMetricDataModule):
+class Dubins4dReachAvoidDataModule(OnlyRiskMetricDataModule):
     def __init__(self,
         datapaths: List[str],
         val_ratio: float, 
@@ -42,7 +42,7 @@ class Dubins4dReachAvoidDataModule(RiskCtrlMetricDataModule):
             num_workers=num_workers,
             compile_verify_func=compile_verify_func)
 
-    def raw_data_to_numpy(self, raw_data:RiskCtrlMetricTrainingData):
+    def raw_data_to_numpy(self, raw_data:OnlyRiskMetricTrainingData):
         '''convert raw data (e.g. OMPL objects) to numpy arrays'''
 
         # catch "ragged" array that would be caused by data with 
@@ -52,15 +52,11 @@ class Dubins4dReachAvoidDataModule(RiskCtrlMetricDataModule):
             state_samples= np.concatenate([state_ompl_to_numpy(s).reshape(1,4) for s in raw_data.state_samples], axis=0)
             risk_metrics = np.asarray(raw_data.risk_metrics).reshape(-1,1)
             observations = np.asarray(raw_data.observations)
-            min_risk_ctrls = np.asarray(raw_data.min_risk_ctrls)
-            min_risk_ctrl_durs = np.asarray(raw_data.min_risk_ctrl_durs).reshape(-1,1)
 
-        return RiskCtrlMetricTrainingData(
+        return OnlyRiskMetricTrainingData(
             state_samples= state_samples,
             risk_metrics = risk_metrics,
             observations = observations,
-            min_risk_ctrls=min_risk_ctrls,
-            min_risk_ctrl_durs=min_risk_ctrl_durs
         )
 
 def verify_compiled_data(datapaths: List[Path]):
@@ -83,13 +79,13 @@ DataConf = pbuilds(Dubins4dReachAvoidDataModule,
     compile_verify_func=verify_compiled_data
 )
 
-ModelConf = pbuilds(ShallowRiskCtrlMLP,  
+ModelConf = pbuilds(single_layer_nn_bounded_output,  
     num_neurons=64
 )
 
 OptimConf = pbuilds(optim.Adam)
 
-PLModuleConf = pbuilds(RiskCtrlMetricModule,  
+PLModuleConf = pbuilds(OnlyRiskMetricModule,  
     optimizer=OptimConf
 )
 
@@ -141,13 +137,13 @@ def task_function(cfg: ExperimentConfig):
 
     # extract the trained model input size from the observation data
     num_model_inputs = data_module.observation_shape[1]
-    num_ctrl_dims = data_module.control_shape[1]
+    # num_ctrl_dims = data_module.control_shape[1]
 
     # finish instantiating the trainer
     trainer = obj.trainer()
 
     # finish instantiating pytorch lightning model and module
-    pl_model = obj.pl_model(num_inputs=num_model_inputs, num_ctrl_dims=num_ctrl_dims)
+    pl_model = obj.pl_model(num_inputs=num_model_inputs)
     pl_module = obj.pl_module(num_inputs=num_model_inputs, model=pl_model)
 
     # train the model

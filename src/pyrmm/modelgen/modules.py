@@ -142,8 +142,12 @@ def compile_raw_data(datapaths, verify_func:callable=None, ctrl_data=True):
         verify_func : callable
             function to call to verify consistency of data
         ctrl_data : boolean
-            If true, data contrains min-risk control inputs or min-risk control durations
-            False case for backward compatibility with old datasets
+            If True, data should contain min-risk control inputs or min-risk control durations
+            and all of this should be packaged together
+            if False, data MAY contain min-risk control and durations,
+            but it won't be packaged and returned with the states,
+            risk metrics, and observations 
+            (case for backward compatibility with old datasets)
     
     Returns:
         compiled_raw_data : RiskMetricTrainingData
@@ -187,9 +191,16 @@ def compile_raw_data(datapaths, verify_func:callable=None, ctrl_data=True):
             min_risk_ctrl_durs=min_risk_ctrl_durs)
 
     else:
-        # for backward compatibility
-        state_samples, risk_metrics, observations = tuple(zip(*concat_data))
-        compiled_raw_data = DEPRECATEDRiskMetricTrainingData(
+        # check if dataset contains min-risk data to be ignored
+        if len(concat_data[0]) == 5:
+            state_samples, risk_metrics, observations, _, _ = tuple(zip(*concat_data))
+        elif len(concat_data[0]) == 3:
+            # for backward compatibility
+            state_samples, risk_metrics, observations = tuple(zip(*concat_data))
+        else: 
+            raise ValueError("Unexpected data size with len: ",len(concat_data[0]))
+            
+        compiled_raw_data = OnlyRiskMetricTrainingData(
             state_samples=state_samples,
             risk_metrics=risk_metrics,
             observations=observations)
@@ -366,7 +377,7 @@ class RiskCtrlMetricModule(LightningModule):
 # DEPRECATED - KEPT FOR BACKWARD COMPATIBILITY
 
 ###################################################################################
-class DEPRECATEDRiskMetricTrainingData():
+class OnlyRiskMetricTrainingData():
     '''object to hold sampled states, risk metric values, and state observations
     in index-align, array-like objects
 
@@ -401,7 +412,7 @@ class DEPRECATEDRiskMetricTrainingData():
         self.risk_metrics = risk_metrics
         self.observations = observations
 
-class DEPRECATEDRiskMetricDataModule(LightningDataModule):
+class OnlyRiskMetricDataModule(LightningDataModule):
     def __init__(self,
         datapaths: List[str],
         val_ratio: float, 
@@ -453,7 +464,7 @@ class DEPRECATEDRiskMetricDataModule(LightningDataModule):
         # self.output_scaler.fit(rmetrics_np)
 
         # scale and convert to tensor
-        pt_scaled_data = DEPRECATEDRiskMetricTrainingData(
+        pt_scaled_data = OnlyRiskMetricTrainingData(
             state_samples=torch.from_numpy(self.state_scaler.transform(np_data.state_samples)),
             risk_metrics=torch.from_numpy(np_data.risk_metrics),
             observations=torch.from_numpy(self.observation_scaler.transform(np_data.observations))
@@ -481,11 +492,11 @@ class DEPRECATEDRiskMetricDataModule(LightningDataModule):
         self.observation_shape = np_data.observations.shape
         self.separated_raw_data = separated_raw_data
 
-    def raw_data_to_numpy(self, raw_data: DEPRECATEDRiskMetricTrainingData):
+    def raw_data_to_numpy(self, raw_data: OnlyRiskMetricTrainingData):
         '''convert raw data (e.g. OMPL objects) to numpy arrays'''
         raise NotImplementedError("Must me implemented in child class")
 
-    def verify_numpy_data(self, np_data: DEPRECATEDRiskMetricTrainingData):
+    def verify_numpy_data(self, np_data: OnlyRiskMetricTrainingData):
         '''checks on data shape once converted to numpy form'''
         assert np_data.state_samples.shape[0] == np_data.risk_metrics.shape[0] == np_data.observations.shape[0]
         assert len(np_data.state_samples.shape) == len(np_data.risk_metrics.shape) == len(np_data.observations.shape)
@@ -500,7 +511,7 @@ class DEPRECATEDRiskMetricDataModule(LightningDataModule):
         return DataLoader(self.test_dataset, num_workers=self.num_workers, batch_size=self.batch_size)
 
 
-class DEPRECATEDRiskMetricModule(LightningModule):
+class OnlyRiskMetricModule(LightningModule):
     def __init__(
         self,
         num_inputs: int,

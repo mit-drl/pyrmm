@@ -27,7 +27,7 @@ from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv, \
     K_ACTIVE_CTRL, K_ACCEL_CTRL, \
     CS_DTHETAMIN, CS_DTHETAMAX, CS_DVMIN, CS_DVMAX, SS_VMIN, SS_VMAX
 from pyrmm.hjreach.dubins4d_reachavoid_agent import HJReachDubins4dReachAvoidAgent
-from pyrmm.agents.dubins4d_reachavoid_agent import LRMMDubins4dReachAvoidAgent
+from pyrmm.agents.dubins4d_reachavoid_agent import LRMMOnlyRiskDubins4dReachAvoidAgent
 from pyrmm.cbfs.dubins4d_reachavoid_agent import CBFDubins4dReachAvoidAgent
 from pyrmm.modelgen.dubins4d import Dubins4dReachAvoidDataModule
 
@@ -291,7 +291,11 @@ def execute_hjreach_agent(env_n_seed,
     return info
 
 def execute_lrmm_agent(env_n_seed,
-    chkpt_file, active_ctrl_risk_threshold, data_path):
+    chkpt_file, 
+    active_ctrl_risk_threshold, 
+    data_path,
+    u1min, u1max,
+    u2min, u2max):
 
     env, seed = env_n_seed
 
@@ -302,12 +306,12 @@ def execute_lrmm_agent(env_n_seed,
     data_module.setup('test')
     
     # create LRMM agent from checkpointed model
-    lrmm_agent = LRMMDubins4dReachAvoidAgent(
+    lrmm_agent = LRMMOnlyRiskDubins4dReachAvoidAgent(
         chkpt_file=chkpt_file, 
         active_ctrl_risk_threshold=active_ctrl_risk_threshold,
         observation_scaler=data_module.observation_scaler,
-        min_risk_ctrl_scaler=data_module.min_risk_ctrl_scaler,
-        min_risk_ctrl_dur_scaler=data_module.min_risk_ctrl_dur_scaler
+        u1min=u1min, u1max=u1max,
+        u2min=u2min, u2max=u2max,
     )
 
     # reset env to restart timing
@@ -316,7 +320,7 @@ def execute_lrmm_agent(env_n_seed,
     while True:
 
         # compute action at current state
-        action, ctrl_dur = lrmm_agent.get_action(observation=obs)
+        action = lrmm_agent.get_action(observation=obs)
 
         # employ action in environment
         obs, rew, done, info = env.step_to_now(action)
@@ -459,18 +463,22 @@ HJReachCheatConf = pbuilds(execute_hjreach_agent,
 
 DEFAULT_LRMM_CHKPT_FILE = (
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
-    "outputs/2022-09-11/22-10-44/lightning_logs/" +
-    "version_0/checkpoints/epoch=2027-step=442103.ckpt"
+    "outputs/2022-09-13/18-04-23/lightning_logs/" +
+    "version_0/checkpoints/epoch=2027-step=20279.ckpt"
 )
 DEFAULT_LRMM_ACITVE_CTRL_RISK_THRESHOLD = 0.8
 DEFAULT_LRMM_DATA_PATH= (
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
-    "outputs/2022-09-11/21-08-47/"
+    "outputs/2022-09-13/17-35-48/"
 )
 LRMMAgentConf = pbuilds(execute_lrmm_agent,
     chkpt_file = DEFAULT_LRMM_CHKPT_FILE,
     active_ctrl_risk_threshold = DEFAULT_LRMM_ACITVE_CTRL_RISK_THRESHOLD,
-    data_path = DEFAULT_LRMM_DATA_PATH)
+    data_path = DEFAULT_LRMM_DATA_PATH,
+    u1min = CS_DTHETAMIN,
+    u1max = CS_DTHETAMAX,
+    u2min = CS_DVMIN,
+    u2max = CS_DVMAX)
 
 # Configure CBF agent
 # DEFAULT_VMIN = 0    # [M/S]

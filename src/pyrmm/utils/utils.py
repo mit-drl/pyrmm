@@ -143,13 +143,18 @@ def plot_dubins_data(
     yvals = [s.getY() for s in ssamples]
     uvals = [np.cos(s.getYaw()) for s in ssamples]
     vvals = [np.sin(s.getYaw()) for s in ssamples]
-    ax.quiver(xvals, yvals, uvals, vvals, rmetrics, cmap=cmap)
-
+    # ax.quiver(xvals, yvals, uvals, vvals, rmetrics, cmap=cmap)
+    # ax.quiver(xvals, yvals, uvals, vvals, rmetrics, cmap=cmap, scale_units='inches', scale=5.0, width=0.003)
+    ax.quiver(xvals, yvals, uvals, vvals, rmetrics, cmap=cmap, scale_units='inches', scale=2.0, width=0.05)
+    # ax.quiver(xvals, yvals, uvals, vvals, rmetrics, cmap=cmap, width=0.03)
+    
     ax.set_title(
-        "{}: Estimated Risk Metrics for Dubins Vehicle (speed={}, turn rad={})\n".format(desc, cfg[SYSTEM_SETUP]['speed'], cfg[SYSTEM_SETUP]['min_turn_radius']) +
+        "{}Estimated Risk Metrics for Dubins Vehicle (speed={}, turn rad={})\n".format(desc, cfg[SYSTEM_SETUP]['speed'], cfg[SYSTEM_SETUP]['min_turn_radius']) +
         "in Constrained Box w/ uniform control sampling of duration={},\n".format(cfg[DURATION]) +
         "tree depth={}, and branching factor={}".format(cfg[TREE_DEPTH], cfg[N_BRANCHES]) 
     )
+    # ax.set_xlim([1000,1500])
+    # ax.set_ylim([1000,1500])
     ax.set_xlim([0,image.shape[1]])
     ax.set_ylim([0,image.shape[0]])
     ax.set_xlabel("x-position")

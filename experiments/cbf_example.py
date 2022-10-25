@@ -27,7 +27,7 @@ DEFAULT_P_VSPEED = 1
 
 
 info = execute_cbf_agent(
-    env_n_seed=(env, 14),
+    env_n_seed=(env, 23),
     vmin = DEFAULT_VMIN,
     vmax = DEFAULT_VMAX,
     u1min = DEFAULT_U1MIN,

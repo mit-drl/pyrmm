@@ -34,6 +34,49 @@ def single_layer_nn_bounded_output(num_inputs: int, num_neurons: int) -> nn.Modu
         nn.Sigmoid(),
     )
 
+class ShallowRiskCBFPerceptron(nn.Module):
+    def __init__(self,
+        num_obs_inputs: int,
+        num_state_features: int,
+        num_neurons: int):
+        """shallow feed-forward network with a "CBF (control barrier function) layer"
+
+        The CBF layer outputs weights for a linear combination of state features used to compute the risk metric
+
+        Args:
+            num_obs_inputs : int
+                number of inputs from observation of state, used as input at the "front" of the network
+            num_state_features : int
+                number of elements in the state feature vector (phi in many SVM/kernel literature),
+                used as input at the "middle" of the network 
+                linearly combined with the CBF-layer outputs in order to compute risk metric at model ouput
+            num_neurons : int
+                number of hidden units in the single hidden layer
+
+        Ref:
+            + multi-input networks in pytorch lightning: https://rosenfelder.ai/multi-input-neural-network-pytorch/
+            + example of polynomial kernel (i.e. feature vector): https://en.wikipedia.org/wiki/Polynomial_kernel
+        """
+        super().__init__()
+        self.num_state_features = num_state_features
+        self.fc1 = nn.Linear(num_obs_inputs, num_neurons)
+        self.fc2 = nn.Linear(num_neurons, num_state_features)
+
+    def forward(self, observation, state_features):
+        x0 = self.fc1(observation)
+        x1 = torch.sigmoid(x0)
+        w_cbf = self.fc2(x1)
+
+        # w vector is now the weights on the linear combination of state_features
+        rho = torch.inner(w_cbf, state_features)
+
+        # bound risk to [0,1]
+        rho = torch.sigmoid(rho)
+
+        # return risk estimate and cbf layer weights
+        return rho, w_cbf
+
+
 class ShallowRiskCtrlMLP(nn.Module):
     def __init__(self,
         num_inputs: int,
@@ -370,13 +413,6 @@ class RiskCtrlMetricModule(LightningModule):
         return loss, mean_sqr_err, mean_abs_err, max_abs_err
 
 
-
-
-###################################################################################
-
-# DEPRECATED - KEPT FOR BACKWARD COMPATIBILITY
-
-###################################################################################
 class OnlyRiskMetricTrainingData():
     '''object to hold sampled states, risk metric values, and state observations
     in index-align, array-like objects
@@ -439,19 +475,28 @@ class OnlyRiskMetricDataModule(LightningDataModule):
 
         assert batch_size > 0
 
-    def setup(self, stage: Optional[str] = None):
+    def setup(self, 
+        stage: Optional[str] = None, 
+        np_data: Optional[OnlyRiskMetricTrainingData]=None,
+        store_raw_data: bool=True):
 
-        # compile raw data from pytorch files
-        raw_data, separated_raw_data = compile_raw_data(
-            datapaths=self.datapaths, 
-            verify_func=self.compile_verify_func,
-            ctrl_data=False)
+        if np_data is None:
+            # compile raw data from pytorch files
+            raw_data, separated_raw_data = compile_raw_data(
+                datapaths=self.datapaths, 
+                verify_func=self.compile_verify_func,
+                ctrl_data=False)
 
-        # extract useful params
-        n_data = len(raw_data.state_samples)
+            # extract useful params
+            n_data = len(raw_data.state_samples)
 
-        # convert raw data to numpy arrays
-        np_data = self.raw_data_to_numpy(raw_data)
+            # convert raw data to numpy arrays
+            np_data = self.raw_data_to_numpy(raw_data)
+
+        else:
+            n_data = len(np_data.state_samples)
+
+        # verify numpy data for consistency
         self.verify_numpy_data(np_data=np_data)
 
         # Create input and output data regularizers
@@ -490,7 +535,8 @@ class OnlyRiskMetricDataModule(LightningDataModule):
         # store high-level information about data in data module
         self.n_data = n_data # number of data points
         self.observation_shape = np_data.observations.shape
-        self.separated_raw_data = separated_raw_data
+        if store_raw_data:
+            self.separated_raw_data = separated_raw_data
 
     def raw_data_to_numpy(self, raw_data: OnlyRiskMetricTrainingData):
         '''convert raw data (e.g. OMPL objects) to numpy arrays'''
@@ -553,6 +599,29 @@ class OnlyRiskMetricModule(LightningModule):
         self.log_dict(metrics)
 
     def _shared_eval_step(self, batch, batch_idx):
+        inputs, targets = batch
+        predictions = self.model(inputs)
+        loss = F.mse_loss(predictions, targets)
+        mean_sqr_err = mean_squared_error(predictions, targets)
+        mean_abs_err = mean_absolute_error(predictions, targets)
+        max_abs_err = torch.max(torch.abs(predictions - targets))
+        return loss, mean_sqr_err, mean_abs_err, max_abs_err
+
+
+class CBFLRMMModule(OnlyRiskMetricModule):
+    def __init__(
+        self,
+        num_inputs: int,
+        model: nn.Module,
+        optimizer: Partial[optim.Adam],
+    ):
+        super().__init__(num_inputs=num_inputs, model=model, optimizer=optimizer)
+
+    def forward(self, observation, state_features):
+        return self.model(observation, state_features)
+
+    def _shared_eval_step(self, batch, batch_idx):
+        raise NotImplementedError
         inputs, targets = batch
         predictions = self.model(inputs)
         loss = F.mse_loss(predictions, targets)

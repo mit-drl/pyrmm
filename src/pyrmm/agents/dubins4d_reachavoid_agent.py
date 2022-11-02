@@ -15,8 +15,8 @@ from pyrmm.environments.dubins4d_reachavoid import \
     OS_N_RAYS_DEFAULT, Dubins4dReachAvoidEnv, \
     K_ACTIVE_CTRL, K_TURNRATE_CTRL, K_ACCEL_CTRL
 from pyrmm.modelgen.modules import \
-    single_layer_nn_bounded_output, OnlyRiskMetricModule, \
-    ShallowRiskCtrlMLP, RiskCtrlMetricModule
+    single_layer_nn_bounded_output, BaseRiskMetricModule, \
+    ShallowRiskCtrlMLP
 
 DEQUE_LEN = 20
 ALL_STOP_THRESHOLD = 0.98
@@ -68,7 +68,7 @@ class LRMMOnlyRiskDubins4dReachAvoidAgent():
 
         # create pytorch lightning module
         # no optimizer because this is only for eval/inference
-        self.lrmm = OnlyRiskMetricModule(num_inputs=self.num_inputs, model=model, optimizer=None)
+        self.lrmm = BaseRiskMetricModule(num_inputs=self.num_inputs, model=model, optimizer=None)
 
         # load checkpoint into module
         self.lrmm.load_state_dict(chkpt['state_dict'])
@@ -184,7 +184,7 @@ class LRMMRiskCtrlDubins4dReachAvoidAgent():
 
         # create pytorch lightning module
         # no optimizer because this is only for eval/inference
-        self.lrmm = RiskCtrlMetricModule(num_inputs=self.num_inputs, model=model, optimizer=None)
+        self.lrmm = BaseRiskMetricModule(num_inputs=self.num_inputs, model=model, optimizer=None)
 
         # load checkpoint into module
         self.lrmm.load_state_dict(chkpt['state_dict'])

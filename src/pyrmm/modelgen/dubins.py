@@ -16,7 +16,7 @@ from hydra_zen import builds, make_custom_builds_fn, make_config, instantiate
 import pyrmm.utils.utils as U
 from pyrmm.setups.dubins import DubinsPPMSetup
 from pyrmm.modelgen.modules import \
-    RiskCtrlMetricDataModule, RiskCtrlMetricModule, \
+    RiskCtrlMetricDataModule, BaseRiskMetricModule, \
     RiskCtrlMetricTrainingData, ShallowRiskCtrlMLP
     #single_layer_nn_bounded_output
 
@@ -155,7 +155,7 @@ ModelConf = pbuilds(ShallowRiskCtrlMLP,
 
 OptimConf = pbuilds(optim.Adam)
 
-PLModuleConf = pbuilds(RiskCtrlMetricModule,  
+PLModuleConf = pbuilds(BaseRiskMetricModule,  
     # model=ModelConf, 
     optimizer=OptimConf
 )

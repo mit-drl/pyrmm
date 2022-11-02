@@ -14,8 +14,8 @@ from hydra_zen import make_custom_builds_fn, builds, make_config, instantiate
 import pyrmm.utils.utils as U
 import pyrmm.dynamics.quadrotor as QD
 from pyrmm.setups.quadrotor import ompl_to_numpy, update_pickler_quadrotorstate
-from pyrmm.modelgen.modules import RiskMetricDataModule, RiskMetricModule, \
-    RiskMetricTrainingData, single_layer_nn_bounded_output
+from pyrmm.modelgen.modules import OnlyRiskMetricDataModule, BaseRiskMetricModule, \
+    OnlyRiskMetricTrainingData, single_layer_nn_bounded_output
 
 
 _CONFIG_NAME = "quadrotor_modelgen_app"
@@ -24,7 +24,7 @@ _CONFIG_NAME = "quadrotor_modelgen_app"
 ### SYSTEM-SPECIFIC FUNCTSIONS AND CLASSES ###
 ##############################################
 
-class QuadrotorPyBulletDataModule(RiskMetricDataModule):
+class QuadrotorPyBulletDataModule(OnlyRiskMetricDataModule):
     def __init__(self,
         datapaths: List[str],
         val_ratio: float, 
@@ -39,7 +39,7 @@ class QuadrotorPyBulletDataModule(RiskMetricDataModule):
             num_workers=num_workers,
             compile_verify_func=compile_verify_func)
 
-    def raw_data_to_numpy(self, raw_data:RiskMetricTrainingData):
+    def raw_data_to_numpy(self, raw_data:OnlyRiskMetricTrainingData):
         '''convert raw data (e.g. OMPL objects) to numpy arrays'''
 
         # catch "ragged" array that would be caused by data with 
@@ -50,7 +50,7 @@ class QuadrotorPyBulletDataModule(RiskMetricDataModule):
             risk_metrics = np.asarray(raw_data.risk_metrics).reshape(-1,1)
             observations = np.asarray(raw_data.observations)
 
-        return RiskMetricTrainingData(
+        return OnlyRiskMetricTrainingData(
             state_samples= state_samples,
             risk_metrics = risk_metrics,
             observations = observations,
@@ -81,7 +81,7 @@ ModelConf = pbuilds(single_layer_nn_bounded_output,
 
 OptimConf = pbuilds(optim.Adam)
 
-PLModuleConf = pbuilds(RiskMetricModule, 
+PLModuleConf = pbuilds(BaseRiskMetricModule, 
     model=ModelConf, 
     optimizer=OptimConf)
 

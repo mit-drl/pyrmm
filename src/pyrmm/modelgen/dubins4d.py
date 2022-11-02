@@ -18,7 +18,7 @@ from pyrmm.setups.dubins4d import \
     state_ompl_to_numpy, \
     update_pickler_dubins4dstate
 from pyrmm.modelgen.modules import \
-    OnlyRiskMetricDataModule, OnlyRiskMetricModule, \
+    OnlyRiskMetricDataModule, BaseRiskMetricModule, \
     OnlyRiskMetricTrainingData, single_layer_nn_bounded_output
 
 _CONFIG_NAME = "dubins4d_modelgen_app"
@@ -85,7 +85,7 @@ ModelConf = pbuilds(single_layer_nn_bounded_output,
 
 OptimConf = pbuilds(optim.Adam)
 
-PLModuleConf = pbuilds(OnlyRiskMetricModule,  
+PLModuleConf = pbuilds(BaseRiskMetricModule,  
     optimizer=OptimConf
 )
 

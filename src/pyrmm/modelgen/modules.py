@@ -361,58 +361,6 @@ class RiskCtrlMetricDataModule(LightningDataModule):
     def test_dataloader(self):
         return DataLoader(self.test_dataset, num_workers=self.num_workers, batch_size=self.batch_size)
 
-
-class RiskCtrlMetricModule(LightningModule):
-    def __init__(
-        self,
-        num_inputs: int,
-        model: nn.Module,
-        optimizer: Partial[optim.Adam],
-    ):
-        super().__init__()
-        self.model = model
-        self.optimizer = optimizer
-        self.example_input_array = torch.rand(32,num_inputs,dtype=torch.double)
-
-    def forward(self, inputs):
-        return self.model(inputs)
-    
-    def configure_optimizers(self):
-        return self.optimizer(self.parameters())
-
-    def training_step(self, batch, batch_idx):
-        loss, mean_sqr_err, mean_abs_err, max_abs_err = self._shared_eval_step(batch, batch_idx)
-        metrics = {'train_loss': loss, 'train_mean_sqr_err': mean_sqr_err, 'train_mean_abs_err': mean_abs_err, 'train_max_abs_err': max_abs_err}
-        self.log_dict(metrics)
-        return loss
-
-    def training_epoch_end(self, outputs):
-        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
-        self.print("Completed epoch {} of {}".format(self.current_epoch+1, self.trainer.max_epochs))
-        self.log('avg_train_loss', avg_loss, prog_bar=True)
-
-    def validation_step(self, batch, batch_idx):
-        print('\n------------------------------\nSTARTING VALIDATION STEP\n')
-        loss, mean_sqr_err, mean_abs_err, max_abs_err = self._shared_eval_step(batch, batch_idx)
-        metrics = {'val_loss': loss, 'val_mean_sqr_err': mean_sqr_err, 'val_mean_abs_err': mean_abs_err, 'val_max_abs_err': max_abs_err}
-        self.print("\nvalidation loss:", loss.item())
-        self.log_dict(metrics)
-    
-    def test_step(self, batch, batch_idx):
-        loss, mean_sqr_err, mean_abs_err, max_abs_err = self._shared_eval_step(batch, batch_idx)
-        metrics = {'test_loss': loss, 'test_mean_sqr_err': mean_sqr_err, 'test_mean_abs_err': mean_abs_err, 'test_max_abs_err': max_abs_err}
-        self.log_dict(metrics)
-
-    def _shared_eval_step(self, batch, batch_idx):
-        inputs, targets = batch
-        predictions = self.model(inputs)
-        loss = F.mse_loss(predictions, targets)
-        mean_sqr_err = mean_squared_error(predictions, targets)
-        mean_abs_err = mean_absolute_error(predictions, targets)
-        max_abs_err = torch.max(torch.abs(predictions - targets))
-        return loss, mean_sqr_err, mean_abs_err, max_abs_err
-
-
 class OnlyRiskMetricTrainingData():
     '''object to hold sampled states, risk metric values, and state observations
     in index-align, array-like objects
@@ -557,7 +505,7 @@ class OnlyRiskMetricDataModule(LightningDataModule):
         return DataLoader(self.test_dataset, num_workers=self.num_workers, batch_size=self.batch_size)
 
 
-class OnlyRiskMetricModule(LightningModule):
+class BaseRiskMetricModule(LightningModule):
     def __init__(
         self,
         num_inputs: int,
@@ -608,7 +556,7 @@ class OnlyRiskMetricModule(LightningModule):
         return loss, mean_sqr_err, mean_abs_err, max_abs_err
 
 
-class CBFLRMMModule(OnlyRiskMetricModule):
+class CBFLRMMModule(BaseRiskMetricModule):
     def __init__(
         self,
         num_inputs: int,

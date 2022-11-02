@@ -14,8 +14,8 @@ from hydra_zen import builds, make_custom_builds_fn, make_config, instantiate
 from hydra.core.config_store import ConfigStore
 
 from pyrmm.modelgen.modules import \
-    OnlyRiskMetricTrainingData, \
-    OnlyRiskMetricDataModule, \
+    BaseRiskMetricTrainingData, \
+    BaseRiskMetricDataModule, \
     ShallowRiskCBFPerceptron, \
     CBFLRMMModule
 
@@ -29,7 +29,7 @@ n_data = 100
 state_samples = np.random.rand(n_data)*20-10
 observations = state_samples
 risk_metrics = torch.sigmoid(torch.tensor(state_samples)).numpy()
-np_data = OnlyRiskMetricTrainingData(
+np_data = BaseRiskMetricTrainingData(
     state_samples=state_samples.reshape(-1,1),
     risk_metrics=risk_metrics.reshape(-1,1),
     observations=observations.reshape(-1,1))
@@ -39,7 +39,7 @@ np_data = OnlyRiskMetricTrainingData(
 ##############################################
 pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
-DataConf = pbuilds(OnlyRiskMetricDataModule, 
+DataConf = pbuilds(BaseRiskMetricDataModule, 
     val_ratio=0.15, 
     batch_size=64, 
     num_workers=4,

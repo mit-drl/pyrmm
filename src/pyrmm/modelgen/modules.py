@@ -124,54 +124,6 @@ class ResultSummary():
     def __init__(self):
         self.training = None
         self.testing = None
-
-
-class RiskCtrlMetricTrainingData():
-    '''object to hold sampled states, risk metric values, and state observations
-    in index-align, array-like objects
-
-    Meant to be flexible to different data containers (lists, tuples, arrays, etc)
-    used mostly like a namespace with some light error checking on sizes
-    '''
-    def __init__(self, 
-        state_samples: ArrayLike, 
-        risk_metrics: ArrayLike, 
-        observations: ArrayLike,
-        min_risk_ctrls: ArrayLike,
-        min_risk_ctrl_durs: ArrayLike):
-        '''
-        Args
-        state_samples : ArrayLike
-            state samples in their native format (i.e. OMPL State objects)
-            i-th element is i-th sampled state represented as a numpy array
-        risk_metrics : ArrayLike
-            risk metric evaluated at corresponding sampled state
-            i-th element is risk metric evaluated at the i-th sampled state
-        observations : ArrayLike
-            observeState outputs at each corresponding sampled state
-            i-th element is the obervation (see observeState) at the i-th sampled state
-        min_risk_ctrls : ArrayLike
-            minimum risk control to take at a particular state as evaluated by estimateRiskMetric
-            i-th element is the min-risk control at the i-th sampled state
-        min_risk_ctrl_durs: ArrayLike
-            duration of time to apply minimum-risk control at particular state as evaluated by estimateRiskMetrics
-            i-th element is the time [sec] to apply i-th min-risk control at i-th sample state
-        '''
-
-        # check that amount of data in each category is equal
-        assert (
-            len(state_samples) == 
-            len(risk_metrics) == 
-            len(observations) ==
-            len(min_risk_ctrls) ==
-            len(min_risk_ctrl_durs)
-        )
-
-        self.state_samples = state_samples
-        self.risk_metrics = risk_metrics
-        self.observations = observations
-        self.min_risk_ctrls = min_risk_ctrls
-        self.min_risk_ctrl_durs = min_risk_ctrl_durs
     
 
 def compile_raw_data(datapaths, verify_func:callable=None, ctrl_data=True):
@@ -243,21 +195,103 @@ def compile_raw_data(datapaths, verify_func:callable=None, ctrl_data=True):
         else: 
             raise ValueError("Unexpected data size with len: ",len(concat_data[0]))
             
-        compiled_raw_data = OnlyRiskMetricTrainingData(
+        compiled_raw_data = BaseRiskMetricTrainingData(
             state_samples=state_samples,
             risk_metrics=risk_metrics,
             observations=observations)
 
     return compiled_raw_data, separated_raw_data
 
-class RiskCtrlMetricDataModule(LightningDataModule):
+class BaseRiskMetricTrainingData():
+    '''object to hold sampled states, risk metric values, and state observations
+    in index-align, array-like objects
+
+    Meant to be flexible to different data containers (lists, tuples, arrays, etc)
+    used mostly like a namespace with some light error checking on sizes
+    '''
+    def __init__(self, 
+        state_samples: ArrayLike, 
+        risk_metrics: ArrayLike, 
+        observations: ArrayLike):
+        '''
+        Args
+        state_samples : ArrayLike
+            state samples in their native format (i.e. OMPL State objects)
+            i-th element is i-th sampled state represented as a numpy array
+        risk_metrics : ArrayLike
+            risk metric evaluated at corresponding sampled state
+            i-th element is risk metric evaluated at the i-th sampled state
+        observations : ArrayLike
+            observeState outputs at each corresponding sampled state
+            i-th element is the obervation (see observeState) at the i-th sampled state
+        '''
+
+        # check that amount of data in each category is equal
+        assert (
+            len(state_samples) == 
+            len(risk_metrics) == 
+            len(observations)
+        )
+
+        self.state_samples = state_samples
+        self.risk_metrics = risk_metrics
+        self.observations = observations
+
+class RiskCtrlMetricTrainingData():
+    '''object to hold sampled states, risk metric values, and state observations
+    in index-align, array-like objects
+
+    Meant to be flexible to different data containers (lists, tuples, arrays, etc)
+    used mostly like a namespace with some light error checking on sizes
+    '''
+    def __init__(self, 
+        state_samples: ArrayLike, 
+        risk_metrics: ArrayLike, 
+        observations: ArrayLike,
+        min_risk_ctrls: ArrayLike,
+        min_risk_ctrl_durs: ArrayLike):
+        '''
+        Args
+        state_samples : ArrayLike
+            state samples in their native format (i.e. OMPL State objects)
+            i-th element is i-th sampled state represented as a numpy array
+        risk_metrics : ArrayLike
+            risk metric evaluated at corresponding sampled state
+            i-th element is risk metric evaluated at the i-th sampled state
+        observations : ArrayLike
+            observeState outputs at each corresponding sampled state
+            i-th element is the obervation (see observeState) at the i-th sampled state
+        min_risk_ctrls : ArrayLike
+            minimum risk control to take at a particular state as evaluated by estimateRiskMetric
+            i-th element is the min-risk control at the i-th sampled state
+        min_risk_ctrl_durs: ArrayLike
+            duration of time to apply minimum-risk control at particular state as evaluated by estimateRiskMetrics
+            i-th element is the time [sec] to apply i-th min-risk control at i-th sample state
+        '''
+
+        # check that amount of data in each category is equal
+        assert (
+            len(state_samples) == 
+            len(risk_metrics) == 
+            len(observations) ==
+            len(min_risk_ctrls) ==
+            len(min_risk_ctrl_durs)
+        )
+
+        self.state_samples = state_samples
+        self.risk_metrics = risk_metrics
+        self.observations = observations
+        self.min_risk_ctrls = min_risk_ctrls
+        self.min_risk_ctrl_durs = min_risk_ctrl_durs
+
+class BaseRiskMetricDataModule(LightningDataModule):
     def __init__(self,
         datapaths: List[str],
         val_ratio: float, 
         batch_size: int, 
         num_workers: int,
         compile_verify_func: callable=None):
-        '''loads, formats, scales and checks risk-ctrl training data from torch save files
+        '''loads, formats, scales and checks risk training data from torch save files
         Args:
             datapaths : List[str]
                 list of paths to pytorch data files
@@ -276,6 +310,113 @@ class RiskCtrlMetricDataModule(LightningDataModule):
         self.compile_verify_func = compile_verify_func
 
         assert batch_size > 0
+
+    def setup(self, 
+        stage: Optional[str] = None, 
+        np_data: Optional[BaseRiskMetricTrainingData]=None,
+        store_raw_data: bool=True):
+
+        if np_data is None:
+            # compile raw data from pytorch files
+            raw_data, separated_raw_data = compile_raw_data(
+                datapaths=self.datapaths, 
+                verify_func=self.compile_verify_func,
+                ctrl_data=False)
+
+            # extract useful params
+            n_data = len(raw_data.state_samples)
+
+            # convert raw data to numpy arrays
+            np_data = self.raw_data_to_numpy(raw_data)
+
+        else:
+            n_data = len(np_data.state_samples)
+
+        # verify numpy data for consistency
+        self.verify_numpy_data(np_data=np_data)
+
+        # Create input and output data regularizers
+        # Ref: https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html#what-is-a-datamodule
+        self.state_scaler = MinMaxScaler()
+        self.state_scaler.fit(np_data.state_samples)
+        self.observation_scaler = MinMaxScaler()
+        self.observation_scaler.fit(np_data.observations)
+        # self.output_scaler = MinMaxScaler()
+        # self.output_scaler.fit(rmetrics_np)
+
+        # scale and convert to tensor
+        pt_scaled_data = BaseRiskMetricTrainingData(
+            state_samples=torch.from_numpy(self.state_scaler.transform(np_data.state_samples)),
+            risk_metrics=torch.from_numpy(np_data.risk_metrics),
+            observations=torch.from_numpy(self.observation_scaler.transform(np_data.observations))
+        )
+        
+        # format scaled observations and risk metrics into training dataset
+        full_dataset = TensorDataset(pt_scaled_data.observations, pt_scaled_data.risk_metrics)
+
+        # handle training and testing separately
+        if stage == "fit":
+            # randomly split training and validation dataset
+            assert self.val_ratio >= 0 and self.val_ratio <= 1
+            n_val = int(n_data*self.val_ratio)
+            n_train = n_data - n_val
+            self.train_dataset, self.val_dataset = random_split(full_dataset, [n_train, n_val])
+
+        elif stage == "test":
+            self.test_dataset = full_dataset
+
+        else:
+            raise ValueError('Unexpected stage {}'.format(stage))
+
+        # store high-level information about data in data module
+        self.n_data = n_data # number of data points
+        self.observation_shape = np_data.observations.shape
+        if store_raw_data:
+            self.separated_raw_data = separated_raw_data
+
+    def raw_data_to_numpy(self, raw_data: BaseRiskMetricTrainingData):
+        '''convert raw data (e.g. OMPL objects) to numpy arrays'''
+        raise NotImplementedError("Must me implemented in child class")
+
+    def verify_numpy_data(self, np_data: BaseRiskMetricTrainingData):
+        '''checks on data shape once converted to numpy form'''
+        assert np_data.state_samples.shape[0] == np_data.risk_metrics.shape[0] == np_data.observations.shape[0]
+        assert len(np_data.state_samples.shape) == len(np_data.risk_metrics.shape) == len(np_data.observations.shape)
+
+    def train_dataloader(self):
+        return DataLoader(self.train_dataset, num_workers=self.num_workers, batch_size=self.batch_size, shuffle=True)
+
+    def val_dataloader(self):
+        return DataLoader(self.val_dataset, num_workers=self.num_workers, batch_size=len(self.val_dataset), shuffle=True)
+
+    def test_dataloader(self):
+        return DataLoader(self.test_dataset, num_workers=self.num_workers, batch_size=self.batch_size)
+
+class RiskCtrlMetricDataModule(BaseRiskMetricDataModule):
+    def __init__(self,
+        datapaths: List[str],
+        val_ratio: float, 
+        batch_size: int, 
+        num_workers: int,
+        compile_verify_func: callable=None):
+        '''loads, formats, scales and checks risk-ctrl training data from torch save files
+        Args:
+            datapaths : List[str]
+                list of paths to pytorch data files
+            val_ratio : float
+                ratio of data to be used in validation set. 0=no validation data, 1=all validation data
+            batch_size : int
+                size of training batches
+            num_workers : int
+                number of workers to use for dataloader
+        '''
+        super().__init__(
+            datapaths = datapaths,
+            val_ratio = val_ratio,
+            batch_size = batch_size,
+            num_workers = num_workers,
+            compile_verify_func = compile_verify_func
+        )
 
     def setup(self, stage: Optional[str] = None):
 
@@ -342,167 +483,6 @@ class RiskCtrlMetricDataModule(LightningDataModule):
         self.observation_shape = np_data.observations.shape
         self.control_shape = np_data.min_risk_ctrls.shape
         self.separated_raw_data = separated_raw_data
-
-    def raw_data_to_numpy(self, raw_data: RiskCtrlMetricTrainingData):
-        '''convert raw data (e.g. OMPL objects) to numpy arrays'''
-        raise NotImplementedError("Must me implemented in child class")
-
-    def verify_numpy_data(self, np_data: RiskCtrlMetricTrainingData):
-        '''checks on data shape once converted to numpy form'''
-        assert np_data.state_samples.shape[0] == np_data.risk_metrics.shape[0] == np_data.observations.shape[0]
-        assert len(np_data.state_samples.shape) == len(np_data.risk_metrics.shape) == len(np_data.observations.shape)
-
-    def train_dataloader(self):
-        return DataLoader(self.train_dataset, num_workers=self.num_workers, batch_size=self.batch_size, shuffle=True)
-
-    def val_dataloader(self):
-        return DataLoader(self.val_dataset, num_workers=self.num_workers, batch_size=len(self.val_dataset), shuffle=True)
-
-    def test_dataloader(self):
-        return DataLoader(self.test_dataset, num_workers=self.num_workers, batch_size=self.batch_size)
-
-class OnlyRiskMetricTrainingData():
-    '''object to hold sampled states, risk metric values, and state observations
-    in index-align, array-like objects
-
-    Meant to be flexible to different data containers (lists, tuples, arrays, etc)
-    used mostly like a namespace with some light error checking on sizes
-    '''
-    def __init__(self, 
-        state_samples: ArrayLike, 
-        risk_metrics: ArrayLike, 
-        observations: ArrayLike):
-        '''
-        Args
-        state_samples : ArrayLike
-            state samples in their native format (i.e. OMPL State objects)
-            i-th element is i-th sampled state represented as a numpy array
-        risk_metrics : ArrayLike
-            risk metric evaluated at corresponding sampled state
-            i-th element is risk metric evaluated at the i-th sampled state
-        observations : ArrayLike
-            observeState outputs at each corresponding sampled state
-            i-th element is the obervation (see observeState) at the i-th sampled state
-        '''
-
-        # check that amount of data in each category is equal
-        assert (
-            len(state_samples) == 
-            len(risk_metrics) == 
-            len(observations)
-        )
-
-        self.state_samples = state_samples
-        self.risk_metrics = risk_metrics
-        self.observations = observations
-
-class OnlyRiskMetricDataModule(LightningDataModule):
-    def __init__(self,
-        datapaths: List[str],
-        val_ratio: float, 
-        batch_size: int, 
-        num_workers: int,
-        compile_verify_func: callable=None):
-        '''loads, formats, scales and checks Dubins training data from torch save files
-        Args:
-            datapaths : List[str]
-                list of paths to pytorch data files
-            val_ratio : float
-                ratio of data to be used in validation set. 0=no validation data, 1=all validation data
-            batch_size : int
-                size of training batches
-            num_workers : int
-                number of workers to use for dataloader
-        '''
-        super().__init__()
-        self.datapaths = datapaths
-        self.val_ratio = val_ratio
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-        self.compile_verify_func = compile_verify_func
-
-        assert batch_size > 0
-
-    def setup(self, 
-        stage: Optional[str] = None, 
-        np_data: Optional[OnlyRiskMetricTrainingData]=None,
-        store_raw_data: bool=True):
-
-        if np_data is None:
-            # compile raw data from pytorch files
-            raw_data, separated_raw_data = compile_raw_data(
-                datapaths=self.datapaths, 
-                verify_func=self.compile_verify_func,
-                ctrl_data=False)
-
-            # extract useful params
-            n_data = len(raw_data.state_samples)
-
-            # convert raw data to numpy arrays
-            np_data = self.raw_data_to_numpy(raw_data)
-
-        else:
-            n_data = len(np_data.state_samples)
-
-        # verify numpy data for consistency
-        self.verify_numpy_data(np_data=np_data)
-
-        # Create input and output data regularizers
-        # Ref: https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html#what-is-a-datamodule
-        self.state_scaler = MinMaxScaler()
-        self.state_scaler.fit(np_data.state_samples)
-        self.observation_scaler = MinMaxScaler()
-        self.observation_scaler.fit(np_data.observations)
-        # self.output_scaler = MinMaxScaler()
-        # self.output_scaler.fit(rmetrics_np)
-
-        # scale and convert to tensor
-        pt_scaled_data = OnlyRiskMetricTrainingData(
-            state_samples=torch.from_numpy(self.state_scaler.transform(np_data.state_samples)),
-            risk_metrics=torch.from_numpy(np_data.risk_metrics),
-            observations=torch.from_numpy(self.observation_scaler.transform(np_data.observations))
-        )
-        
-        # format scaled observations and risk metrics into training dataset
-        full_dataset = TensorDataset(pt_scaled_data.observations, pt_scaled_data.risk_metrics)
-
-        # handle training and testing separately
-        if stage == "fit":
-            # randomly split training and validation dataset
-            assert self.val_ratio >= 0 and self.val_ratio <= 1
-            n_val = int(n_data*self.val_ratio)
-            n_train = n_data - n_val
-            self.train_dataset, self.val_dataset = random_split(full_dataset, [n_train, n_val])
-
-        elif stage == "test":
-            self.test_dataset = full_dataset
-
-        else:
-            raise ValueError('Unexpected stage {}'.format(stage))
-
-        # store high-level information about data in data module
-        self.n_data = n_data # number of data points
-        self.observation_shape = np_data.observations.shape
-        if store_raw_data:
-            self.separated_raw_data = separated_raw_data
-
-    def raw_data_to_numpy(self, raw_data: OnlyRiskMetricTrainingData):
-        '''convert raw data (e.g. OMPL objects) to numpy arrays'''
-        raise NotImplementedError("Must me implemented in child class")
-
-    def verify_numpy_data(self, np_data: OnlyRiskMetricTrainingData):
-        '''checks on data shape once converted to numpy form'''
-        assert np_data.state_samples.shape[0] == np_data.risk_metrics.shape[0] == np_data.observations.shape[0]
-        assert len(np_data.state_samples.shape) == len(np_data.risk_metrics.shape) == len(np_data.observations.shape)
-
-    def train_dataloader(self):
-        return DataLoader(self.train_dataset, num_workers=self.num_workers, batch_size=self.batch_size, shuffle=True)
-
-    def val_dataloader(self):
-        return DataLoader(self.val_dataset, num_workers=self.num_workers, batch_size=len(self.val_dataset), shuffle=True)
-
-    def test_dataloader(self):
-        return DataLoader(self.test_dataset, num_workers=self.num_workers, batch_size=self.batch_size)
 
 
 class BaseRiskMetricModule(LightningModule):
@@ -577,3 +557,4 @@ class CBFLRMMModule(BaseRiskMetricModule):
         mean_abs_err = mean_absolute_error(predictions, targets)
         max_abs_err = torch.max(torch.abs(predictions - targets))
         return loss, mean_sqr_err, mean_abs_err, max_abs_err
+

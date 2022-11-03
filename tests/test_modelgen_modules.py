@@ -321,7 +321,7 @@ def test_ShallowRiskCBFPerceptron_forward_0():
     hid3_2_0 = torch.sum(hid3_1,-1,True)
     hid3_2_1 = 2*torch.sum(hid3_1,-1,True)
     w3_exp = torch.cat([hid3_2_0, hid3_2_1],-1)
-    rho3_exp = torch.sigmoid(torch.inner(w3_exp, feat3))
+    rho3_exp = torch.sigmoid((w3_exp * feat3).sum(-1,keepdim=True))
 
     # ~~~ ACT ~~~
     # random-but-fixed input
@@ -330,15 +330,17 @@ def test_ShallowRiskCBFPerceptron_forward_0():
     rho3, w3 = model(inp3, feat3)
 
     # ~~~ ASSERT ~~~
-    # assert rho1.shape == torch.Size((1,))
+    assert rho1.shape == torch.Size((1,))
     assert w1.shape == torch.Size((n_features,))
     assert torch.allclose(w1, w1_exp)
     assert torch.allclose(rho1, rho1_exp)
 
+    assert rho2.shape == torch.Size((1,1,1,1))
     assert w2.shape == torch.Size((1,1,1,n_features))
     assert torch.allclose(w2, w2_exp)
     assert torch.allclose(rho2, rho2_exp)
 
+    assert rho3.shape == torch.Size((4,2,6,1,1))
     assert w3.shape == torch.Size((4,2,6,1,n_features))
     assert torch.allclose(w3, w3_exp)
     assert torch.allclose(rho3, rho3_exp)

@@ -7,15 +7,12 @@ import torch.nn.functional as F
 from torchmetrics.functional import mean_absolute_error, mean_squared_error
 
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Optional
 from numpy.typing import ArrayLike
-from types import SimpleNamespace
-from torch.utils.data import TensorDataset, DataLoader, random_split
+from torch.utils.data import TensorDataset, Dataset, DataLoader, random_split
 from pytorch_lightning import LightningDataModule, LightningModule
 from hydra_zen.typing import Partial
 from sklearn.preprocessing import MinMaxScaler
-
-import pyrmm.utils.utils as U
 
 def single_layer_nn(num_inputs: int, num_neurons: int) -> nn.Module:
     """y = sum(V sigmoid(X W + b))"""
@@ -68,7 +65,11 @@ class ShallowRiskCBFPerceptron(nn.Module):
         w_cbf = self.fc2(x1)
 
         # w vector is now the weights on the linear combination of state_features
-        rho = torch.inner(w_cbf, state_features)
+        # to compute risk estimate
+        # perform "batch dot product" with dot product on final dimension
+        # see this thread for implementation: https://github.com/pytorch/pytorch/issues/18027
+        # TODO: replace with vecdot in newer version of pytorch: https://pytorch.org/docs/1.13/generated/torch.linalg.vecdot.html
+        rho = (w_cbf * state_features).sum(-1, keepdim=True)
 
         # bound risk to [0,1]
         rho = torch.sigmoid(rho)
@@ -232,12 +233,32 @@ class BaseRiskMetricTrainingData():
             len(risk_metrics) == 
             len(observations)
         )
-
+        self.n_data = len(state_samples)
         self.state_samples = state_samples
         self.risk_metrics = risk_metrics
         self.observations = observations
 
-class RiskCtrlMetricTrainingData():
+# class SFORData(BaseRiskMetricTrainingData):
+#     """namespace-like class for indexed aligned state, features, obs, and risk data
+#     SFOR = state samples(S), state feature vectors (F), observation vectors (O), risk scalars (R)
+#     """
+#     def __init__(self, 
+#         state_samples: ArrayLike,
+#         state_features: ArrayLike, 
+#         risk_metrics: ArrayLike, 
+#         observations: ArrayLike
+#     ):
+
+#         super().__init__(
+#             state_samples=state_samples,
+#             risk_metrics=risk_metrics,
+#             observations=observations
+#         )
+
+#         assert len(state_features) == self.n_data
+#         self.state_features = state_features
+
+class RiskCtrlMetricTrainingData(BaseRiskMetricTrainingData):
     '''object to hold sampled states, risk metric values, and state observations
     in index-align, array-like objects
 
@@ -269,20 +290,69 @@ class RiskCtrlMetricTrainingData():
             i-th element is the time [sec] to apply i-th min-risk control at i-th sample state
         '''
 
+        super().__init__(
+            state_samples=state_samples,
+            risk_metrics=risk_metrics,
+            observations=observations
+        )
+
         # check that amount of data in each category is equal
         assert (
-            len(state_samples) == 
-            len(risk_metrics) == 
-            len(observations) ==
+            self.n_data == 
             len(min_risk_ctrls) ==
             len(min_risk_ctrl_durs)
         )
 
-        self.state_samples = state_samples
-        self.risk_metrics = risk_metrics
-        self.observations = observations
         self.min_risk_ctrls = min_risk_ctrls
         self.min_risk_ctrl_durs = min_risk_ctrl_durs
+
+class StateFeatureObservationRiskDataset(Dataset):
+    """Dataset that breaks data into four categories: 
+        state-vectors, state-feature-vectors, observation-vectors, and scalar risk values
+
+    The intended use is for learned control barrier functions 
+    (aka learned risk metric map control barrier functions aka CBFLRMM aka RiskCBF,
+    nomenclature is still being settled)
+    where the observation vectors are fed as inputs at the front layer of a network
+    The states---or more accurate state feature vectors, phi(x)---are fed as input to 
+    an intermediate layer to compute a weighted sum (weighted by the network weights
+    at that layer) which estimates the scalar risk values. 
+    The risk values in the dataset are therefore the target variables
+
+    Ref:
+        for implementation reference, see https://rosenfelder.ai/multi-input-neural-network-pytorch/
+    """
+    def __init__(self,
+        sro_data: BaseRiskMetricTrainingData,
+        state_feature_map: callable
+    ):
+        """
+        Args:
+            sro_data : BaseRiskMetricTrainingData
+                state-risk-observation data from index-aligned, namespace-like object
+            state_feature_map : callable
+                function for computing state feature vectors from state samples so that
+                state features don't have to be predefined, precomuputed, and saved during data 
+                generation time
+        """
+        self.sro_data = sro_data
+        self.state_feature_map = state_feature_map
+
+    def __len__(self):
+        return self.sro_data.n_data
+
+    def __getitem__(self, idx):
+        
+        # compute state feature from state sample
+        state_feature = self.state_feature_map(self.sro_data.state_samples[idx])
+
+        # return state-feature-observation-risk data 
+        return (
+            self.sro_data.state_samples[idx],
+            state_feature,
+            self.sro_data.observations[idx],
+            self.sro_data.risk_metrics[idx]
+        )
 
 class BaseRiskMetricDataModule(LightningDataModule):
     def __init__(self,
@@ -327,32 +397,20 @@ class BaseRiskMetricDataModule(LightningDataModule):
             n_data = len(raw_data.state_samples)
 
             # convert raw data to numpy arrays
-            np_data = self.raw_data_to_numpy(raw_data)
+            self.np_data = self.raw_data_to_numpy(raw_data)
 
         else:
+            self.np_data = np_data
             n_data = len(np_data.state_samples)
 
         # verify numpy data for consistency
-        self.verify_numpy_data(np_data=np_data)
+        self.verify_numpy_data(np_data=self.np_data)
 
-        # Create input and output data regularizers
-        # Ref: https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html#what-is-a-datamodule
-        self.state_scaler = MinMaxScaler()
-        self.state_scaler.fit(np_data.state_samples)
-        self.observation_scaler = MinMaxScaler()
-        self.observation_scaler.fit(np_data.observations)
-        # self.output_scaler = MinMaxScaler()
-        # self.output_scaler.fit(rmetrics_np)
-
-        # scale and convert to tensor
-        pt_scaled_data = BaseRiskMetricTrainingData(
-            state_samples=torch.from_numpy(self.state_scaler.transform(np_data.state_samples)),
-            risk_metrics=torch.from_numpy(np_data.risk_metrics),
-            observations=torch.from_numpy(self.observation_scaler.transform(np_data.observations))
-        )
+        # scale data and format as tensors
+        pt_scaled_data = self._scale_data()
         
-        # format scaled observations and risk metrics into training dataset
-        full_dataset = TensorDataset(pt_scaled_data.observations, pt_scaled_data.risk_metrics)
+        # format dataset of inputs and targets
+        full_dataset = self.get_full_dataset(pt_scaled_data=pt_scaled_data)
 
         # handle training and testing separately
         if stage == "fit":
@@ -374,6 +432,51 @@ class BaseRiskMetricDataModule(LightningDataModule):
         if store_raw_data:
             self.separated_raw_data = separated_raw_data
 
+        self._extended_setup()
+
+    def _scale_data(self):
+        """creates data regularizers and returns scaled data in tensor format
+    
+
+        Note:
+            implying a private function (_) because self is modified to create scalers
+        """
+
+        # Create input and output data regularizers
+        # Ref: https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html#what-is-a-datamodule
+        self.state_scaler = MinMaxScaler()
+        self.state_scaler.fit(self.np_data.state_samples)
+        self.observation_scaler = MinMaxScaler()
+        self.observation_scaler.fit(self.np_data.observations)
+        # self.output_scaler = MinMaxScaler()
+        # self.output_scaler.fit(rmetrics_np)
+
+        # scale and convert to tensor
+        pt_scaled_data = BaseRiskMetricTrainingData(
+            state_samples=torch.from_numpy(self.state_scaler.transform(self.np_data.state_samples)),
+            risk_metrics=torch.from_numpy(self.np_data.risk_metrics),
+            observations=torch.from_numpy(self.observation_scaler.transform(self.np_data.observations))
+        )
+
+        return pt_scaled_data
+
+    def get_full_dataset(self, pt_scaled_data:BaseRiskMetricTrainingData):
+        """format scaled observations and risk metrics into training dataset
+
+        Args:
+            pt_scaled_data : BaseRiskMetricTrainingData
+                pytorch tensor data regularized and stored in a namespace-like object
+        """
+        return TensorDataset(pt_scaled_data.observations, pt_scaled_data.risk_metrics)
+
+    def _extended_setup(self):
+        """additional setup steps that may be overridden by child classes
+
+        Note:
+            implied private function because self may be modified
+        """
+        pass
+        
     def raw_data_to_numpy(self, raw_data: BaseRiskMetricTrainingData):
         '''convert raw data (e.g. OMPL objects) to numpy arrays'''
         raise NotImplementedError("Must me implemented in child class")
@@ -391,6 +494,57 @@ class BaseRiskMetricDataModule(LightningDataModule):
 
     def test_dataloader(self):
         return DataLoader(self.test_dataset, num_workers=self.num_workers, batch_size=self.batch_size)
+
+
+class CBFLRMMDataModule(BaseRiskMetricDataModule):
+    def __init__(self,
+        datapaths: List[str],
+        val_ratio: float, 
+        batch_size: int, 
+        num_workers: int,
+        state_feature_map: callable,
+        compile_verify_func: callable=None):
+        '''loads, formats, scales and checks risk-ctrl training data from torch save files
+        Args:
+            datapaths : List[str]
+                list of paths to pytorch data files
+            val_ratio : float
+                ratio of data to be used in validation set. 0=no validation data, 1=all validation data
+            batch_size : int
+                size of training batches
+            num_workers : int
+                number of workers to use for dataloader
+            state_feature_map : callable
+                function for computing state feature vectors from state samples so that
+                state features don't have to be predefined, precomuputed, and saved during data 
+                generation time
+        '''
+        super().__init__(
+            datapaths = datapaths,
+            val_ratio = val_ratio,
+            batch_size = batch_size,
+            num_workers = num_workers,
+            compile_verify_func = compile_verify_func
+        )
+        self.state_feature_map = state_feature_map
+
+    def get_full_dataset(self, pt_scaled_data:BaseRiskMetricTrainingData):
+        """format scaled observations and risk metrics into training dataset
+
+        Args:
+            pt_scaled_data : BaseRiskMetricTrainingData
+                pytorch tensor data regularized and stored in a namespace-like object
+
+        Refs:
+            For reference, see Creating a custom PyTorch Dataset in
+            https://rosenfelder.ai/multi-input-neural-network-pytorch/
+        """
+
+        return StateFeatureObservationRiskDataset(
+            sro_data=pt_scaled_data,
+            state_feature_map=self.state_feature_map
+        )
+
 
 class RiskCtrlMetricDataModule(BaseRiskMetricDataModule):
     def __init__(self,
@@ -418,42 +572,43 @@ class RiskCtrlMetricDataModule(BaseRiskMetricDataModule):
             compile_verify_func = compile_verify_func
         )
 
-    def setup(self, stage: Optional[str] = None):
+    def _scale_data(self):
+        """creates data regularizers and returns scaled data in tensor format
 
-        # compile raw data from pytorch files
-        raw_data, separated_raw_data = compile_raw_data(
-            datapaths=self.datapaths, 
-            verify_func=self.compile_verify_func)
-
-        # extract useful params
-        n_data = len(raw_data.state_samples)
-
-        # convert raw data to numpy arrays
-        np_data = self.raw_data_to_numpy(raw_data)
-        self.verify_numpy_data(np_data=np_data)
-
+        Note:
+            implying a private function (_) because self is modified to create scalers
+        """
         # Create input and output data regularizers
         # Ref: https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html#what-is-a-datamodule
         self.state_scaler = MinMaxScaler()
-        self.state_scaler.fit(np_data.state_samples)
+        self.state_scaler.fit(self.np_data.state_samples)
         self.observation_scaler = MinMaxScaler()
-        self.observation_scaler.fit(np_data.observations)
+        self.observation_scaler.fit(self.np_data.observations)
         self.min_risk_ctrl_scaler = MinMaxScaler()
-        self.min_risk_ctrl_scaler.fit(np_data.min_risk_ctrls)
+        self.min_risk_ctrl_scaler.fit(self.np_data.min_risk_ctrls)
         self.min_risk_ctrl_dur_scaler = MinMaxScaler()
-        self.min_risk_ctrl_dur_scaler.fit(np_data.min_risk_ctrl_durs)
+        self.min_risk_ctrl_dur_scaler.fit(self.np_data.min_risk_ctrl_durs)
         # self.output_scaler = MinMaxScaler()
         # self.output_scaler.fit(rmetrics_np)
 
         # scale and convert to tensor
         pt_scaled_data = RiskCtrlMetricTrainingData(
-            state_samples=torch.from_numpy(self.state_scaler.transform(np_data.state_samples)),
-            risk_metrics=torch.from_numpy(np_data.risk_metrics),
-            observations=torch.from_numpy(self.observation_scaler.transform(np_data.observations)),
-            min_risk_ctrls=torch.from_numpy(self.min_risk_ctrl_scaler.transform(np_data.min_risk_ctrls)),
-            min_risk_ctrl_durs=torch.from_numpy(self.min_risk_ctrl_dur_scaler.transform(np_data.min_risk_ctrl_durs)),
+            state_samples=torch.from_numpy(self.state_scaler.transform(self.np_data.state_samples)),
+            risk_metrics=torch.from_numpy(self.np_data.risk_metrics),
+            observations=torch.from_numpy(self.observation_scaler.transform(self.np_data.observations)),
+            min_risk_ctrls=torch.from_numpy(self.min_risk_ctrl_scaler.transform(self.np_data.min_risk_ctrls)),
+            min_risk_ctrl_durs=torch.from_numpy(self.min_risk_ctrl_dur_scaler.transform(self.np_data.min_risk_ctrl_durs)),
         )
-        
+
+        return pt_scaled_data
+
+    def get_full_dataset(self, pt_scaled_data:BaseRiskMetricTrainingData):
+        """format scaled observations and risk metrics into training dataset
+
+        Args:
+            pt_scaled_data : BaseRiskMetricTrainingData
+                pytorch tensor data regularized and stored in a namespace-like object
+        """
         # format scaled observations and target data (risk metrics, min-risk ctrl vars, 
         # and ctrl durations) into training dataset
         target_data = torch.cat((
@@ -462,28 +617,15 @@ class RiskCtrlMetricDataModule(BaseRiskMetricDataModule):
             pt_scaled_data.min_risk_ctrl_durs
             ), dim=-1
         )
-        full_dataset = TensorDataset(pt_scaled_data.observations, target_data)
+        return TensorDataset(pt_scaled_data.observations, target_data)
 
-        # handle training and testing separately
-        if stage == "fit":
-            # randomly split training and validation dataset
-            assert self.val_ratio >= 0 and self.val_ratio <= 1
-            n_val = int(n_data*self.val_ratio)
-            n_train = n_data - n_val
-            self.train_dataset, self.val_dataset = random_split(full_dataset, [n_train, n_val])
+    def _extended_setup(self):
+        """additional setup steps that may be overridden by child classes
 
-        elif stage == "test":
-            self.test_dataset = full_dataset
-
-        else:
-            raise ValueError('Unexpected stage {}'.format(stage))
-
-        # store high-level information about data in data module
-        self.n_data = n_data # number of data points
-        self.observation_shape = np_data.observations.shape
-        self.control_shape = np_data.min_risk_ctrls.shape
-        self.separated_raw_data = separated_raw_data
-
+        Note:
+            implied private function because self may be modified
+        """
+        self.control_shape = self.np_data.min_risk_ctrls.shape
 
 class BaseRiskMetricModule(LightningModule):
     def __init__(
@@ -545,16 +687,23 @@ class CBFLRMMModule(BaseRiskMetricModule):
     ):
         super().__init__(num_inputs=num_inputs, model=model, optimizer=optimizer)
 
+        # set example input to None to avoid cryptic pre-training errors
+        self.example_input_array = None
+
     def forward(self, observation, state_features):
         return self.model(observation, state_features)
 
     def _shared_eval_step(self, batch, batch_idx):
-        raise NotImplementedError
-        inputs, targets = batch
-        predictions = self.model(inputs)
-        loss = F.mse_loss(predictions, targets)
-        mean_sqr_err = mean_squared_error(predictions, targets)
-        mean_abs_err = mean_absolute_error(predictions, targets)
-        max_abs_err = torch.max(torch.abs(predictions - targets))
+
+        # break batch into separate data components
+        states, features, observations, risk_targets = batch
+
+        # infer risk metric from model output
+        risk_estimates, cbf_weights = self.forward(observation=observations, state_features=features)
+
+        loss = F.mse_loss(risk_estimates, risk_targets)
+        mean_sqr_err = mean_squared_error(risk_estimates, risk_targets)
+        mean_abs_err = mean_absolute_error(risk_estimates, risk_targets)
+        max_abs_err = torch.max(torch.abs(risk_estimates - risk_targets))
         return loss, mean_sqr_err, mean_abs_err, max_abs_err
 

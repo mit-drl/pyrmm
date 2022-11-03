@@ -15,7 +15,7 @@ from hydra.core.config_store import ConfigStore
 
 from pyrmm.modelgen.modules import \
     BaseRiskMetricTrainingData, \
-    BaseRiskMetricDataModule, \
+    CBFLRMMDataModule, \
     ShallowRiskCBFPerceptron, \
     CBFLRMMModule
 
@@ -24,6 +24,10 @@ _CONFIG_NAME = "sigmoid_modelgen_app"
 ##############################################
 ############## DATA GENERATION ###############
 ##############################################
+
+def state_feature_map(state_sample):
+    """trivial mapping from states to state feature vectors"""
+    return state_sample
 
 n_data = 100
 state_samples = np.random.rand(n_data)*20-10
@@ -39,10 +43,11 @@ np_data = BaseRiskMetricTrainingData(
 ##############################################
 pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
-DataConf = pbuilds(BaseRiskMetricDataModule, 
+DataConf = pbuilds(CBFLRMMDataModule, 
     val_ratio=0.15, 
     batch_size=64, 
     num_workers=4,
+    state_feature_map=state_feature_map,
     compile_verify_func=None
 )
 

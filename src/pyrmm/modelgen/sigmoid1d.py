@@ -29,8 +29,8 @@ def state_feature_map(state_sample):
     """trivial mapping from states to state feature vectors"""
     return state_sample
 
-n_data = 2048
-state_samples = np.random.rand(n_data)*2-1
+n_data = 8192
+state_samples = np.random.rand(n_data)  # intended range of 0-1 so that MinMaxScaler does not modify (minimally modifies) inputs 
 observations = state_samples
 risk_metrics = torch.sigmoid(torch.tensor(state_samples)).numpy()
 np_data = BaseRiskMetricTrainingData(

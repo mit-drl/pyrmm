@@ -187,6 +187,10 @@ class CBFLRMMModule(BaseRiskMetricModule):
         # infer risk metric from model output
         risk_estimates, cbf_weights = self.forward(observation=observations, state_features=features)
 
+        # log control barrier layer weights
+        self.log_dict({"mean_cbf_weights": torch.mean(cbf_weights)})
+        # print("Mean CBF Weight: {}".format(torch.mean(cbf_weights,dim=0)))
+
         loss = F.mse_loss(risk_estimates, risk_targets)
         mean_sqr_err = mean_squared_error(risk_estimates, risk_targets)
         mean_abs_err = mean_absolute_error(risk_estimates, risk_targets)

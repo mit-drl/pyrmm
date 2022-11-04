@@ -29,8 +29,8 @@ def state_feature_map(state_sample):
     """trivial mapping from states to state feature vectors"""
     return state_sample
 
-n_data = 100
-state_samples = np.random.rand(n_data)*20-10
+n_data = 2048
+state_samples = np.random.rand(n_data)*2-1
 observations = state_samples
 risk_metrics = torch.sigmoid(torch.tensor(state_samples)).numpy()
 np_data = BaseRiskMetricTrainingData(
@@ -54,7 +54,7 @@ DataConf = pbuilds(CBFLRMMDataModule,
 ModelConf = pbuilds(ShallowRiskCBFPerceptron,  
     num_obs_inputs=1,
     num_state_features=1,
-    num_neurons=64
+    num_neurons=8
 )
 
 OptimConf = pbuilds(optim.Adam)
@@ -65,7 +65,7 @@ PLModuleConf = pbuilds(CBFLRMMModule,
 )
 
 TrainerConf = pbuilds(Trainer, 
-    max_epochs=2, 
+    max_epochs=512, 
     precision=64, 
     reload_dataloaders_every_n_epochs=1, 
 )

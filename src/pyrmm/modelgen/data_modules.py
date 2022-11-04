@@ -327,9 +327,9 @@ class BaseRiskMetricDataModule(LightningDataModule):
 
         # Create input and output data regularizers
         # Ref: https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html#what-is-a-datamodule
-        self.state_scaler = MinMaxScaler()
+        self.state_scaler = MinMaxScaler(feature_range=(-1,1))
         self.state_scaler.fit(self.np_data.state_samples)
-        self.observation_scaler = MinMaxScaler()
+        self.observation_scaler = MinMaxScaler(feature_range=(-1,1))
         self.observation_scaler.fit(self.np_data.observations)
         # self.output_scaler = MinMaxScaler()
         # self.output_scaler.fit(rmetrics_np)

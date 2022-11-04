@@ -15,9 +15,10 @@ from hydra_zen import builds, make_custom_builds_fn, make_config, instantiate
 
 import pyrmm.utils.utils as U
 from pyrmm.setups.dubins import DubinsPPMSetup
+from pyrmm.modelgen.data_modules import \
+    RiskCtrlMetricDataModule, RiskCtrlMetricTrainingData
 from pyrmm.modelgen.modules import \
-    RiskCtrlMetricDataModule, BaseRiskMetricModule, \
-    RiskCtrlMetricTrainingData, ShallowRiskCtrlMLP
+    BaseRiskMetricModule, ShallowRiskCtrlMLP
     #single_layer_nn_bounded_output
 
 _CONFIG_NAME = "dubins_modelgen_app"

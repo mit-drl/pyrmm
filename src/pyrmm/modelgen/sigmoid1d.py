@@ -10,12 +10,12 @@ import numpy as np
 import torch.optim as optim
 
 from pytorch_lightning import Trainer, seed_everything
-from hydra_zen import builds, make_custom_builds_fn, make_config, instantiate
+from hydra_zen import make_custom_builds_fn, make_config, instantiate
 from hydra.core.config_store import ConfigStore
 
+from pyrmm.modelgen.data_modules import \
+    BaseRiskMetricTrainingData, CBFLRMMDataModule
 from pyrmm.modelgen.modules import \
-    BaseRiskMetricTrainingData, \
-    CBFLRMMDataModule, \
     ShallowRiskCBFPerceptron, \
     CBFLRMMModule
 

@@ -9,14 +9,15 @@ from pathlib import Path
 from typing import List
 from pytorch_lightning import Trainer, seed_everything
 from hydra.core.config_store import ConfigStore
-from hydra_zen import make_custom_builds_fn, builds, make_config, instantiate
+from hydra_zen import make_custom_builds_fn, make_config, instantiate
 
 import pyrmm.utils.utils as U
-import pyrmm.dynamics.quadrotor as QD
-from pyrmm.setups.quadrotor import ompl_to_numpy, update_pickler_quadrotorstate
+from pyrmm.setups.quadrotor import \
+    ompl_to_numpy, update_pickler_quadrotorstate
+from pyrmm.modelgen.data_modules import \
+    BaseRiskMetricTrainingData, BaseRiskMetricDataModule
 from pyrmm.modelgen.modules import \
-    BaseRiskMetricDataModule, BaseRiskMetricModule, \
-    BaseRiskMetricTrainingData, single_layer_nn_bounded_output
+    BaseRiskMetricModule, single_layer_nn_bounded_output
 
 
 _CONFIG_NAME = "quadrotor_modelgen_app"

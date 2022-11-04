@@ -17,9 +17,10 @@ from pyrmm.setups.dubins4d import \
     Dubins4dReachAvoidSetup, \
     state_ompl_to_numpy, \
     update_pickler_dubins4dstate
+from pyrmm.modelgen.data_modules import \
+    BaseRiskMetricTrainingData, BaseRiskMetricDataModule
 from pyrmm.modelgen.modules import \
-    BaseRiskMetricDataModule, BaseRiskMetricModule, \
-    BaseRiskMetricTrainingData, single_layer_nn_bounded_output
+    BaseRiskMetricModule, single_layer_nn_bounded_output
 
 _CONFIG_NAME = "dubins4d_modelgen_app"
 

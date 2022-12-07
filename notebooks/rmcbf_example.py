@@ -62,7 +62,7 @@ Lfhx = -(xtil_2 + v_z) * np.exp(p_minstop - p_obs)
 # objective: minimize control input
 P = np.eye(1).reshape(1,1)
 q = np.zeros(1).reshape(1,1)
-lambda_h = 1.0
+lambda_h = 0.1
 
 # Constraint: Left side of <= inequality
 G = np.reshape([-Lghx1], (1,1))
@@ -76,5 +76,5 @@ h = np.reshape([Lfhx + lambda_h * h_x], (1,1))
 
 u_opt = cvx_qp_solver(P=P, q=q, G=G, h=h)
 
-print("Min-norm safe control = ", u_opt)
+print("Min-norm safe control = ", u_opt[0])
 

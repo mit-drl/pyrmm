@@ -80,7 +80,7 @@ class Dubins4dReachAvoidSetup(SystemSetup):
         return (Dubins4dReachAvoidSetup, (self.env,))
 
     def isStateValid(self, spaceInformation, state):
-        ''' check ppm image colors for obstacle collision
+        ''' check if particular state intersect obstacle using env-specific trajectory checker
         Args:
             spaceInformation : ob.SpaceInformationPtr
                 state space information as given by SimpleSetup.getSpaceInformation
@@ -104,14 +104,14 @@ class Dubins4dReachAvoidSetup(SystemSetup):
         return True
 
     def isPathValid(self, path):
-        '''check if path intersects obstacles in ppm image using bresenham lines
+        '''check if path intersects obstacles using env-specific trajectory checker
         
         Args:
             path : oc.Path
                 OMPL representation of path to be checked
         
         Returns:
-            true if all path states and interpolated bresenham lines are valid (not colliding with obstacles)
+            true if all path states and interpolated lines are valid (not colliding with obstacles)
 
         Notes:
             This overrides SystemSetup function that just looks at discrete states, not interpolated paths

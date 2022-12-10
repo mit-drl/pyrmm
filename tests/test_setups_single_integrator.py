@@ -5,11 +5,11 @@ from hypothesis import given, settings, strategies as st
 
 from pyrmm.setups.single_integrator import SingleIntegrator1DSetup
 
-def test_SingleIntegrator1DPPMSetup_init_0():
+def test_SingleIntegrator1DSetup_init_0():
     '''Check setup can be initialized without error'''
     SingleIntegrator1DSetup(0, 1, 0, 1)
 
-def test_SingleIntegrator1DPPMSetup_estimateRiskMetric_0():
+def test_SingleIntegrator1DSetup_estimateRiskMetric_0():
     '''Check risk metric for known, fixed speed, deterministic sytem'''
     
     # ~~~ ARRANGE ~~~
@@ -61,7 +61,7 @@ def test_SingleIntegrator1DPPMSetup_estimateRiskMetric_0():
     dpth = st.integers(min_value=0, max_value=4),
     nstp = st.integers(min_value=2, max_value=8)
 )
-def test_hypothesis_SingleIntegrator1DPPMSetup_estimateRiskMetric_0(x0, v, lb, ub_del, dur, brch, dpth, nstp):
+def test_hypothesis_SingleIntegrator1DSetup_estimateRiskMetric_0(x0, v, lb, ub_del, dur, brch, dpth, nstp):
     '''Check risk metric for known, fixed speed, deterministic sytem'''
 
     # ~~~ ARRANGE ~~~

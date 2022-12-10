@@ -32,7 +32,7 @@ class DoubleIntegrator1DSetup(SystemSetup):
 
         assert pos_bounds[0] < pos_bounds[1]
         assert vel_bounds[0] < vel_bounds[1]
-        assert acc_bounds[0] < acc_bounds[1]
+        assert acc_bounds[0] <= acc_bounds[1]
         assert obst_bounds[0] < obst_bounds[1]
 
         # save obstacle
@@ -79,10 +79,41 @@ class DoubleIntegrator1DSetup(SystemSetup):
         Returns:
             True if state not in collision with obstacle
         '''
-        if state[0] >= self.obst_bounds and state[0] <= self.obst_bounds[1]:
+        if state[0] >= self.obst_bounds[0] and state[0] <= self.obst_bounds[1]:
             return False
         else: 
             return True
+
+    def isPathValid(self, path):
+        '''check if path intersects obstacles using env-specific trajectory checker
+        
+        Args:
+            path : oc.Path
+                OMPL representation of path to be checked
+        
+        Returns:
+            true if all path states and interpolated lines are valid (not colliding with obstacles)
+
+        Notes:
+            This overrides SystemSetup function that just looks at discrete states, not interpolated paths
+        '''
+
+        # convert path to array of states
+        n_states = path.getStateCount()
+        # np_traj = np.array([state_ompl_to_numpy(path.getState(i)) for i in range(n_states)])
+
+        for i in range(n_states-1):
+            if not self.space_info.isValid(path.getState(i)):
+                return False
+            elif not self.space_info.isValid(path.getState(i+1)):
+                return False
+            elif np.sign(self.obst_bounds[0] - path.getState(i)[0]) != \
+                np.sign(self.obst_bounds[0] - path.getState(i+1)[0]):
+                # consecutive states in the trajectory are on different sides of the obstacle's l
+                # lower bound
+                return False
+
+        return True
 
     def control_ompl_to_numpy(self, omplCtrl, npCtrl=None):
         """convert single integrator ompl control object to numpy array
@@ -185,3 +216,22 @@ class DoubleIntegrator1DStatePropagator(oc.StatePropagator):
 
     def canSteer(self):
         return False
+
+# def state_ompl_to_numpy(omplState, np_state=None):
+#     """convert 1D double integrator ompl state to numpy array
+
+#     Args:
+#         omplState : ob.CompoundState
+#             dubins 4d state in ompl CompoundState format
+#         np_state : ndarray (4,)
+#             dubins 4d state represented in np array in [x,y,theta,v] ordering
+#     """
+#     ret = False
+#     if np_state is None:
+#         np_state = np.empty(2,)
+#         ret = True
+#     np_state[0] = omplState[0]
+#     np_state[1] = omplState[1]
+
+#     if ret:
+#         return np_state

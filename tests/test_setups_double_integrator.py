@@ -7,6 +7,68 @@ from hypothesis import given
 
 from pyrmm.setups.double_integrator import DoubleIntegrator1DSetup
 
+
+def test_DoubleIntegrator1DSetup_estimateRiskMetric_0():
+    '''Check risk metric for known, fixed accel, deterministic sytem'''
+    
+    # ~~~ ARRANGE ~~~
+    pos_bounds = [-8, 8]
+    vel_bounds = [-2, 2]
+    acc_bounds = [0, 0] # deterministic system with no accel
+    obst_bounds = [1.0, 1.00001]    # very slim obstacle
+    ds = DoubleIntegrator1DSetup(
+        pos_bounds=pos_bounds, 
+        vel_bounds=vel_bounds, 
+        acc_bounds=acc_bounds, 
+        obst_bounds=obst_bounds)
+    s0 = ds.space_info.allocState()
+    s0[0] = 0.0 # starts at origin
+    s0[1] = 1.0 # start with init positive velocity [m/s]
+
+    # distance and depth does not reach boundary
+    r, _, _ = ds.estimateRiskMetric(
+            state=s0,
+            trajectory=None,
+            distance=0.2,
+            branch_fact=8,
+            depth=4,
+            n_steps=2
+    )
+    assert np.isclose(0.0, r)
+
+    # distance and depth barely not reach boundary
+    r, _, _ = ds.estimateRiskMetric(
+            state=s0,
+            trajectory=None,
+            distance=0.25 - 1e-6,
+            branch_fact=8,
+            depth=4,
+            n_steps=2
+    )
+    assert np.isclose(0.0, r)
+
+    # distance and depth barely passes boundary
+    r, _, _ = ds.estimateRiskMetric(
+            state=s0,
+            trajectory=None,
+            distance=0.25 + 1e-6,
+            branch_fact=8,
+            depth=4,
+            n_steps=2
+    )
+    assert np.isclose(1.0, r)
+
+    # distance and depth completely passes whole obstacle 
+    r, _, _ = ds.estimateRiskMetric(
+            state=s0,
+            trajectory=None,
+            distance=0.6,
+            branch_fact=8,
+            depth=4,
+            n_steps=2
+    )
+    assert np.isclose(1.0, r)
+
 def test_DoubleIntegrator1DSetup_propagate_path_0():
     '''test that propagator arrives at expected state'''
 
@@ -65,4 +127,5 @@ def test_DoubleIntegrator1DSetup_propagate_path_0():
         assert np.isclose(path.getState(1)[1], end_vel[i])
 
 if __name__ == "__main__":
-    test_DoubleIntegrator1DSetup_propagate_path_0()
+    # test_DoubleIntegrator1DSetup_propagate_path_0()
+    test_DoubleIntegrator1DSetup_estimateRiskMetric_0()

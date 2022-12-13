@@ -126,6 +126,49 @@ def test_DoubleIntegrator1DSetup_propagate_path_0():
         assert np.isclose(path.getState(1)[0], end_pos[i], rtol=1e-7, atol=1e-7)
         assert np.isclose(path.getState(1)[1], end_vel[i])
 
+def test_DoubleIntegrator1DSetup_observeState_0():
+    '''test observation is as expected'''
+
+    # ~~~ ARRANGE ~~~
+    pos_bounds = [-8, 8]
+    vel_bounds = [-2, 2]
+    acc_bounds = [-1, 1]
+    obst_bounds = [1, 2]
+    ds = DoubleIntegrator1DSetup(
+        pos_bounds=pos_bounds, 
+        vel_bounds=vel_bounds, 
+        acc_bounds=acc_bounds, 
+        obst_bounds=obst_bounds)
+
+    # set cases to be tested
+    pos = [0.0, 3.0, 1.0, 2.0, -8.0, 8.0]
+    vel = [0.0, 0.0, -1.0, 1.0, 2.0, 2.0]
+    exp_obsv = [
+        [1000.0, 1.0, 0.0],
+        [1.0, 1000.0, 0.0],
+        [0.0, 0.0, -1.0],
+        [0.0, 0.0, 1.0],
+        [1000.0, 9.0, 2.0],
+        [6.0, 1000.0, 2.0]
+    ]
+
+    for i in range(len(pos)):
+
+        # create initial state
+        s0 = ds.space_info.allocState()
+        s0[0] = pos[i]
+        s0[1] = vel[i]
+
+
+        # ~~~ ACT ~~~
+        # take observation
+        obsv = ds.observeState(s0)
+        
+        # ~~~ ASSERT ~~~
+        assert np.allclose(obsv, exp_obsv[i])
+
+
 if __name__ == "__main__":
     # test_DoubleIntegrator1DSetup_propagate_path_0()
-    test_DoubleIntegrator1DSetup_estimateRiskMetric_0()
+    # test_DoubleIntegrator1DSetup_estimateRiskMetric_0()
+    test_DoubleIntegrator1DSetup_observeState_0()

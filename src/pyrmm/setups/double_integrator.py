@@ -4,6 +4,7 @@ Create SystemSetup for 1-D single integrator
 from __future__ import division
 
 import numpy as np
+from numpy.typing import ArrayLike
 from scipy.integrate import odeint
 from functools import partial
 
@@ -13,6 +14,8 @@ from ompl import control as oc
 
 from pyrmm.setups import SystemSetup
 from pyrmm.dynamics.simple_integrators import ode_1d_double_integrator as ode_1d
+
+LIDAR_RANGE = 1000.0    # max range of lidar observation [m]
 
 class DoubleIntegrator1DSetup(SystemSetup):
     ''' Double integrator system in 1D with an obstacle(s)
@@ -37,6 +40,9 @@ class DoubleIntegrator1DSetup(SystemSetup):
 
         # save obstacle
         self.obst_bounds = obst_bounds
+
+        # observation lidar range
+        self.lidar_range = LIDAR_RANGE
 
         # create state space and set bounds
         state_space = ob.RealVectorStateSpace(2)
@@ -114,6 +120,52 @@ class DoubleIntegrator1DSetup(SystemSetup):
                 return False
 
         return True
+
+    def observeState(self, state) -> ArrayLike:
+        '''query observation from a particular state
+        Args:
+            state : ob.SE2State
+                state from which to make observation
+        Returns:
+            observation : ArrayLike
+                array giving observation values with index ordering
+                0: left lidar range pointing along negative x-axis direction [m]
+                1: right lidar range pointing along positive x-axis direction [m]
+                2: signed velocity [m/s]
+        '''
+        assert self.lidar_range > 0.0
+
+        obs = np.zeros(3)
+
+        # encode velocity
+        obs[2] = state[1]
+
+        # check if current state in collision with obstacle
+        if not self.space_info.isValid(state):
+            # in collision with obstacle, leaves lidar readings as zeros
+            obs[0] = 0.0
+            obs[1] = 0.0
+            return obs
+
+        else:
+
+            # check if to left of obstacle
+            if state[0] < self.obst_bounds[0]:
+                # left lidar is max-ranged
+                obs[0] = self.lidar_range
+                # right lidar range to obstacle
+                obs[1] = min(self.obst_bounds[0] - state[0], self.lidar_range)
+
+            elif state[0] > self.obst_bounds[1]:
+                # left lidar range to obstacle
+                obs[0] = min(state[0] - self.obst_bounds[1], self.lidar_range)
+                # right lidar is max-ranged
+                obs[1] = self.lidar_range
+
+            else:
+                raise ValueError("State {} not expected to be valid".format(state))
+
+            return obs
 
     def control_ompl_to_numpy(self, omplCtrl, npCtrl=None):
         """convert single integrator ompl control object to numpy array

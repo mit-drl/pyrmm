@@ -3,6 +3,7 @@ Create SystemSetup for 1-D single integrator
 '''
 from __future__ import division
 
+import copyreg
 import numpy as np
 from numpy.typing import ArrayLike
 from scipy.integrate import odeint
@@ -268,6 +269,25 @@ class DoubleIntegrator1DStatePropagator(oc.StatePropagator):
 
     def canSteer(self):
         return False
+
+_DUMMY_REALVECTOR2SPACE = ob.RealVectorStateSpace(2)
+
+def _pickle_RealVectorStateSpace2(state):
+    '''pickle OMPL RealVectorStateSpace2 object'''
+    x = state[0]
+    v = state[1]
+    return _unpickle_RealVectorStateSpace2, (x, v)
+
+def _unpickle_RealVectorStateSpace2(x, v):
+    '''unpickle OMPL RealVectorStateSpace2 object'''
+    state = _DUMMY_REALVECTOR2SPACE.allocState()
+    state[0] = x
+    state[1] = v
+    return state
+
+def update_pickler_RealVectorStateSpace2():
+    '''updates pickler to enable pickling and unpickling of ompl objects'''
+    copyreg.pickle(_DUMMY_REALVECTOR2SPACE.allocState().__class__, _pickle_RealVectorStateSpace2, _unpickle_RealVectorStateSpace2)
 
 # def state_ompl_to_numpy(omplState, np_state=None):
 #     """convert 1D double integrator ompl state to numpy array

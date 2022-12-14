@@ -1,3 +1,4 @@
+import pickle
 import numpy as np
 
 from ompl import base as ob
@@ -5,7 +6,7 @@ from ompl import control as oc
 from hypothesis import strategies as st
 from hypothesis import given
 
-from pyrmm.setups.double_integrator import DoubleIntegrator1DSetup
+from pyrmm.setups.double_integrator import DoubleIntegrator1DSetup, update_pickler_RealVectorStateSpace2
 
 
 def test_DoubleIntegrator1DSetup_estimateRiskMetric_0():
@@ -166,6 +167,28 @@ def test_DoubleIntegrator1DSetup_observeState_0():
         
         # ~~~ ASSERT ~~~
         assert np.allclose(obsv, exp_obsv[i])
+
+def test_update_pickler_RealVectorStateSpace2_0():
+    """check that RealVector 2 state can be pickled and upickled without change"""
+    # ~~~ ARRANGE ~~~
+    # set pre-specified random state
+    np_state = np.array([0.27323028, 0.19620385])
+    omplState = ob.RealVectorStateSpace(2).allocState()
+    omplState[0] = np_state[0]
+    omplState[1] = np_state[1]
+
+    # ~~~ ACT ~~~
+    # update pickler
+    update_pickler_RealVectorStateSpace2()
+
+    # pickle and unpicle ompl state
+    omplState_copy = pickle.loads(pickle.dumps(omplState))
+
+    # ~~~ ASSERT ~~~
+    assert np.isclose(np_state[0], omplState[0])
+    assert np.isclose(np_state[1], omplState[1])
+    assert np.isclose(omplState[0], omplState_copy[0])
+    assert np.isclose(omplState[1], omplState_copy[1])
 
 
 if __name__ == "__main__":

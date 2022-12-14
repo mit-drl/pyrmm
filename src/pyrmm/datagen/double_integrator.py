@@ -10,17 +10,13 @@ from hydra_zen import make_config, instantiate, make_custom_builds_fn, builds
 from hydra_zen import ZenField as zf
 
 import pyrmm.utils.utils as U
-from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv
-from pyrmm.setups.dubins4d import Dubins4dReachAvoidSetup, update_pickler_dubins4dstate
+from pyrmm.setups.double_integrator import DoubleIntegrator1DSetup, update_pickler_RealVectorStateSpace2
 from pyrmm.datagen.sampler import sample_risk_metrics
 
 _HASH_LEN = 5
-_CONFIG_NAME = "dubins4d_datagen_app"
+_CONFIG_NAME = "doubleintegrator_datagen_app"
 _SAVE_FNAME = U.format_save_filename(Path(__file__), _HASH_LEN)
 
-##############################################
-################# UTILITIES ##################
-##############################################
 
 ##############################################
 ############# HYDARA-ZEN CONFIGS #############
@@ -29,7 +25,14 @@ _SAVE_FNAME = U.format_save_filename(Path(__file__), _HASH_LEN)
 pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
 # Dubins4dReachAvoid System Setup Config
-Dubins4dReachAvoidSetupConfig = pbuilds(Dubins4dReachAvoidSetup)
+_DEFAULT_POS_BOUNDS = [-10, 10]
+_DEFAULT_VEL_BOUNDS = [-2, 2]
+_DEFAULT_ACC_BOUNDS = [-1, 1]
+DoubleIntegrator1DSetupConfig = pbuilds(DoubleIntegrator1DSetup,
+    pos_bounds = _DEFAULT_POS_BOUNDS,
+    vel_bounds = _DEFAULT_VEL_BOUNDS,
+    acc_bounds = _DEFAULT_ACC_BOUNDS
+)
 
 # Default sampler and risk estimator configs
 _DEFAULT_N_ENVIRONMENTS = 512
@@ -43,8 +46,7 @@ _DEFAULT_MAXTASKS = 16
 
 # Top-level configuration and store for command line interface
 make_config_input = {
-    # 'ppm_dir':'outputs/2022-03-10/19-31-52/',
-    U.SYSTEM_SETUP: Dubins4dReachAvoidSetupConfig,
+    U.SYSTEM_SETUP: DoubleIntegrator1DSetupConfig,
     'n_environments': zf(int, _DEFAULT_N_ENVIRONMENTS),
     U.N_SAMPLES: zf(int, _DEFAULT_N_SAMPLES_PER_ENV),   # samples per environment
     U.DURATION: zf(float, _DEFAULT_DURATION),
@@ -67,26 +69,31 @@ log = logging.getLogger(__name__)
 
 @hydra.main(config_path=None, config_name=_CONFIG_NAME)
 def task_function(cfg: Config):
-    '''Instantiate Dubins4d setup and generate risk metric data'''
+    '''Instantiate Double Integrator setup and generate risk metric data'''
 
     # instantiate config
     obj = instantiate(cfg)
+    pos_bounds = getattr(cfg, U.SYSTEM_SETUP).pos_bounds
+    # pos_bounds_range = pos_bounds[1] - pos_bounds[0]
+    # pos_bounds_center = np.mean(pos_bounds)
 
     # update pickler to allow parallelization of ompl objects
-    update_pickler_dubins4dstate()
-    
+    update_pickler_RealVectorStateSpace2()
+
     # iterate through each environment
-    log.info("Starting Dubins4dReachAvoid Risk Data Generation")
+    log.info("Starting DoubleIntegrator1D Risk Data Generation")
     t_start = time.time()
     for i in range(obj.n_environments):
 
         t_start_i = time.time()
 
-        # create environment with randomized obstacle
-        env = Dubins4dReachAvoidEnv()
+        # randomize obstacle bounds
+        rand_obst_bounds = np.random.uniform(*pos_bounds, 2)
+        rand_obst_bounds = np.sort(rand_obst_bounds)
 
-        # instantiate dubins4d reach-avoid setup with environment
-        dubins4d_setup = getattr(obj, U.SYSTEM_SETUP)(env=env)
+        # finish instantiating double integrator 1d setup object from 
+        # partial object and random obstacle
+        di1d_setup = getattr(obj, U.SYSTEM_SETUP)(obst_bounds=rand_obst_bounds)
 
         # create a unique name for saving risk metric data associated with environment
         sffx = "env_{}_of_{}".format(i+1, obj.n_environments)
@@ -94,7 +101,7 @@ def task_function(cfg: Config):
 
         # sample states in environment and compute risk metrics
         log.info("Starting obstacle datagen: {}".format(sffx))
-        risk_data = sample_risk_metrics(sysset=dubins4d_setup, cfg_obj=obj)
+        risk_data = sample_risk_metrics(sysset=di1d_setup, cfg_obj=obj)
         torch.save(risk_data, open(save_name+".pt", "wb"))
         log.info(
             "Completed obstacle datagen: {}".format(sffx) +
@@ -109,6 +116,8 @@ def task_function(cfg: Config):
             "\n---> Total Obstacle Sets: {}".format(obj.n_environments) + 
             "\n---> Total Data Samples: {}".format(getattr(obj, U.N_SAMPLES)*obj.n_environments)
         )
+
+
 
 if __name__ == "__main__":
     task_function()

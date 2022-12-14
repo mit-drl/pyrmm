@@ -39,7 +39,10 @@ class DoubleIntegrator1DSetup(SystemSetup):
         assert acc_bounds[0] <= acc_bounds[1]
         assert obst_bounds[0] < obst_bounds[1]
 
-        # save obstacle
+        # save init args for re-creation of object
+        self.pos_bounds = pos_bounds
+        self.vel_bounds = vel_bounds
+        self.acc_bounds = acc_bounds
         self.obst_bounds = obst_bounds
 
         # observation lidar range
@@ -74,6 +77,14 @@ class DoubleIntegrator1DSetup(SystemSetup):
 
         # call parent init to create simple setup
         super().__init__(space_information=space_info)
+
+    def __reduce__(self):
+        ''' Function to enable re-creation of unpickable object
+
+        Note: See comments about potential risks here
+        https://stackoverflow.com/a/50308545/4055705
+        '''
+        return (DoubleIntegrator1DSetup, (self.pos_bounds, self.vel_bounds, self.acc_bounds, self.obst_bounds))
 
     def isStateValid(self, spaceInformation, state):
         ''' check if state is in collision with obstacle (state bounds used for sampling)

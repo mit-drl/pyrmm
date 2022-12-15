@@ -190,8 +190,66 @@ def test_update_pickler_RealVectorStateSpace2_0():
     assert np.isclose(omplState[0], omplState_copy[0])
     assert np.isclose(omplState[1], omplState_copy[1])
 
+def test_DoubleIntegrator1DSetup_sampleReachableSet_0():
+    """check that sampler produces unique states and controls"""
+
+    # ~~~ ARRANGE ~~~
+    pos_bounds = [-8, 8]
+    vel_bounds = [-2, 2]
+    acc_bounds = [-1, 1]
+    obst_bounds = [1, 2]
+    ds = DoubleIntegrator1DSetup(
+        pos_bounds=pos_bounds, 
+        vel_bounds=vel_bounds, 
+        acc_bounds=acc_bounds, 
+        obst_bounds=obst_bounds)
+
+    # define sampler params
+    duration = 1.0
+    n_samples = 64
+
+    # create state to sample from
+    x0 = 0.0
+    v0 = 1.0
+    s0 = ds.space_info.allocState()
+    s0[0] = x0
+    s0[1] = v0
+
+    # ~~~ ACT ~~~
+    # sample reachable sets (each sample is a trajectory path)
+    sampled_paths = ds.sampleReachableSet(s0, duration, n_samples)
+
+    # ~~~ ASSERT ~~~
+    # check that no repeated control values in sampled paths
+    sampled_ctrls = [ds.control_ompl_to_numpy(sp.getControls()[0])[0] for sp in sampled_paths]
+    assert not np.any(np.diff(np.sort(sampled_ctrls))==0)
+
+    for sp in sampled_paths:
+
+        # get control and duration of first step in sampled path
+        ctrl_dur = sp.getControlDurations()[0]
+        ctrl = ds.control_ompl_to_numpy(sp.getControls()[0])
+
+        # create new path object to propagate over first step of sampled path
+        sp_sub0 = oc.PathControl(ds.space_info)
+        sp_sub0.append(state=ds.space_info.allocState(), control=ds.space_info.allocControl(), duration=0)
+        sp_sub0.append(state=ds.space_info.allocState())
+
+        # perform path propagation over first step of sampled trajectory
+        ds.space_info.getStatePropagator().propagate_path(
+            state = s0,
+            control = ctrl,
+            duration = ctrl_dur,
+            path = sp_sub0
+        )
+
+        # ~~~ ASSERT ~~~
+        # check that sampled control arrives at first step of sampled trajectory
+        assert np.isclose(sp.getState(1)[0], sp_sub0.getState(1)[0])
+        assert np.isclose(sp.getState(1)[1], sp_sub0.getState(1)[1])
 
 if __name__ == "__main__":
     # test_DoubleIntegrator1DSetup_propagate_path_0()
     # test_DoubleIntegrator1DSetup_estimateRiskMetric_0()
-    test_DoubleIntegrator1DSetup_observeState_0()
+    # test_DoubleIntegrator1DSetup_observeState_0()
+    test_DoubleIntegrator1DSetup_sampleReachableSet_0()

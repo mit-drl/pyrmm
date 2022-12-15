@@ -101,7 +101,7 @@ def task_function(cfg: Config):
 
         # sample states in environment and compute risk metrics
         log.info("Starting obstacle datagen: {}".format(sffx))
-        risk_data = sample_risk_metrics(sysset=di1d_setup, cfg_obj=obj)
+        risk_data = sample_risk_metrics(sysset=di1d_setup, cfg_obj=obj, multiproc=True)
         torch.save(risk_data, open(save_name+".pt", "wb"))
         log.info(
             "Completed obstacle datagen: {}".format(sffx) +

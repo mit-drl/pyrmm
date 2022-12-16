@@ -8,6 +8,11 @@ from hypothesis import given
 
 from pyrmm.setups.double_integrator import DoubleIntegrator1DSetup, update_pickler_RealVectorStateSpace2
 
+ordered_float_pair_st = st.lists(
+    st.floats(allow_infinity=False, allow_nan=False), 
+    min_size=2, 
+    max_size=2, 
+    unique=True).map(lambda x: tuple(sorted(x)))
 
 def test_DoubleIntegrator1DSetup_estimateRiskMetric_0():
     '''Check risk metric for known, fixed accel, deterministic sytem'''
@@ -218,6 +223,7 @@ def test_DoubleIntegrator1DSetup_sampleReachableSet_0():
     # ~~~ ACT ~~~
     # sample reachable sets (each sample is a trajectory path)
     sampled_paths = ds.sampleReachableSet(s0, duration, n_samples)
+    sampled_paths = ds.sampleReachableSet(s0, duration, n_samples)
 
     # ~~~ ASSERT ~~~
     # check that no repeated control values in sampled paths
@@ -247,6 +253,162 @@ def test_DoubleIntegrator1DSetup_sampleReachableSet_0():
         # check that sampled control arrives at first step of sampled trajectory
         assert np.isclose(sp.getState(1)[0], sp_sub0.getState(1)[0])
         assert np.isclose(sp.getState(1)[1], sp_sub0.getState(1)[1])
+
+@given(
+    st.floats(min_value=0, max_value=1e3, exclude_min=True, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=0, max_value=1e2, exclude_min=True, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=0, max_value=1e1, exclude_min=True, allow_nan=False, allow_infinity=False),
+    ordered_float_pair_st
+)
+def test_DoubleIntegrator1DSetup_convert_state_ompl_numpy_0(posb, velb, accb, obst_bounds):
+    '''check that conversion between ompl and numpy does not alter state value'''
+
+    # ~~~ ARRANGE ~~~
+    pos_bounds = [-posb, posb]
+    vel_bounds = [-velb, velb]
+    acc_bounds = [-accb, accb]
+    ds = DoubleIntegrator1DSetup(
+        pos_bounds=pos_bounds, 
+        vel_bounds=vel_bounds, 
+        acc_bounds=acc_bounds, 
+        obst_bounds=obst_bounds)
+
+    # generate random state
+    sampler = ds.space_info.allocStateSampler()
+    s_ompl_orig = ds.space_info.allocState()
+    sampler.sampleUniform(s_ompl_orig)
+
+    # ~~~ ACT ~~~
+    # convert to numpy then back to ompl
+    s_np = DoubleIntegrator1DSetup.state_ompl_to_numpy(s_ompl_orig)
+    s_ompl_copy = ds.space_info.allocState()
+    DoubleIntegrator1DSetup.state_numpy_to_ompl(s_np, s_ompl_copy)
+
+    # ~~~ ASSERT ~~~
+    # check that original and copy are the same
+    assert np.isclose(s_ompl_orig[0], s_ompl_copy[0])
+    assert np.isclose(s_ompl_orig[1], s_ompl_copy[1])
+
+    # ~~~ ACT ~~~
+    # convert to numpy (in-place) then back to ompl
+    s_np_2 = np.zeros(2)
+    DoubleIntegrator1DSetup.state_ompl_to_numpy(s_ompl_orig, s_np_2)
+    s_ompl_copy_2 = ds.space_info.allocState()
+    DoubleIntegrator1DSetup.state_numpy_to_ompl(s_np_2, s_ompl_copy_2)
+
+    # ~~~ ASSERT ~~~
+    # check that original and copy are the same
+    assert np.isclose(s_ompl_orig[0], s_ompl_copy_2[0])
+    assert np.isclose(s_ompl_orig[1], s_ompl_copy_2[1])
+
+
+@given(
+    st.floats(min_value=0, max_value=1e3, exclude_min=True, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=0, max_value=1e2, exclude_min=True, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=0, max_value=1e1, exclude_min=True, allow_nan=False, allow_infinity=False),
+    ordered_float_pair_st
+)
+def test_DoubleIntegrator1DSetup_convert_control_ompl_numpy_0(posb, velb, accb, obst_bounds):
+    '''check that conversion between ompl and numpy does not alter control value'''
+
+    # ~~~ ARRANGE ~~~
+    pos_bounds = [-posb, posb]
+    vel_bounds = [-velb, velb]
+    acc_bounds = [-accb, accb]
+    ds = DoubleIntegrator1DSetup(
+        pos_bounds=pos_bounds, 
+        vel_bounds=vel_bounds, 
+        acc_bounds=acc_bounds, 
+        obst_bounds=obst_bounds)
+
+    # generate random control
+    sampler = ds.space_info.allocControlSampler()
+    c_ompl_orig = ds.space_info.allocControl()
+    sampler.sample(c_ompl_orig)
+
+    # ~~~ ACT ~~~
+    # convert to numpy then back to ompl
+    c_np = DoubleIntegrator1DSetup.control_ompl_to_numpy(c_ompl_orig)
+    c_ompl_copy = ds.space_info.allocControl()
+    DoubleIntegrator1DSetup.control_numpy_to_ompl(c_np, c_ompl_copy)
+
+    # ~~~ ASSERT ~~~
+    # check that original and copy are the same
+    assert np.isclose(c_ompl_orig[0], c_ompl_copy[0])
+    assert np.isclose(c_ompl_orig[1], c_ompl_copy[1])
+
+    # ~~~ ACT ~~~
+    # convert to numpy (in-place) then back to ompl
+    c_np_2 = np.zeros(1)
+    DoubleIntegrator1DSetup.control_ompl_to_numpy(c_ompl_orig, c_np_2)
+    c_ompl_copy_2 = ds.space_info.allocControl()
+    DoubleIntegrator1DSetup.control_numpy_to_ompl(c_np_2, c_ompl_copy_2)
+
+    # ~~~ ASSERT ~~~
+    # check that original and copy are the same
+    assert np.isclose(c_ompl_orig[0], c_ompl_copy_2[0])
+    assert np.isclose(c_ompl_orig[1], c_ompl_copy_2[1])
+
+@given(
+    st.floats(min_value=0, max_value=1e3, exclude_min=True, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=0, max_value=1e2, exclude_min=True, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=0, max_value=1e1, exclude_min=True, allow_nan=False, allow_infinity=False),
+    ordered_float_pair_st,
+    st.integers(min_value=2, max_value=128)
+)
+def test_DoubleIntegrator1DSetup_convert_path_ompl_numpy_0(posb, velb, accb, obst_bounds, nsteps):
+    '''check that conversion between ompl and numpy does not alter control value'''
+
+    # ~~~ ARRANGE ~~~
+    pos_bounds = [-posb, posb]
+    vel_bounds = [-velb, velb]
+    acc_bounds = [-accb, accb]
+    ds = DoubleIntegrator1DSetup(
+        pos_bounds=pos_bounds, 
+        vel_bounds=vel_bounds, 
+        acc_bounds=acc_bounds, 
+        obst_bounds=obst_bounds)
+
+    # generate states, controls and durations 
+    np_states_orig = np.random.uniform(
+        low=[pos_bounds[0], vel_bounds[0]],
+        high=[pos_bounds[1], vel_bounds[1]],
+        size=(nsteps, 2))
+    np_ctrls_orig = np.random.uniform(*acc_bounds, size=(nsteps-1,1))
+    np_durs = np.random.rand(nsteps-1)
+    np_times_orig = np.concatenate(([0.0], np.cumsum(np_durs)))
+
+    # instantiate ompl path object
+    omplPath = oc.PathControl(ds.space_info)
+    for j in range(nsteps-1):
+        omplPath.append(state=ds.space_info.allocState(), control=ds.space_info.allocControl(), duration=0)
+    omplPath.append(state=ds.space_info.allocState())
+
+    # ~~~ ACT ~~~
+    # convert to ompl 
+    DoubleIntegrator1DSetup.path_numpy_to_ompl(np_states_orig, np_times_orig, np_ctrls_orig, omplPath)
+
+    # instantiate new np objects to hold converted values
+    np_states_copy = np.random.uniform(
+        low=[pos_bounds[0], vel_bounds[0]],
+        high=[pos_bounds[1], vel_bounds[1]],
+        size=(nsteps, 2))
+    np_ctrls_copy = np.random.uniform(*acc_bounds, size=(nsteps-1, 1))
+    np_times_copy = np.random.rand(nsteps)
+
+    # convert to numpy
+    DoubleIntegrator1DSetup.path_ompl_to_numpy(omplPath, np_states_copy, np_times_copy, np_ctrls_copy)
+
+    # ~~~ ASSERT ~~~
+    # check that original and copy match
+    assert np.allclose(np_states_orig, np_states_copy)
+    assert np.allclose(np_ctrls_orig, np_ctrls_copy)
+    assert np.allclose(np_times_orig, np_times_copy)
+
+
+@given(ordered_float_pair_st)
+def test_order_pairs(opair):
+    assert opair[0] <= opair[1]
 
 if __name__ == "__main__":
     # test_DoubleIntegrator1DSetup_propagate_path_0()

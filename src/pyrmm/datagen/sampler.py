@@ -2,7 +2,7 @@
 # data generation process
 
 import time
-import multiprocess
+import multiprocess as mp
 from functools import partial
 
 import pyrmm.utils.utils as U
@@ -30,7 +30,7 @@ def sample_risk_metrics(sysset:SystemSetup, cfg_obj, multiproc:bool=True, prfx:s
     '''
 
     if multiproc:
-        pool = multiprocess.Pool(getattr(cfg_obj, U.N_CORES), maxtasksperchild=cfg_obj.maxtasks)
+        pool = mp.Pool(getattr(cfg_obj, U.N_CORES), maxtasksperchild=cfg_obj.maxtasks)
 
     # sample states to evaluate risk metrics
     sampler = sysset.space_info.allocStateSampler()

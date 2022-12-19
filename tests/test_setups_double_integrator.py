@@ -6,13 +6,20 @@ from ompl import control as oc
 from hypothesis import strategies as st
 from hypothesis import given
 
-from pyrmm.setups.double_integrator import DoubleIntegrator1DSetup, update_pickler_RealVectorStateSpace2
+from pyrmm.setups.double_integrator import \
+    DoubleIntegrator1DSetup, \
+    update_pickler_RealVectorStateSpace2, \
+    update_pickler_PathControl_DoubleIntegrator1D
 
 ordered_float_pair_st = st.lists(
     st.floats(allow_infinity=False, allow_nan=False), 
     min_size=2, 
     max_size=2, 
     unique=True).map(lambda x: tuple(sorted(x)))
+
+@given(ordered_float_pair_st)
+def test_order_pairs(opair):
+    assert opair[0] <= opair[1]
 
 def test_DoubleIntegrator1DSetup_estimateRiskMetric_0():
     '''Check risk metric for known, fixed accel, deterministic sytem'''
@@ -260,7 +267,7 @@ def test_DoubleIntegrator1DSetup_sampleReachableSet_0():
     st.floats(min_value=0, max_value=1e1, exclude_min=True, allow_nan=False, allow_infinity=False),
     ordered_float_pair_st
 )
-def test_DoubleIntegrator1DSetup_convert_state_ompl_numpy_0(posb, velb, accb, obst_bounds):
+def test_hypothesis_DoubleIntegrator1DSetup_convert_state_ompl_numpy_0(posb, velb, accb, obst_bounds):
     '''check that conversion between ompl and numpy does not alter state value'''
 
     # ~~~ ARRANGE ~~~
@@ -308,7 +315,7 @@ def test_DoubleIntegrator1DSetup_convert_state_ompl_numpy_0(posb, velb, accb, ob
     st.floats(min_value=0, max_value=1e1, exclude_min=True, allow_nan=False, allow_infinity=False),
     ordered_float_pair_st
 )
-def test_DoubleIntegrator1DSetup_convert_control_ompl_numpy_0(posb, velb, accb, obst_bounds):
+def test_hypothesis_DoubleIntegrator1DSetup_convert_control_ompl_numpy_0(posb, velb, accb, obst_bounds):
     '''check that conversion between ompl and numpy does not alter control value'''
 
     # ~~~ ARRANGE ~~~
@@ -356,7 +363,7 @@ def test_DoubleIntegrator1DSetup_convert_control_ompl_numpy_0(posb, velb, accb, 
     ordered_float_pair_st,
     st.integers(min_value=2, max_value=128)
 )
-def test_DoubleIntegrator1DSetup_convert_path_ompl_numpy_0(posb, velb, accb, obst_bounds, nsteps):
+def test_hypothesis_DoubleIntegrator1DSetup_convert_path_ompl_numpy_0(posb, velb, accb, obst_bounds, nsteps):
     '''check that conversion between ompl and numpy does not alter control value'''
 
     # ~~~ ARRANGE ~~~
@@ -386,7 +393,7 @@ def test_DoubleIntegrator1DSetup_convert_path_ompl_numpy_0(posb, velb, accb, obs
 
     # ~~~ ACT ~~~
     # convert to ompl 
-    DoubleIntegrator1DSetup.path_numpy_to_ompl(np_states_orig, np_times_orig, np_ctrls_orig, omplPath)
+    DoubleIntegrator1DSetup.path_numpy_to_ompl(np_states_orig, np_ctrls_orig, np_times_orig, omplPath)
 
     # instantiate new np objects to hold converted values
     np_states_copy = np.random.uniform(
@@ -397,7 +404,7 @@ def test_DoubleIntegrator1DSetup_convert_path_ompl_numpy_0(posb, velb, accb, obs
     np_times_copy = np.random.rand(nsteps)
 
     # convert to numpy
-    DoubleIntegrator1DSetup.path_ompl_to_numpy(omplPath, np_states_copy, np_times_copy, np_ctrls_copy)
+    DoubleIntegrator1DSetup.path_ompl_to_numpy(omplPath, np_states_copy, np_ctrls_copy, np_times_copy)
 
     # ~~~ ASSERT ~~~
     # check that original and copy match
@@ -406,9 +413,68 @@ def test_DoubleIntegrator1DSetup_convert_path_ompl_numpy_0(posb, velb, accb, obs
     assert np.allclose(np_times_orig, np_times_copy)
 
 
-@given(ordered_float_pair_st)
-def test_order_pairs(opair):
-    assert opair[0] <= opair[1]
+@given(
+    st.floats(min_value=0, max_value=1e3, exclude_min=True, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=0, max_value=1e2, exclude_min=True, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=0, max_value=1e1, exclude_min=True, allow_nan=False, allow_infinity=False),
+    ordered_float_pair_st,
+    st.integers(min_value=2, max_value=128)
+)
+def test_hypothesis_update_pickler_PathControl_DoubleIntegrator1D_0(posb, velb, accb, obst_bounds, nsteps):
+    """check that path control object can be pickled and unpickled accurately"""
+
+    # ~~~ ARRANGE ~~~
+    pos_bounds = [-posb, posb]
+    vel_bounds = [-velb, velb]
+    acc_bounds = [-accb, accb]
+    ds = DoubleIntegrator1DSetup(
+        pos_bounds=pos_bounds, 
+        vel_bounds=vel_bounds, 
+        acc_bounds=acc_bounds, 
+        obst_bounds=obst_bounds)
+
+    # generate states, controls and durations 
+    np_states_orig = np.random.uniform(
+        low=[pos_bounds[0], vel_bounds[0]],
+        high=[pos_bounds[1], vel_bounds[1]],
+        size=(nsteps, 2))
+    np_ctrls_orig = np.random.uniform(*acc_bounds, size=(nsteps-1,1))
+    np_durs = np.random.rand(nsteps-1)
+    np_times_orig = np.concatenate(([0.0], np.cumsum(np_durs)))
+
+    # instantiate ompl path object
+    omplPath = oc.PathControl(ds.space_info)
+    for j in range(nsteps-1):
+        omplPath.append(state=ds.space_info.allocState(), control=ds.space_info.allocControl(), duration=0)
+    omplPath.append(state=ds.space_info.allocState())
+
+    # ~~~ ACT ~~~
+    # convert to ompl 
+    DoubleIntegrator1DSetup.path_numpy_to_ompl(np_states_orig, np_ctrls_orig, np_times_orig, omplPath)
+
+    # update pickler
+    update_pickler_PathControl_DoubleIntegrator1D()
+
+    # pickle and unpicle ompl PathControl object
+    omplPath_copy = pickle.loads(pickle.dumps(omplPath))
+
+    # instantiate new np objects to hold converted values
+    np_states_copy = np.random.uniform(
+        low=[pos_bounds[0], vel_bounds[0]],
+        high=[pos_bounds[1], vel_bounds[1]],
+        size=(nsteps, 2))
+    np_ctrls_copy = np.random.uniform(*acc_bounds, size=(nsteps-1, 1))
+    np_times_copy = np.random.rand(nsteps)
+
+    # convert de-pickled ompl object back to numpy
+    DoubleIntegrator1DSetup.path_ompl_to_numpy(omplPath_copy, np_states_copy, np_ctrls_copy, np_times_copy)
+
+    # ~~~ ASSERT ~~~
+    # check that original and copy match
+    assert np.allclose(np_states_orig, np_states_copy)
+    assert np.allclose(np_ctrls_orig, np_ctrls_copy)
+    assert np.allclose(np_times_orig, np_times_copy)
+
 
 if __name__ == "__main__":
     # test_DoubleIntegrator1DSetup_propagate_path_0()

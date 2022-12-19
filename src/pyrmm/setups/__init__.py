@@ -84,18 +84,18 @@ class SystemSetup:
                 number of discrete steps in path to each sample
 
         Returns:
-            samples : list(ob.State)
-                list of sampled states
+            samples : list(PathControl)
+                list of sampled states with trajectories to those states
         '''
+
+        # re-seed numpy to generate different seeds in parallel processes to avoid control sample repeats
+        np.random.seed()
 
         if policy == 'uniform_random':
 
             # access space information
             si = self.space_info
 
-            # use default undirected control sampler 
-            csampler = si.allocControlSampler()
-            c = si.allocControl()
             samples = [None]*n_samples
 
             for i in range(n_samples):
@@ -113,7 +113,9 @@ class SystemSetup:
                 assert p.getControlCount() == n_steps-1
 
                 # sample control input
-                csampler.sample(c)
+                c = si.allocControl()
+                np_c = self.sample_control_numpy()
+                self.control_numpy_to_ompl(npCtrl=np_c, omplCtrl=c)
 
                 # propagate sampled control
                 si.getStatePropagator().propagate_path(
@@ -238,6 +240,40 @@ class SystemSetup:
             npCtrl : ndarray
                 control represented as np array
                 if not None, input argument is modified in place, else returned
+        """
+        raise NotImplementedError('To be implemented by child class')
+
+    def control_numpy_to_ompl(self, npCtrl, omplCtrl):
+        """convert control from numpy array to ompl control object in-place
+
+
+        Args:
+            npCtrl : ArrayLike
+                control represented as np array
+            omplCtrl : oc.Control
+                OMPL control object to be modified in-place
+                https://ompl.kavrakilab.org/classompl_1_1control_1_1ControlSpace.html
+        """
+        raise NotImplementedError('To be implemented by child class')
+
+    def sample_control_numpy(self):
+        """Randomly sample valid control in numpy format using numpy random
+
+        Note: an error was found where the OMPL-provided control sampler,
+        SpaceInformation.allocControlSampler, produced repeated values when 
+        run in parallel processes using
+        multiprocessing.Pool. No direct fix could be determined so
+        this is a workaround that forces control sampling in numpy
+
+        No equivalent bug has yet been identified in state sampling
+
+        Args: 
+            None
+
+        Returns:
+            np_ctrl : ArrayLike
+                the ranomly sampled control in numpy-format (instead of ompl-format)
+        
         """
         raise NotImplementedError('To be implemented by child class')
         

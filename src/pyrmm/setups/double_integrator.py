@@ -179,6 +179,26 @@ class DoubleIntegrator1DSetup(SystemSetup):
 
             return obs
 
+    def sample_control_numpy(self):
+        """Randomly sample valid control in numpy format using numpy random
+
+        Note: an error was found where the OMPL-provided control sampler
+        produced repeated values when run in parallel processes using
+        multiprocessing.Pool. No direct fix could be determined so
+        this is a workaround that forces control sampling in numpy
+
+        No equivalent bug has yet been identified in state sampling
+
+        Args: 
+            None
+
+        Returns:
+            np_ctrl : ArrayLike
+                the ranomly sampled control in numpy-format (instead of ompl-format)
+        
+        """
+        return np.random.uniform(*self.acc_bounds, (1,))
+
     def control_ompl_to_numpy(self, omplCtrl, npCtrl=None):
         """convert double integrator ompl control object to numpy array
 
@@ -191,7 +211,7 @@ class DoubleIntegrator1DSetup(SystemSetup):
         """
 
         # redirect to static method
-        DoubleIntegrator1DSetup.control_ompl_to_numpy_static(omplCtrl=omplCtrl, npCtrl=npCtrl)
+        DoubleIntegrator1DSetup.control_ompl_to_numpy(omplCtrl=omplCtrl, npCtrl=npCtrl)
 
     @staticmethod
     def control_ompl_to_numpy(omplCtrl, npCtrl=None):
@@ -218,6 +238,20 @@ class DoubleIntegrator1DSetup(SystemSetup):
 
         if ret:
             return npCtrl
+
+    def control_numpy_to_ompl(self, npCtrl, omplCtrl):
+        """convert double integrator control from numpy array to ompl control object in-place
+
+
+        Args:
+            npCtrl : ArrayLike (1,)
+                1D double integrator control represented in np array [acceleration]
+            omplCtrl : oc.Control
+                1D double integrator control (i.e. acceleration) in ompl RealVectorControl format
+        """
+
+        # redirect to static method
+        DoubleIntegrator1DSetup.control_numpy_to_ompl(omplCtrl=omplCtrl, npCtrl=npCtrl)
 
     @staticmethod
     def control_numpy_to_ompl(npCtrl, omplCtrl):
@@ -270,7 +304,7 @@ class DoubleIntegrator1DSetup(SystemSetup):
         omplState[1] = np_state[1]
 
     @staticmethod
-    def path_numpy_to_ompl(np_states: ArrayLike, np_times: ArrayLike, np_controls: ArrayLike, omplPath):
+    def path_numpy_to_ompl(np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike, omplPath):
         """ Convert numpy-like description of a trajectory into ompl PathControl object (in place)
 
         TODO: This could probably be abstract up to the parent class, but would need to properly handle static methods
@@ -279,10 +313,10 @@ class DoubleIntegrator1DSetup(SystemSetup):
         Args:
             np_states : ArrayLike (n,2)
                 array of n states in path in numpy-like format
+            np_controls : ArrayLike (n-1,1)
+                array of n-1 control inputs along path in numpy-like format
             np_times : ArrayLike (n,)
                 array of n time steps of path in numpy-like format
-            np_controls : ArrayLike (n-1,)
-                array of n-1 control inputs along path in numpy-like format
             omplPath : oc.PathControl
                 ompl PathControl object, modified in-place
         
@@ -313,7 +347,7 @@ class DoubleIntegrator1DSetup(SystemSetup):
         DoubleIntegrator1DSetup.state_numpy_to_ompl(np_state=np_states[-1], omplState=pstates[-1])
 
     @staticmethod
-    def path_ompl_to_numpy(omplPath, np_states: ArrayLike, np_times: ArrayLike, np_controls: ArrayLike):
+    def path_ompl_to_numpy(omplPath, np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike,):
         """ Convert ompl PathControl object to numpy arrays in-place
 
         TODO: This could probably be abstract up to the parent class, but would need to properly handle static methods
@@ -324,10 +358,10 @@ class DoubleIntegrator1DSetup(SystemSetup):
                 ompl PathControl object, modified in-place
             np_states : ArrayLike (n,2)
                 array of n states in path in numpy-like format
+            np_controls : ArrayLike (n-1,1)
+                array of n-1 control inputs along path in numpy-like format
             np_times : ArrayLike (n,)
                 array of n time steps of path in numpy-like format
-            np_controls : ArrayLike (n-1,)
-                array of n-1 control inputs along path in numpy-like format
         
         Returns:
             None (conversion performed in-place)
@@ -436,7 +470,9 @@ class DoubleIntegrator1DStatePropagator(oc.StatePropagator):
     def canSteer(self):
         return False
 
-_DUMMY_REALVECTOR2SPACE = ob.RealVectorStateSpace(2)
+_DUMMY_REALVECTORSTATESPACE2 = ob.RealVectorStateSpace(2)
+_DUMMY_REALVECTORCONTROLSPACE1 = oc.RealVectorControlSpace(stateSpace=_DUMMY_REALVECTORSTATESPACE2, dim=1)
+_DUMMY_SPACEINFO = oc.SpaceInformation(stateSpace=_DUMMY_REALVECTORSTATESPACE2, controlSpace=_DUMMY_REALVECTORCONTROLSPACE1)
 
 def _pickle_RealVectorStateSpace2(state):
     '''pickle OMPL RealVectorStateSpace2 object'''
@@ -446,13 +482,44 @@ def _pickle_RealVectorStateSpace2(state):
 
 def _unpickle_RealVectorStateSpace2(x, v):
     '''unpickle OMPL RealVectorStateSpace2 object'''
-    state = _DUMMY_REALVECTOR2SPACE.allocState()
+    state = _DUMMY_REALVECTORSTATESPACE2.allocState()
     state[0] = x
     state[1] = v
     return state
 
 def update_pickler_RealVectorStateSpace2():
     '''updates pickler to enable pickling and unpickling of ompl objects'''
-    copyreg.pickle(_DUMMY_REALVECTOR2SPACE.allocState().__class__, _pickle_RealVectorStateSpace2, _unpickle_RealVectorStateSpace2)
+    copyreg.pickle(_DUMMY_REALVECTORSTATESPACE2.allocState().__class__, _pickle_RealVectorStateSpace2, _unpickle_RealVectorStateSpace2)
 
-# def _unpickle_PathControl_DoubleIntegrator1D()
+def _pickle_PathControl_DoubleIntegrator1D(path):
+    # instatiate numpy arrays to later modify in place
+    nsteps = path.getStateCount()
+    np_states = np.empty((nsteps, 2))
+    np_controls = np.empty((nsteps-1, 1))
+    np_times = np.empty(nsteps)
+    
+    # convert ompl to numpy objects in place
+    DoubleIntegrator1DSetup.path_ompl_to_numpy(omplPath=path, np_states=np_states, np_controls=np_controls, np_times=np_times)
+
+    return _unpickle_PathControl_DoubleIntegrator1D, (np_states, np_controls, np_times)
+
+
+def _unpickle_PathControl_DoubleIntegrator1D(np_states, np_controls, np_times):
+    # instantiate ompl path object
+    nsteps = len(np_states)
+    path = oc.PathControl(_DUMMY_SPACEINFO)
+    for j in range(nsteps-1):
+        path.append(state=_DUMMY_SPACEINFO.allocState(), control=_DUMMY_SPACEINFO.allocControl(), duration=0)
+    path.append(state=_DUMMY_SPACEINFO.allocState())
+
+    # convert numpy values to omple object
+    DoubleIntegrator1DSetup.path_numpy_to_ompl(np_states=np_states, np_controls=np_controls, np_times=np_times, omplPath=path)
+
+    return path
+
+def update_pickler_PathControl_DoubleIntegrator1D():
+    '''updates pickler to enable pickling and unpickling of ompl PathControl objects'''
+    copyreg.pickle(
+        oc.PathControl(_DUMMY_SPACEINFO).__class__, 
+        _pickle_PathControl_DoubleIntegrator1D, 
+        _unpickle_PathControl_DoubleIntegrator1D)

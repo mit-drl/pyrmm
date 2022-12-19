@@ -4,8 +4,44 @@ from functools import partial
 from types import SimpleNamespace
 
 from pyrmm.datagen.sampler import sample_risk_metrics
-from pyrmm.setups.double_integrator import DoubleIntegrator1DSetup, \
-    update_pickler_RealVectorStateSpace2
+from pyrmm.setups.double_integrator import \
+    DoubleIntegrator1DSetup, \
+    update_pickler_RealVectorStateSpace2, \
+    update_pickler_PathControl_DoubleIntegrator1D
+
+def get_non_unique_indices(arr):
+
+    # get unique values and their indices
+    _, unique_inds = np.unique(arr, return_index=True)
+
+    # use setdiff1d to find values not in unique indices
+    non_unique_inds = np.setdiff1d(
+        np.arange(arr.size),
+        unique_inds, 
+        assume_unique=True)
+
+    return non_unique_inds
+
+def get_non_unique_data(arr):
+
+    non_unique_inds = get_non_unique_indices(arr)
+
+    # get values at non-unique indices
+    non_unique_vals = arr[non_unique_inds]
+
+    # get UNIQUE values of non-unique values 
+    # (kinda confusing, but makes sense if you think about it
+    # from the set of all elements that are unique in the original arr,
+    # find those that are unique to that set)
+    unique_non_unique_vals = np.unique(non_unique_vals)
+
+    non_unique_data = []
+    for unuv in unique_non_unique_vals:
+        unuv_inds = np.where(np.isclose(arr, unuv))
+        non_unique_data.append((unuv, unuv_inds))
+
+    return non_unique_data
+
 
 def sample_DoubleIntegrator1D_control(dummy, sysset):
     csampler = sysset.space_info.allocControlSampler()
@@ -80,48 +116,150 @@ def test_multiprocess_sampleReachableSet_0():
 
     # update pickler to allow parallelization of ompl objects
     update_pickler_RealVectorStateSpace2()
+    update_pickler_PathControl_DoubleIntegrator1D()
 
     # create multiprocess task pool
-    n_cores = 4
-    n_top_samples_per_iter = 4
-    n_sub_samples = 8
-    n_iters = 4
+    n_cores = 6
+    n_top_samples_per_iter = 8
+    n_sub_samples = 4
+    n_steps_per_path = 5
+    n_iters = 16
     distance = 2.0
-    for i in range(n_iters):
-        pool = multiprocess.Pool(n_cores, maxtasksperchild=1)
+    for iter in range(n_iters):
+        # pool = multiprocess.Pool(n_cores, maxtasksperchild=32)
 
-        # create set of top-level state samples for this iteration
-        sampler = ds.space_info.allocStateSampler()
-        states = n_top_samples_per_iter * [None] 
+        with multiprocess.Pool(n_cores, maxtasksperchild=1) as pool:
+            # create set of top-level state samples for this iteration
+            sampler = ds.space_info.allocStateSampler()
+            states = n_top_samples_per_iter * [None] 
+            np_paths_states = n_top_samples_per_iter * [None] 
+            np_paths_ctrls = n_top_samples_per_iter * [None] 
+            np_paths_times = n_top_samples_per_iter * [None] 
+            for i in range(n_top_samples_per_iter):
+
+                # assign state
+                states[i] = ds.space_info.allocState()
+
+                # sample only valid states
+                while True:
+                    sampler.sampleUniform(states[i])
+                    if ds.space_info.isValid(states[i]):
+                        break
+
+                # instantiate numpy trajectory objects
+                np_paths_states[i] = [np.empty((n_steps_per_path,2)) for j in range(n_sub_samples)]
+                np_paths_ctrls[i] = [np.empty((n_steps_per_path-1,1)) for j in range(n_sub_samples)]
+                np_paths_times[i] = [np.empty(n_steps_per_path) for j in range(n_sub_samples)]
+
+            # create partial function
+            sampleReachableSet_partial = partial(
+                ds.sampleReachableSet,
+                distance = distance, 
+                n_samples = n_sub_samples,
+                n_steps = n_steps_per_path
+            )
+
+            # ~~~ ACT ~~~
+            # call reachable set sampler
+            reachset_samples_iter = pool.imap(sampleReachableSet_partial, states)
+
+            # track multiprocess progress
+            reachset_samples = []
+            for i in range(n_top_samples_per_iter):
+                reachset_samples.append(reachset_samples_iter.next())
+
+            pool.close()
+            pool.join()
+        del pool
+
+        # Extract states for comparison
         for i in range(n_top_samples_per_iter):
+            for j in range(n_sub_samples):
+                DoubleIntegrator1DSetup.path_ompl_to_numpy(
+                    reachset_samples[i][j], 
+                    np_paths_states[i][j],
+                    np_paths_ctrls[i][j],
+                    np_paths_times[i][j])
 
-            # assign state
-            states[i] = ds.space_info.allocState()
+                # within a sub-sample, assert all steps have same control inputs
+                assert len(np.unique(np_paths_ctrls[i][j])) == 1
 
-            # sample only valid states
-            while True:
-                sampler.sampleUniform(states[i])
-                if ds.space_info.isValid(states[i]):
-                    break
+            # within a top-level sample, assert that all initial states match
+            pos0_i = np.array([s_i[0][0] for s_i in np_paths_states[i]])
+            vel0_i = np.array([s_i[0][1] for s_i in np_paths_states[i]])
+            assert len(np.unique(pos0_i)) == 1
+            assert len(np.unique(vel0_i)) == 1
 
-        # create partial function
-        sampleReachableSet_partial = partial(
-            ds.sampleReachableSet,
-            distance = distance, 
-            n_samples = n_sub_samples
-        )
+            # within a top-level sample, assert all controls are different
+            acc0_i = np.array([c_i[0][0] for c_i in np_paths_ctrls[i]])
+            assert len(np.unique(np.around(acc0_i,8))) == n_sub_samples
 
-        # ~~~ ACT ~~~
-        # call reachable set sampler
-        reachset_samples_iter = pool.imap(sampleReachableSet_partial, states)
+        # ~~~ ASSERT ~~~
 
-        # track multiprocess progress
-        reachset_samples = []
-        for i in range(n_sub_samples):
-            reachset_samples.append(reachset_samples_iter.next())
+        ###
+        # check that no top-level states are repeated
+        ###
+        top_level_init_state_samples = [s[0][0] for s in np_paths_states]
+        assert len(top_level_init_state_samples) == n_top_samples_per_iter
+        top_level_init_pos_samples = np.array([s[0] for s in top_level_init_state_samples])
+        top_level_init_vel_samples = np.array([s[1] for s in top_level_init_state_samples])
+        nonunique_top_level_init_pos = get_non_unique_data(top_level_init_pos_samples)
+        nonunique_top_level_init_vel = get_non_unique_data(top_level_init_vel_samples)
 
-        pool.close()
-        pool.join()
+        if len(nonunique_top_level_init_pos) != 0:
+            prnt_str = ""
+            for nud in nonunique_top_level_init_pos:
+                prnt_str += "Iter {}: Value {} found at non-unique indices {}\n".format(iter, nud[0], nud[1])
+            assert False, prnt_str
+
+        if len(nonunique_top_level_init_vel) != 0:
+            prnt_str = ""
+            for nud in nonunique_top_level_init_vel:
+                prnt_str += "Iter {}: Value {} found at non-unique indices {}\n".format(iter, nud[0], nud[1])
+            assert False, prnt_str
+
+        ###
+        # check that no top-level controls are repeated
+        ###
+
+        n_top_level_ctrl_samples = n_top_samples_per_iter*n_sub_samples
+        top_level_ctrl_samples = np.concatenate([ccc[0] for ccc in [cc for c in np_paths_ctrls for cc in c]])
+        assert top_level_ctrl_samples.size == n_top_level_ctrl_samples
+        
+        # find any non-unique top-level control samples
+        nonunique_top_ctrl_data = get_non_unique_data(top_level_ctrl_samples)
+        if len(nonunique_top_ctrl_data) != 0:
+            prnt_str = ""
+            for nud in nonunique_top_ctrl_data:
+                prnt_str += "Iter {}: Value {} found at non-unique indices {}\n".format(iter, nud[0], nud[1])
+            assert False, prnt_str
+
+        ###
+        # check that no repeated state samples
+        ###
+
+        # all states sampled/explored not including top-level sampled states
+        n_subsequent_states = n_top_samples_per_iter*n_sub_samples*(n_steps_per_path-1)
+        all_subsequent_states = np.concatenate([sss[1:] for sss in [ss for s in np_paths_states for ss in s]])
+        assert len(all_subsequent_states) == n_subsequent_states
+
+        # separate the positon and velocity values from all subsequent states
+        all_sub_pos = np.array([s[0] for s in all_subsequent_states])
+        all_sub_vel = np.array([s[1] for s in all_subsequent_states])
+
+        # find any non-unique position or velocity values
+        nonunique_sub_pos_data = get_non_unique_data(np.around(all_sub_pos,8))
+        nonunique_sub_vel_data = get_non_unique_data(np.around(all_sub_vel,8))
+        if len(nonunique_sub_pos_data) != 0:
+            prnt_str = ""
+            for nud in nonunique_sub_pos_data:
+                prnt_str += "Iter {}: Value {} found at non-unique indices {}\n".format(iter, nud[0], nud[1])
+            assert False, prnt_str
+        if len(nonunique_sub_vel_data) != 0:
+            prnt_str = ""
+            for nud in nonunique_sub_vel_data:
+                prnt_str += "Iter {}: Value {} found at non-unique indices {}\n".format(iter, nud[0], nud[1])
+            assert False, prnt_str
 
     
 
@@ -189,4 +327,5 @@ def test_sample_risk_metrics_min_risk_controls_0():
 
 if __name__ == "__main__":
     # test_multiprocess_sample_control_0()
-    test_sample_risk_metrics_min_risk_controls_0()
+    # test_sample_risk_metrics_min_risk_controls_0()
+    test_multiprocess_sampleReachableSet_0()

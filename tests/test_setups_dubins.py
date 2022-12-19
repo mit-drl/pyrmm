@@ -5,7 +5,7 @@ import numpy as np
 from ompl import base as ob
 from ompl import control as oc
 from hypothesis import strategies as st
-from hypothesis import given
+from hypothesis import given, settings
 from pyrmm.setups.dubins import DubinsPPMSetup
 
 
@@ -839,6 +839,7 @@ def test_hypothesis_DubinsPPMSetup_cast_ray(x0, y0, yaw0, theta, res):
     st.floats(min_value=1e-3, max_value=10, allow_nan=False, allow_infinity=False),
     st.integers(min_value=1, max_value=16)
 )
+@settings(deadline=None)
 def test_hypothesis_DubinsPPMSetup_observeState(x0, y0, yaw0, res, n_rays):
     '''check observation for expected lengths'''
 

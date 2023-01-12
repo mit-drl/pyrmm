@@ -3,12 +3,19 @@
 
 import time
 import multiprocess as mp
+import numpy as np
 from functools import partial
 
 import pyrmm.utils.utils as U
 from pyrmm.setups import SystemSetup
 
 _MONITOR_RATE = 100
+
+def np_seeder():
+    """function called at each worker initialization to ensure numpy gets a new seed
+    for each process
+    """
+    np.random.seed()
 
 def sample_risk_metrics(sysset:SystemSetup, cfg_obj, multiproc:bool=True, prfx:str=''):
     '''sample system states, get observations, and estimate risk metrics
@@ -30,7 +37,10 @@ def sample_risk_metrics(sysset:SystemSetup, cfg_obj, multiproc:bool=True, prfx:s
     '''
 
     if multiproc:
-        pool = mp.Pool(getattr(cfg_obj, U.N_CORES), maxtasksperchild=cfg_obj.maxtasks)
+        pool = mp.Pool(
+            getattr(cfg_obj, U.N_CORES), 
+            maxtasksperchild=cfg_obj.maxtasks,
+            initializer=np_seeder)
 
     # sample states to evaluate risk metrics
     sampler = sysset.space_info.allocStateSampler()

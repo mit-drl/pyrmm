@@ -1,6 +1,7 @@
 
 """Pytorch Lightning data modules for training risk metric models"""
 import torch
+import numpy as np
 
 from pathlib import Path
 from typing import List, Optional
@@ -235,6 +236,80 @@ class StateFeatureObservationRiskDataset(Dataset):
             state_feature,
             self.sro_data.observations[idx],
             self.sro_data.risk_metrics[idx]
+        )
+
+class LocalStateFeatureObservationRiskDataset(Dataset):
+    """Dataset that breaks data into four categories: 
+        local-state-vectors, local-state-feature-vectors, observation-vectors, and scalar risk values
+
+    This dataset is similar to StateFeatureObservationRiskDataset except that the state vector
+    and corresponding feature vector are represented in a local reference frame relative to a 
+    reference state. 
+
+    This means that each absolute state in the "raw" dataset corresponds to N data points in the
+    dataset because each state can be evaluated in N different local frames.
+
+    This form of dataset is intended for use in risk-metric control barrier function models where
+    risk metrics are modeled as localized, continuously differentiable functions of the observation 
+    at a particular state (input to first layer a neural network) and the feature vector of states
+    in the local coordinate system of the reference state.
+
+    Ref:
+        for implementation reference, see https://rosenfelder.ai/multi-input-neural-network-pytorch/
+    """
+    def __init__(self,
+        sro_data: BaseRiskMetricTrainingData,
+        state_feature_map: callable,
+        local_coord_map: callable
+    ):
+        """
+        Args:
+            sro_data : BaseRiskMetricTrainingData
+                state-risk-observation data from index-aligned, namespace-like object
+            state_feature_map : callable
+                function for computing state feature vectors from state samples so that
+                state features don't have to be predefined, precomuputed, and saved during data 
+                generation time
+            local_coord_map : callable
+                function for mapping an absolute state to a local coordinate frame.
+                For example this may be a simple subtraction of the reference state,
+                but it may require more sophisticated functions for non-Euclidean 
+                spaces
+        """
+        self.sro_data = sro_data
+        self.state_feature_map = state_feature_map
+        self.local_coord_map = local_coord_map
+
+    def __len__(self):
+        """each absoluted state corresponds to N data points becasue
+        each state can be mapped to the local reference frame of every other state.
+        Therefore N*2 total data points
+        """
+        return self.sro_data.n_data * self.sro_data.n_data
+
+    def __getitem__(self, idx):
+        """dataset is indexed such that an unraveled 2D index is in 
+        (abs_state, ref_state) order
+        """
+
+        # unravel index to identify the absolute state and reference state
+        n_raw_data = self.sro_data.n_data
+        abs_idx, ref_idx = np.unravel_index(idx, (n_raw_data, n_raw_data))
+
+        # compute local state relative to reference state
+        local_state = self.local_coord_map(
+            abs_state=self.sro_data.state_samples[abs_idx],
+            ref_state=self.sro_data.state_samples[ref_idx])
+        
+        # compute state feature from state sample
+        local_state_feature = self.state_feature_map(local_state)
+
+        # return state-feature-observation-risk data 
+        return (
+            local_state,
+            local_state_feature,
+            self.sro_data.observations[abs_idx],
+            self.sro_data.risk_metrics[abs_idx]
         )
 
 class BaseRiskMetricDataModule(LightningDataModule):

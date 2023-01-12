@@ -38,6 +38,13 @@ class ShallowRiskCBFPerceptron(nn.Module):
         num_neurons: int):
         """shallow feed-forward network with a "CBF (control barrier function) layer"
 
+        This is a multi-input network: takes both observations and (local) state features, which
+        are used together to compute an estimated risk value
+
+        Technically it is also a multi-output network: outputting both the scalar risk metric 
+        estimation value and the weights at the final layer of the perceptron which are then
+        linear combined with the (local) state features 
+
         The CBF layer outputs weights for a linear combination of state features used to compute the risk metric
 
         Args:
@@ -84,6 +91,9 @@ class ShallowRiskCtrlMLP(nn.Module):
         num_ctrl_dims: int, 
         num_neurons: int):
         """shallow feed-forward neural network for outputing bounded risk and control values
+
+        This is a single-input (observation) and multi-output (risk estimate, min-risk control, 
+        min-risk control duration) network
 
         Args:
             num_inputs : int
@@ -177,14 +187,18 @@ class CBFLRMMModule(BaseRiskMetricModule):
         self.example_input_array = None
 
     def forward(self, observation, state_features):
+
+        # assumes multi-input model like ShallowRiskCBFPerceptron
         return self.model(observation, state_features)
 
     def _shared_eval_step(self, batch, batch_idx):
 
         # break batch into separate data components
+        # assumes batch of StateFeatureObservationRiskDataset
         states, features, observations, risk_targets = batch
 
         # infer risk metric from model output
+        # assumes multi-output model like ShallowRiskCBFPerceptron
         risk_estimates, cbf_weights = self.forward(observation=observations, state_features=features)
 
         # log control barrier layer weights

@@ -14,7 +14,8 @@ from hydra_zen import make_custom_builds_fn, make_config, instantiate
 from hydra.core.config_store import ConfigStore
 
 from pyrmm.modelgen.data_modules import \
-    BaseRiskMetricTrainingData, CBFLRMMDataModule
+    BaseRiskMetricTrainingData, CBFLRMMDataModule, \
+    LSFORDataModule
 from pyrmm.modelgen.modules import \
     ShallowRiskCBFPerceptron, \
     CBFLRMMModule
@@ -29,10 +30,17 @@ def state_feature_map(state_sample):
     """trivial mapping from states to state feature vectors"""
     return state_sample
 
+def local_coord_map(abs_state, ref_state):
+    return abs_state-ref_state
+
 n_data = 8192
+# n_data = 128
+# n_data = 256
 state_samples = np.random.rand(n_data)  # intended range of 0-1 so that MinMaxScaler does not modify (minimally modifies) inputs 
+# state_samples = np.random.rand(n_data)*200-100
 observations = state_samples
 risk_metrics = torch.sigmoid(torch.tensor(state_samples)).numpy()
+# risk_metrics = state_samples
 np_data = BaseRiskMetricTrainingData(
     state_samples=state_samples.reshape(-1,1),
     risk_metrics=risk_metrics.reshape(-1,1),
@@ -42,6 +50,15 @@ np_data = BaseRiskMetricTrainingData(
 ############# HYDARA-ZEN CONFIGS #############
 ##############################################
 pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
+
+# DataConf = pbuilds(LSFORDataModule, 
+#     val_ratio=0.15, 
+#     batch_size=64, 
+#     num_workers=4,
+#     state_feature_map=state_feature_map,
+#     local_coord_map=local_coord_map,
+#     compile_verify_func=None
+# )
 
 DataConf = pbuilds(CBFLRMMDataModule, 
     val_ratio=0.15, 

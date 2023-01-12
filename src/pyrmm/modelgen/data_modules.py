@@ -239,8 +239,11 @@ class StateFeatureObservationRiskDataset(Dataset):
         )
 
 class LocalStateFeatureObservationRiskDataset(Dataset):
-    """Dataset that breaks data into four categories: 
-        local-state-vectors, local-state-feature-vectors, observation-vectors, and scalar risk values
+    """Dataset that breaks LSFOR data into four categories: 
+        local-state-vectors (LS)
+        local-state-feature-vectors (F)
+        observation-vectors (O)
+        and scalar risk values (R)
 
     This dataset is similar to StateFeatureObservationRiskDataset except that the state vector
     and corresponding feature vector are represented in a local reference frame relative to a 
@@ -351,15 +354,11 @@ class BaseRiskMetricDataModule(LightningDataModule):
                 verify_func=self.compile_verify_func,
                 ctrl_data=False)
 
-            # extract useful params
-            n_data = len(raw_data.state_samples)
-
             # convert raw data to numpy arrays
             self.np_data = self.raw_data_to_numpy(raw_data)
 
         else:
             self.np_data = np_data
-            n_data = len(np_data.state_samples)
 
         # verify numpy data for consistency
         self.verify_numpy_data(np_data=self.np_data)
@@ -369,6 +368,7 @@ class BaseRiskMetricDataModule(LightningDataModule):
         
         # format dataset of inputs and targets
         full_dataset = self.get_full_dataset(pt_scaled_data=pt_scaled_data)
+        n_data = len(full_dataset)
 
         # handle training and testing separately
         if stage == "fit":
@@ -462,7 +462,10 @@ class CBFLRMMDataModule(BaseRiskMetricDataModule):
         num_workers: int,
         state_feature_map: callable,
         compile_verify_func: callable=None):
-        '''loads, formats, scales and checks risk-ctrl training data from torch save files
+        '''loads, formats, scales, checks, and applies feature map of state-risk-observation training data from torch save files
+
+        Intended for use within a control barrier function (CBF) with learned risk metric map (LRMM) network model
+
         Args:
             datapaths : List[str]
                 list of paths to pytorch data files
@@ -501,6 +504,72 @@ class CBFLRMMDataModule(BaseRiskMetricDataModule):
         return StateFeatureObservationRiskDataset(
             sro_data=pt_scaled_data,
             state_feature_map=self.state_feature_map
+        )
+
+class LSFORDataModule(BaseRiskMetricDataModule):
+    def __init__(self,
+        datapaths: List[str],
+        val_ratio: float, 
+        batch_size: int, 
+        num_workers: int,
+        state_feature_map: callable,
+        local_coord_map: callable,
+        compile_verify_func: callable=None):
+        '''Data module for local-state (LS), local-feature-vector (F), observation (O), and risk metric (R) datasets
+
+        Loads, formats, scales, error-checks, defines local coordinate transform, and defines state feature map of 
+        state-risk-observation training data from torch save files
+
+        In spite of the naming convention/acronym, this class is very closely related to the CBFLRMMDataModule
+        except that it also defines the local coordinate transformation
+
+        Intended for use within a control barrier function (CBF) with learned risk metric map (LRMM) network model
+        
+        Args:
+            datapaths : List[str]
+                list of paths to pytorch data files
+            val_ratio : float
+                ratio of data to be used in validation set. 0=no validation data, 1=all validation data
+            batch_size : int
+                size of training batches
+            num_workers : int
+                number of workers to use for dataloader
+            state_feature_map : callable
+                function for computing state feature vectors from state samples so that
+                state features don't have to be predefined, precomuputed, and saved during data 
+                generation time
+            local_coord_map : callable
+                function for mapping an absolute state to a local coordinate frame.
+                For example this may be a simple subtraction of the reference state,
+                but it may require more sophisticated functions for non-Euclidean 
+                spaces
+        '''
+        super().__init__(
+            datapaths = datapaths,
+            val_ratio = val_ratio,
+            batch_size = batch_size,
+            num_workers = num_workers,
+            compile_verify_func = compile_verify_func
+        )
+        self.state_feature_map = state_feature_map
+        self.local_coord_map = local_coord_map
+
+    def get_full_dataset(self, pt_scaled_data:BaseRiskMetricTrainingData):
+        """format scaled observations and risk metrics into training dataset
+
+        Args:
+            pt_scaled_data : BaseRiskMetricTrainingData
+                pytorch tensor data regularized and stored in a namespace-like object
+
+        Refs:
+            For reference, see Creating a custom PyTorch Dataset in
+            https://rosenfelder.ai/multi-input-neural-network-pytorch/
+        """
+
+        return LocalStateFeatureObservationRiskDataset(
+            sro_data=pt_scaled_data,
+            state_feature_map=self.state_feature_map,
+            local_coord_map=self.local_coord_map
         )
 
 

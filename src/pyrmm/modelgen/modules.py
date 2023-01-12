@@ -201,7 +201,8 @@ class CBFLRMMModule(BaseRiskMetricModule):
         # assumes multi-output model like ShallowRiskCBFPerceptron
         risk_estimates, cbf_weights = self.forward(observation=observations, state_features=features)
 
-        # log control barrier layer weights
+        # log control barrier layer weights mostly for validating simple 
+        # example cases where weights should converge to 1.0
         self.log_dict({"mean_cbf_weights": torch.mean(cbf_weights)})
         # print("Mean CBF Weight: {}".format(torch.mean(cbf_weights,dim=0)))
 

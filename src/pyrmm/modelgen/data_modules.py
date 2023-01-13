@@ -22,7 +22,7 @@ def compile_raw_data(datapaths, verify_func:callable=None, ctrl_data=True):
         verify_func : callable
             function to call to verify consistency of data
         ctrl_data : boolean
-            If True, data should contain min-risk control inputs or min-risk control durations
+            If True, data should contain min-risk control inputs and min-risk control durations
             and all of this should be packaged together
             if False, data MAY contain min-risk control and durations,
             but it won't be packaged and returned with the states,
@@ -30,7 +30,7 @@ def compile_raw_data(datapaths, verify_func:callable=None, ctrl_data=True):
             (case for backward compatibility with old datasets)
     
     Returns:
-        compiled_raw_data : RiskMetricTrainingData
+        compiled_raw_data : BaseRiskMetricTrainingData
             raw data compiled into object containing index-aligned array-like
             storage of state samples, risk_metrics, state observations, 
             min-risk ctrls, and min-risk ctrl durations
@@ -355,7 +355,7 @@ class BaseRiskMetricDataModule(LightningDataModule):
                 ctrl_data=False)
 
             # convert raw data to numpy arrays
-            self.np_data = self.raw_data_to_numpy(raw_data)
+            self.np_data = np_data = self.raw_data_to_numpy(raw_data)
 
         else:
             self.np_data = np_data
@@ -386,7 +386,7 @@ class BaseRiskMetricDataModule(LightningDataModule):
 
         # store high-level information about data in data module
         self.n_data = n_data # number of data points
-        self.observation_shape = np_data.observations.shape
+        self.observation_shape = self.np_data.observations.shape
         if store_raw_data:
             self.separated_raw_data = separated_raw_data
 

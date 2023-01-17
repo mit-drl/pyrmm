@@ -35,7 +35,9 @@ def compile_raw_data(datapaths, verify_func:callable=None, ctrl_data=True):
             storage of state samples, risk_metrics, state observations, 
             min-risk ctrls, and min-risk ctrl durations
         separated_raw_data : dict
-            raw data separated by data files, useful for visualization
+            raw data separated by data files
+            useful for visualization and post-hoc data generation
+            (e.g. creating new training data from data-pairs)
     '''
     # convert path strings in to absolute PosixPaths
     dpaths = [Path(dp).expanduser().resolve() for dp in datapaths]
@@ -238,82 +240,82 @@ class StateFeatureObservationRiskDataset(Dataset):
             self.sro_data.risk_metrics[idx]
         )
 
-class LocalStateFeatureObservationRiskDataset(Dataset):
-    """Dataset that breaks LSFOR data into four categories: 
-        local-state-vectors (LS)
-        local-state-feature-vectors (F)
-        observation-vectors (O)
-        and scalar risk values (R)
+# class LocalStateFeatureObservationRiskDataset(Dataset):
+#     """Dataset that breaks LSFOR data into four categories: 
+#         local-state-vectors (LS)
+#         local-state-feature-vectors (F)
+#         observation-vectors (O)
+#         and scalar risk values (R)
 
-    This dataset is similar to StateFeatureObservationRiskDataset except that the state vector
-    and corresponding feature vector are represented in a local reference frame relative to a 
-    reference state. 
+#     This dataset is similar to StateFeatureObservationRiskDataset except that the state vector
+#     and corresponding feature vector are represented in a local reference frame relative to a 
+#     reference state. 
 
-    This means that each absolute state in the "raw" dataset corresponds to N data points in the
-    dataset because each state can be evaluated in N different local frames.
+#     This means that each absolute state in the "raw" dataset corresponds to N data points in the
+#     dataset because each state can be evaluated in N different local frames.
 
-    This form of dataset is intended for use in risk-metric control barrier function models where
-    risk metrics are modeled as localized, continuously differentiable functions of the observation 
-    at a particular state (input to first layer a neural network) and the feature vector of states
-    in the local coordinate system of the reference state.
+#     This form of dataset is intended for use in risk-metric control barrier function models where
+#     risk metrics are modeled as localized, continuously differentiable functions of the observation 
+#     at a particular state (input to first layer a neural network) and the feature vector of states
+#     in the local coordinate system of the reference state.
 
-    Ref:
-        for implementation reference, see https://rosenfelder.ai/multi-input-neural-network-pytorch/
-    """
-    def __init__(self,
-        sro_data: BaseRiskMetricTrainingData,
-        state_feature_map: callable,
-        local_coord_map: callable
-    ):
-        """
-        Args:
-            sro_data : BaseRiskMetricTrainingData
-                state-risk-observation data from index-aligned, namespace-like object
-            state_feature_map : callable
-                function for computing state feature vectors from state samples so that
-                state features don't have to be predefined, precomuputed, and saved during data 
-                generation time
-            local_coord_map : callable
-                function for mapping an absolute state to a local coordinate frame.
-                For example this may be a simple subtraction of the reference state,
-                but it may require more sophisticated functions for non-Euclidean 
-                spaces
-        """
-        self.sro_data = sro_data
-        self.state_feature_map = state_feature_map
-        self.local_coord_map = local_coord_map
+#     Ref:
+#         for implementation reference, see https://rosenfelder.ai/multi-input-neural-network-pytorch/
+#     """
+#     def __init__(self,
+#         sro_data: BaseRiskMetricTrainingData,
+#         state_feature_map: callable,
+#         local_coord_map: callable
+#     ):
+#         """
+#         Args:
+#             sro_data : BaseRiskMetricTrainingData
+#                 state-risk-observation data from index-aligned, namespace-like object
+#             state_feature_map : callable
+#                 function for computing state feature vectors from state samples so that
+#                 state features don't have to be predefined, precomuputed, and saved during data 
+#                 generation time
+#             local_coord_map : callable
+#                 function for mapping an absolute state to a local coordinate frame.
+#                 For example this may be a simple subtraction of the reference state,
+#                 but it may require more sophisticated functions for non-Euclidean 
+#                 spaces
+#         """
+#         self.sro_data = sro_data
+#         self.state_feature_map = state_feature_map
+#         self.local_coord_map = local_coord_map
 
-    def __len__(self):
-        """each absoluted state corresponds to N data points becasue
-        each state can be mapped to the local reference frame of every other state.
-        Therefore N*2 total data points
-        """
-        return self.sro_data.n_data * self.sro_data.n_data
+#     def __len__(self):
+#         """each absoluted state corresponds to N data points becasue
+#         each state can be mapped to the local reference frame of every other state.
+#         Therefore N*2 total data points
+#         """
+#         return self.sro_data.n_data * self.sro_data.n_data
 
-    def __getitem__(self, idx):
-        """dataset is indexed such that an unraveled 2D index is in 
-        (abs_state, ref_state) order
-        """
+#     def __getitem__(self, idx):
+#         """dataset is indexed such that an unraveled 2D index is in 
+#         (abs_state, ref_state) order
+#         """
 
-        # unravel index to identify the absolute state and reference state
-        n_raw_data = self.sro_data.n_data
-        abs_idx, ref_idx = np.unravel_index(idx, (n_raw_data, n_raw_data))
+#         # unravel index to identify the absolute state and reference state
+#         n_raw_data = self.sro_data.n_data
+#         abs_idx, ref_idx = np.unravel_index(idx, (n_raw_data, n_raw_data))
 
-        # compute local state relative to reference state
-        local_state = self.local_coord_map(
-            abs_state=self.sro_data.state_samples[abs_idx],
-            ref_state=self.sro_data.state_samples[ref_idx])
+#         # compute local state relative to reference state
+#         local_state = self.local_coord_map(
+#             abs_state=self.sro_data.state_samples[abs_idx],
+#             ref_state=self.sro_data.state_samples[ref_idx])
         
-        # compute state feature from state sample
-        local_state_feature = self.state_feature_map(local_state)
+#         # compute state feature from state sample
+#         local_state_feature = self.state_feature_map(local_state)
 
-        # return state-feature-observation-risk data 
-        return (
-            local_state,
-            local_state_feature,
-            self.sro_data.observations[abs_idx],
-            self.sro_data.risk_metrics[abs_idx]
-        )
+#         # return state-feature-observation-risk data 
+#         return (
+#             local_state,
+#             local_state_feature,
+#             self.sro_data.observations[abs_idx],
+#             self.sro_data.risk_metrics[abs_idx]
+#         )
 
 class BaseRiskMetricDataModule(LightningDataModule):
     def __init__(self,
@@ -322,7 +324,7 @@ class BaseRiskMetricDataModule(LightningDataModule):
         batch_size: int, 
         num_workers: int,
         compile_verify_func: callable=None):
-        '''loads, formats, scales and checks risk training data from torch save files
+        '''prelim member variable instantiation, most init processes occur in setup()
         Args:
             datapaths : List[str]
                 list of paths to pytorch data files
@@ -346,6 +348,23 @@ class BaseRiskMetricDataModule(LightningDataModule):
         stage: Optional[str] = None, 
         np_data: Optional[BaseRiskMetricTrainingData]=None,
         store_raw_data: bool=True):
+        '''loads, formats, scales and checks risk training data from torch save files
+
+        These steps are not performed at __init__() so that training and testing
+        can be handled separately but with the same DataModule instance 
+
+        Args:
+            stage : Optional[str]
+                define if the setup if for training or testing purposes
+            np_data : Optional[BaseRiskMetricTrainingData]
+                "raw" data that has already been formatted into numpy objects
+                using a namespace-like-object BaseRiskMetricTrainingData
+                if None is provided, then raw data compiled from datapaths 
+            store_raw_data : bool
+                If True, the raw data stored in a instance variable dictionary
+                separated by the distinct file datapaths from which the data came
+                If False, no such instance variable is set, which saves memory
+        '''
 
         if np_data is None:
             # compile raw data from pytorch files
@@ -506,14 +525,14 @@ class CBFLRMMDataModule(BaseRiskMetricDataModule):
             state_feature_map=self.state_feature_map
         )
 
-class LSFORDataModule(BaseRiskMetricDataModule):
+class LSFORDataModule(CBFLRMMDataModule):
     def __init__(self,
         datapaths: List[str],
         val_ratio: float, 
         batch_size: int, 
         num_workers: int,
         state_feature_map: callable,
-        local_coord_map: callable,
+        local_states_datagen: callable,
         compile_verify_func: callable=None):
         '''Data module for local-state (LS), local-feature-vector (F), observation (O), and risk metric (R) datasets
 
@@ -538,8 +557,10 @@ class LSFORDataModule(BaseRiskMetricDataModule):
                 function for computing state feature vectors from state samples so that
                 state features don't have to be predefined, precomuputed, and saved during data 
                 generation time
-            local_coord_map : callable
-                function for mapping an absolute state to a local coordinate frame.
+            local_states_datagen : callable
+                function for expanding data by generating relative states expressed in local reference frames
+                Expansions creates absolute-state and reference-state pairs based on some filtering critera (e.g. distance)
+                and then maps an absolute state to a local coordinate frame of the reference state.
                 For example this may be a simple subtraction of the reference state,
                 but it may require more sophisticated functions for non-Euclidean 
                 spaces
@@ -549,28 +570,62 @@ class LSFORDataModule(BaseRiskMetricDataModule):
             val_ratio = val_ratio,
             batch_size = batch_size,
             num_workers = num_workers,
+            state_feature_map = state_feature_map,
             compile_verify_func = compile_verify_func
         )
-        self.state_feature_map = state_feature_map
-        self.local_coord_map = local_coord_map
+        self.local_states_datagen = local_states_datagen
 
-    def get_full_dataset(self, pt_scaled_data:BaseRiskMetricTrainingData):
-        """format scaled observations and risk metrics into training dataset
+    def setup(self, stage: Optional[str] = None):
+        """ Load data and then expand the dataset using state-pairing
 
-        Args:
-            pt_scaled_data : BaseRiskMetricTrainingData
-                pytorch tensor data regularized and stored in a namespace-like object
+        Note: this becomes a somewhat convoluted (error-prone?) process
+        because you are calling parent methods multiple times that 
+        overwrite instance variable sometimes but not always. 
+        
+        Furthermore, there is more than one parent class making
+        it even more difficult to hunt down which function is actually
+        called
 
-        Refs:
-            For reference, see Creating a custom PyTorch Dataset in
-            https://rosenfelder.ai/multi-input-neural-network-pytorch/
+        Unforturnately this was the cleanest implementation of this data
+        expansion process that I could come up with 
         """
 
-        return LocalStateFeatureObservationRiskDataset(
-            sro_data=pt_scaled_data,
-            state_feature_map=self.state_feature_map,
-            local_coord_map=self.local_coord_map
-        )
+        # initial pass through setup process to load data from save files 
+        super().setup(stage=stage, np_data=None, store_raw_data=True)
+
+        # using the separated raw data from the first setup pass
+        # generate new data points based upon the localization process
+        # that uses state-pairs to describe relative states in local
+        # reference frames of other states
+        localized_states_data = self.local_states_datagen(separated_raw_data=self.separated_raw_data)
+
+        # re-run parent setup process with expanded set 
+        # of "state-localized" data
+        # Note that store_raw_data is False, so self.separated_raw_data
+        # is not overwritten, but it still exists from the first setup
+        # call. This is a bit confusing because now self.separated_raw_data
+        # and self.np_data don't contain the same values or even have the same 
+        # sizes
+        super().setup(stage=stage, np_data=localized_states_data, store_raw_data=False)
+
+
+    # def get_full_dataset(self, pt_scaled_data:BaseRiskMetricTrainingData):
+    #     """format scaled observations and risk metrics into training dataset
+
+    #     Args:
+    #         pt_scaled_data : BaseRiskMetricTrainingData
+    #             pytorch tensor data regularized and stored in a namespace-like object
+
+    #     Refs:
+    #         For reference, see Creating a custom PyTorch Dataset in
+    #         https://rosenfelder.ai/multi-input-neural-network-pytorch/
+    #     """
+
+    #     return LocalStateFeatureObservationRiskDataset(
+    #         sro_data=pt_scaled_data,
+    #         state_feature_map=self.state_feature_map,
+    #         local_coord_map=self.local_coord_map
+    #     )
 
 
 class RiskCtrlMetricDataModule(BaseRiskMetricDataModule):

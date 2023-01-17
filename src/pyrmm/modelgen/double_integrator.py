@@ -9,7 +9,7 @@ import numpy as np
 import torch.optim as optim
 
 from pathlib import Path
-from typing import List
+from typing import List, Dict
 from hydra.core.config_store import ConfigStore
 from pytorch_lightning import Trainer, seed_everything
 from hydra_zen import builds, make_custom_builds_fn, make_config, instantiate
@@ -24,6 +24,9 @@ from pyrmm.modelgen.modules import \
 
 _CONFIG_NAME = "doubleintegrator1d_modelgen_app"
 
+# state distance threshold for generating localized state data
+_REL_STATE_DIST_THRESH = 1.0
+
 #############################################
 ### SYSTEM-SPECIFIC FUNCTIONS AND CLASSES ###
 #############################################
@@ -35,7 +38,7 @@ class DoubleIntegrator1DDataModule(LSFORDataModule):
         batch_size: int, 
         num_workers: int,
         state_feature_map: callable,
-        local_coord_map: callable,
+        local_states_datagen: callable,
         compile_verify_func: callable):
 
         super().__init__(
@@ -44,11 +47,18 @@ class DoubleIntegrator1DDataModule(LSFORDataModule):
             batch_size=batch_size,
             num_workers=num_workers,
             state_feature_map=state_feature_map,
-            local_coord_map=local_coord_map,
+            local_states_datagen=local_states_datagen,
             compile_verify_func=compile_verify_func)
 
-    def raw_data_to_numpy(self, raw_data:BaseRiskMetricTrainingData):
+    def raw_data_to_numpy(self, raw_data: BaseRiskMetricTrainingData):
+        '''instance-method that re-directs to static method'''
+        return DoubleIntegrator1DDataModule.raw_data_to_numpy(raw_data=raw_data)
+
+    @staticmethod
+    def raw_data_to_numpy(raw_data:BaseRiskMetricTrainingData):
         '''convert raw data (e.g. OMPL objects) to numpy arrays
+
+        Uses static method to be easily callable outside of class
         
         Args:
             raw_data : BaseRiskMetricTrainingData
@@ -89,12 +99,66 @@ def state_feature_map(state_sample):
     """trivial mapping from states to state feature vectors"""
     return state_sample
 
-def local_coord_map(abs_state, ref_state):
-    """conversion of euclidean state to local frame about ref_state
+# def local_coord_map(abs_state, ref_state):
+#     """conversion of euclidean state to local frame about ref_state
 
-    Assumes no angular states that need to be handled
+#     Assumes no angular states that need to be handled
+#     """
+#     return abs_state-ref_state
+
+def local_states_datagen(separated_raw_data:Dict):
+    """Generates new data by mapping states to local coords of other states
+
+    Args:
+        separated_raw_data : Dict
+            raw data from original datagen process separated by data files
+            (i.e. separated by environment instances)
+
+    Returns:
+        localized_states_data : BaseRiskMetricTrainingData
+            newly generated data from localization process compiled into single
+            namespace-like-object BaseRiskMetricTrainingData containing numpy arrays
     """
-    return abs_state-ref_state
+
+    # iterate through each environment instance
+    localized_state_samples = []
+    localized_risk_metrics = []
+    localized_observations = []
+    for dpath, raw_data_i in separated_raw_data.items():
+
+        assert len(raw_data_i[0]) == 5
+
+        # package raw datatype in namespace-like object for dot
+        # access to member variables
+        raw_state_samples_i, raw_risk_metrics_i, raw_observations_i, _, _ = tuple(zip(*raw_data_i))
+        raw_data_obj_i = BaseRiskMetricTrainingData(
+            state_samples=raw_state_samples_i,
+            risk_metrics=raw_risk_metrics_i,
+            observations=raw_observations_i)
+
+        # convert raw data to numpy-like format
+        np_data_i = DoubleIntegrator1DDataModule.raw_data_to_numpy(raw_data=raw_data_obj_i)
+
+        # iterate through each state pair in environment instance
+        for abs_idx, abs_state in enumerate(np_data_i.state_samples):
+            for _, ref_state in enumerate(np_data_i.state_samples):
+
+                # compute relative state
+                rel_state = abs_state - ref_state
+
+                # if within distance threshold, save state sample
+                if np.linalg.norm(rel_state) < _REL_STATE_DIST_THRESH:
+                    localized_state_samples.append(rel_state)
+                    localized_risk_metrics.append(np_data_i.risk_metrics[abs_idx])
+                    localized_observations.append(np_data_i.observations[abs_idx])
+
+    # compile all localized state data and return
+    return BaseRiskMetricTrainingData(
+        state_samples=np.asarray(localized_state_samples),
+        risk_metrics=np.asarray(localized_risk_metrics),
+        observations=np.asarray(localized_observations)
+    )
+
 
 ##############################################
 ############# HYDARA-ZEN CONFIGS #############
@@ -106,7 +170,7 @@ DataConf = pbuilds(DoubleIntegrator1DDataModule,
     batch_size=64, 
     num_workers=4,
     state_feature_map=state_feature_map,
-    local_coord_map=local_coord_map,
+    local_states_datagen=local_states_datagen,
     compile_verify_func=verify_compiled_data
 )
 

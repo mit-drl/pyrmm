@@ -124,25 +124,25 @@ class BaseRiskMetricTrainingData():
         self.risk_metrics = risk_metrics
         self.observations = observations
 
-# class SFORData(BaseRiskMetricTrainingData):
-#     """namespace-like class for indexed aligned state, features, obs, and risk data
-#     SFOR = state samples(S), state feature vectors (F), observation vectors (O), risk scalars (R)
-#     """
-#     def __init__(self, 
-#         state_samples: ArrayLike,
-#         state_features: ArrayLike, 
-#         risk_metrics: ArrayLike, 
-#         observations: ArrayLike
-#     ):
+class SFORData(BaseRiskMetricTrainingData):
+    """namespace-like class for indexed aligned state, features, obs, and risk data
+    SFOR = state samples(S), state feature vectors (F), observation vectors (O), risk scalars (R)
+    """
+    def __init__(self, 
+        state_samples: ArrayLike,
+        state_features: ArrayLike, 
+        risk_metrics: ArrayLike, 
+        observations: ArrayLike
+    ):
 
-#         super().__init__(
-#             state_samples=state_samples,
-#             risk_metrics=risk_metrics,
-#             observations=observations
-#         )
+        super().__init__(
+            state_samples=state_samples,
+            risk_metrics=risk_metrics,
+            observations=observations
+        )
 
-#         assert len(state_features) == self.n_data
-#         self.state_features = state_features
+        assert len(state_features) == self.n_data
+        self.state_features = state_features
 
 class RiskCtrlMetricTrainingData(BaseRiskMetricTrainingData):
     '''object to hold sampled states, risk metric values, and state observations
@@ -193,6 +193,43 @@ class RiskCtrlMetricTrainingData(BaseRiskMetricTrainingData):
         self.min_risk_ctrl_durs = min_risk_ctrl_durs
 
 class StateFeatureObservationRiskDataset(Dataset):
+    """Dataset that breaks data into four categories: 
+        state-vectors, state-feature-vectors, observation-vectors, and scalar risk values
+
+    The intended use is for learned control barrier functions 
+    (aka learned risk metric map control barrier functions aka CBFLRMM aka RiskCBF,
+    nomenclature is still being settled)
+    where the observation vectors are fed as inputs at the front layer of a network
+    The states---or more accurate state feature vectors, phi(x)---are fed as input to 
+    an intermediate layer to compute a weighted sum (weighted by the network weights
+    at that layer) which estimates the scalar risk values. 
+    The risk values in the dataset are therefore the target variables
+
+    Ref:
+        for implementation reference, see https://rosenfelder.ai/multi-input-neural-network-pytorch/
+    """
+    def __init__(self, sfor_data: SFORData):
+        """
+        Args:
+            sfor_data : SFORData
+                state-feature-observation-risk data from index-aligned, namespace-like object
+        """
+        self.sfor_data = sfor_data
+
+    def __len__(self):
+        return self.sfor_data.n_data
+
+    def __getitem__(self, idx):
+
+        # return state-feature-observation-risk data 
+        return (
+            self.sfor_data.state_samples[idx],
+            self.sfor_data.state_features[idx],
+            self.sfor_data.observations[idx],
+            self.sfor_data.risk_metrics[idx]
+        )
+
+class deprecated_StateFeatureObservationRiskDataset(Dataset):
     """Dataset that breaks data into four categories: 
         state-vectors, state-feature-vectors, observation-vectors, and scalar risk values
 
@@ -374,19 +411,19 @@ class BaseRiskMetricDataModule(LightningDataModule):
                 ctrl_data=False)
 
             # convert raw data to numpy arrays
-            self.np_data = np_data = self.raw_data_to_numpy(raw_data)
+            np_data = self.raw_data_to_numpy(raw_data)
 
         else:
-            self.np_data = np_data
+            pass
 
         # verify numpy data for consistency
-        self.verify_numpy_data(np_data=self.np_data)
+        self.verify_numpy_data(np_data=np_data)
 
         # scale data and format as tensors
         pt_scaled_data = self._scale_data()
         
         # format dataset of inputs and targets
-        full_dataset = self.get_full_dataset(pt_scaled_data=pt_scaled_data)
+        full_dataset = self.format_scaled_dataset(pt_scaled_data=pt_scaled_data)
         n_data = len(full_dataset)
 
         # handle training and testing separately
@@ -405,39 +442,50 @@ class BaseRiskMetricDataModule(LightningDataModule):
 
         # store high-level information about data in data module
         self.n_data = n_data # number of data points
-        self.observation_shape = self.np_data.observations.shape
+        self.observation_shape = np_data.observations.shape
         if store_raw_data:
             self.separated_raw_data = separated_raw_data
 
-        self._extended_setup()
+        # self._extended_setup()
 
-    def _scale_data(self):
+    def _scale_data(self, np_data:BaseRiskMetricTrainingData)->BaseRiskMetricTrainingData:
         """creates data regularizers and returns scaled data in tensor format
-    
 
-        Note:
-            implying a private function (_) because self is modified to create scalers
+        Args:
+            np_data : BaseRiskMetricTrainingData
+                unscaled data in numpy arrays stored in namespace-like object
+            
+        Returns
+            pt_scaled_data : BaseRiskMetricTrainingData
+                scaled data in pytorch tensors stored in namespace-like object
+    
+        Notes:
+            + Implying a private function (_) because self is modified to create scalers.
+            + The risk metrics (i.e. "outputs") are not scaled because they are assumed to already
+                be in range 0-1. This is done so that we aren't keeping track of a superfluous
+                data scaler, but perhaps it is better to have it just for consistency...?
+            
         """
 
         # Create input and output data regularizers
         # Ref: https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html#what-is-a-datamodule
         self.state_scaler = MinMaxScaler()
-        self.state_scaler.fit(self.np_data.state_samples)
+        self.state_scaler.fit(np_data.state_samples)
         self.observation_scaler = MinMaxScaler()
-        self.observation_scaler.fit(self.np_data.observations)
+        self.observation_scaler.fit(np_data.observations)
         # self.output_scaler = MinMaxScaler()
         # self.output_scaler.fit(rmetrics_np)
 
         # scale and convert to tensor
         pt_scaled_data = BaseRiskMetricTrainingData(
-            state_samples=torch.from_numpy(self.state_scaler.transform(self.np_data.state_samples)),
-            risk_metrics=torch.from_numpy(self.np_data.risk_metrics),
-            observations=torch.from_numpy(self.observation_scaler.transform(self.np_data.observations))
+            state_samples=torch.from_numpy(self.state_scaler.transform(np_data.state_samples)),
+            risk_metrics=torch.from_numpy(np_data.risk_metrics),
+            observations=torch.from_numpy(self.observation_scaler.transform(np_data.observations))
         )
 
         return pt_scaled_data
 
-    def get_full_dataset(self, pt_scaled_data:BaseRiskMetricTrainingData):
+    def format_scaled_dataset(self, pt_scaled_data:BaseRiskMetricTrainingData):
         """format scaled observations and risk metrics into training dataset
 
         Args:
@@ -446,13 +494,13 @@ class BaseRiskMetricDataModule(LightningDataModule):
         """
         return TensorDataset(pt_scaled_data.observations, pt_scaled_data.risk_metrics)
 
-    def _extended_setup(self):
-        """additional setup steps that may be overridden by child classes
+    # def _extended_setup(self):
+    #     """additional setup steps that may be overridden by child classes
 
-        Note:
-            implied private function because self may be modified
-        """
-        pass
+    #     Note:
+    #         implied private function because self may be modified
+    #     """
+    #     pass
         
     def raw_data_to_numpy(self, raw_data: BaseRiskMetricTrainingData):
         '''convert raw data (e.g. OMPL objects) to numpy arrays'''
@@ -472,60 +520,7 @@ class BaseRiskMetricDataModule(LightningDataModule):
     def test_dataloader(self):
         return DataLoader(self.test_dataset, num_workers=self.num_workers, batch_size=self.batch_size)
 
-
-class CBFLRMMDataModule(BaseRiskMetricDataModule):
-    def __init__(self,
-        datapaths: List[str],
-        val_ratio: float, 
-        batch_size: int, 
-        num_workers: int,
-        state_feature_map: callable,
-        compile_verify_func: callable=None):
-        '''loads, formats, scales, checks, and applies feature map of state-risk-observation training data from torch save files
-
-        Intended for use within a control barrier function (CBF) with learned risk metric map (LRMM) network model
-
-        Args:
-            datapaths : List[str]
-                list of paths to pytorch data files
-            val_ratio : float
-                ratio of data to be used in validation set. 0=no validation data, 1=all validation data
-            batch_size : int
-                size of training batches
-            num_workers : int
-                number of workers to use for dataloader
-            state_feature_map : callable
-                function for computing state feature vectors from state samples so that
-                state features don't have to be predefined, precomuputed, and saved during data 
-                generation time
-        '''
-        super().__init__(
-            datapaths = datapaths,
-            val_ratio = val_ratio,
-            batch_size = batch_size,
-            num_workers = num_workers,
-            compile_verify_func = compile_verify_func
-        )
-        self.state_feature_map = state_feature_map
-
-    def get_full_dataset(self, pt_scaled_data:BaseRiskMetricTrainingData):
-        """format scaled observations and risk metrics into training dataset
-
-        Args:
-            pt_scaled_data : BaseRiskMetricTrainingData
-                pytorch tensor data regularized and stored in a namespace-like object
-
-        Refs:
-            For reference, see Creating a custom PyTorch Dataset in
-            https://rosenfelder.ai/multi-input-neural-network-pytorch/
-        """
-
-        return StateFeatureObservationRiskDataset(
-            sro_data=pt_scaled_data,
-            state_feature_map=self.state_feature_map
-        )
-
-class LSFORDataModule(CBFLRMMDataModule):
+class LSFORDataModule(BaseRiskMetricDataModule):
     def __init__(self,
         datapaths: List[str],
         val_ratio: float, 
@@ -570,9 +565,9 @@ class LSFORDataModule(CBFLRMMDataModule):
             val_ratio = val_ratio,
             batch_size = batch_size,
             num_workers = num_workers,
-            state_feature_map = state_feature_map,
             compile_verify_func = compile_verify_func
         )
+        self.state_feature_map = state_feature_map
         self.local_states_datagen = local_states_datagen
 
     def setup(self, stage: Optional[str] = None):
@@ -590,62 +585,105 @@ class LSFORDataModule(CBFLRMMDataModule):
         # generate new data points based upon the localization process
         # that uses state-pairs to describe relative states in local
         # reference frames of other states
-        localized_states_data = self.local_states_datagen(separated_raw_data=separated_raw_data)
+        np_local_states_data = self.local_states_datagen(separated_raw_data=separated_raw_data)
+        n_data = len(np_local_states_data.state_samples)
 
-        # run parent setup process with expanded set 
-        # of "state-localized" data as numpy data
-        super().setup(stage=stage, np_data=localized_states_data, store_raw_data=False)
+        # compute state features on localized states
+        state_features = n_data*[None]
+        for i in range(n_data):
+            state_features[i] = self.state_feature_map(np_local_states_data.state_samples[i])
+        state_features = np.asarray(state_features)
 
-    # def setup(self, stage: Optional[str] = None):
-    #     """ Load data and then expand the dataset using state-pairing
+        np_sfor_data = SFORData(
+            state_samples=np_local_states_data.state_samples,
+            state_features=state_features,
+            observations=np_local_states_data.observations,
+            risk_metrics=np_local_states_data.risk_metrics)
 
-    #     Note: this becomes a somewhat convoluted (error-prone?) process
-    #     because you are calling parent methods multiple times that 
-    #     overwrite instance variable sometimes but not always. 
-        
-    #     Furthermore, there is more than one parent class making
-    #     it even more difficult to hunt down which function is actually
-    #     called
+        # ensure consistency in shape of unscaled numpy data
+        self.verify_numpy_data(np_data=np_sfor_data)
 
-    #     Unforturnately this was the cleanest implementation of this data
-    #     expansion process that I could come up with 
-    #     """
+        # scale data for better numerical performance and convert to tensors
+        pt_scaled_sfor_data = self._scale_data(np_data=np_sfor_data)
 
-    #     # initial pass through setup process to load data from save files 
-    #     super().setup(stage=stage, np_data=None, store_raw_data=True)
+        # format dataset of inputs and targets
+        full_dataset = self.format_scaled_dataset(pt_scaled_data=pt_scaled_sfor_data)
+        assert len(full_dataset) == n_data
 
-    #     # using the separated raw data from the first setup pass
-    #     # generate new data points based upon the localization process
-    #     # that uses state-pairs to describe relative states in local
-    #     # reference frames of other states
-    #     localized_states_data = self.local_states_datagen(separated_raw_data=self.separated_raw_data)
+        # handle training and testing separately
+        if stage == "fit":
+            # randomly split training and validation dataset
+            assert self.val_ratio >= 0 and self.val_ratio <= 1
+            n_val = int(n_data*self.val_ratio)
+            n_train = n_data - n_val
+            self.train_dataset, self.val_dataset = random_split(full_dataset, [n_train, n_val])
 
-    #     # re-run parent setup process with expanded set 
-    #     # of "state-localized" data
-    #     # Note that store_raw_data is False, so self.separated_raw_data
-    #     # is not overwritten, but it still exists from the first setup
-    #     # call. This is a bit confusing because now self.separated_raw_data
-    #     # and self.np_data don't contain the same values or even have the same 
-    #     # sizes
-    #     super().setup(stage=stage, np_data=localized_states_data, store_raw_data=False)
+        elif stage == "test":
+            self.test_dataset = full_dataset
 
-    # def get_full_dataset(self, pt_scaled_data:BaseRiskMetricTrainingData):
-    #     """format scaled observations and risk metrics into training dataset
+        else:
+            raise ValueError('Unexpected stage {}'.format(stage))
 
-    #     Args:
-    #         pt_scaled_data : BaseRiskMetricTrainingData
-    #             pytorch tensor data regularized and stored in a namespace-like object
+        # store high-level information about data in data module
+        self.n_data = n_data # number of data points
+        self.observation_shape = np_sfor_data.observations.shape
 
-    #     Refs:
-    #         For reference, see Creating a custom PyTorch Dataset in
-    #         https://rosenfelder.ai/multi-input-neural-network-pytorch/
-    #     """
+    def verify_numpy_data(self, np_data: SFORData):
+        '''checks on data shape once converted to numpy form'''
+        assert np_data.state_samples.shape[0] == np_data.state_features.shape[0] == \
+             np_data.risk_metrics.shape[0] == np_data.observations.shape[0]
+        assert len(np_data.state_samples.shape) == len(np_data.state_features.shape) == \
+            len(np_data.risk_metrics.shape) == len(np_data.observations.shape)
 
-    #     return LocalStateFeatureObservationRiskDataset(
-    #         sro_data=pt_scaled_data,
-    #         state_feature_map=self.state_feature_map,
-    #         local_coord_map=self.local_coord_map
-    #     )
+    def _scale_data(self, np_data:SFORData)->SFORData:
+        """creates data regularizers and returns scaled data in tensor format
+
+        Args:
+            np_data : SFORData
+                unscaled data in numpy arrays stored in namespace-like object
+            
+        Returns
+            pt_scaled_data : SFORData
+                scaled data in pytorch tensors stored in namespace-like object
+    
+        Notes:
+            + Implying a private function (_) because self is modified to create scalers.
+            + The risk metrics (i.e. "outputs") are not scaled because they are assumed to already
+                be in range 0-1. This is done so that we aren't keeping track of a superfluous
+                data scaler, but perhaps it is better to have it just for consistency...?
+            
+        """
+
+        # Create state, feature (input), observation (input) data regularizers,
+        # Do not create risk (output) regulizer 
+        # Ref: https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html#what-is-a-datamodule
+        self.state_scaler = MinMaxScaler()
+        self.state_scaler.fit(np_data.state_samples)
+        self.feature_scaler = MinMaxScaler()
+        self.feature_scaler.fit(np_data.state_features)
+        self.observation_scaler = MinMaxScaler()
+        self.observation_scaler.fit(np_data.observations)
+        # self.risk_metric_scaler = MinMaxScaler()
+        # self.risk_metric_scaler.fit(rmetrics_np)
+
+        # scale and convert to tensor
+        pt_scaled_data = SFORData(
+            state_samples=torch.from_numpy(self.state_scaler.transform(np_data.state_samples)),
+            state_features=torch.from_numpy(self.feature_scaler.transform(np_data.state_features)),
+            observations=torch.from_numpy(self.observation_scaler.transform(np_data.observations)),
+            risk_metrics=torch.from_numpy(np_data.risk_metrics),
+        )
+
+        return pt_scaled_data
+
+    def format_scaled_dataset(self, pt_scaled_data:SFORData):
+        """format scaled observations and risk metrics into training dataset
+
+        Args:
+            pt_scaled_data : SFOR
+                pytorch tensor data regularized and stored in a namespace-like object
+        """
+        return StateFeatureObservationRiskDataset(sfor_data=pt_scaled_data)
 
 
 class RiskCtrlMetricDataModule(BaseRiskMetricDataModule):
@@ -704,7 +742,7 @@ class RiskCtrlMetricDataModule(BaseRiskMetricDataModule):
 
         return pt_scaled_data
 
-    def get_full_dataset(self, pt_scaled_data:BaseRiskMetricTrainingData):
+    def format_scaled_dataset(self, pt_scaled_data:BaseRiskMetricTrainingData):
         """format scaled observations and risk metrics into training dataset
 
         Args:
@@ -728,3 +766,55 @@ class RiskCtrlMetricDataModule(BaseRiskMetricDataModule):
             implied private function because self may be modified
         """
         self.control_shape = self.np_data.min_risk_ctrls.shape
+
+class deprecated_CBFLRMMDataModule(BaseRiskMetricDataModule):
+    def __init__(self,
+        datapaths: List[str],
+        val_ratio: float, 
+        batch_size: int, 
+        num_workers: int,
+        state_feature_map: callable,
+        compile_verify_func: callable=None):
+        '''loads, formats, scales, checks, and applies feature map of state-risk-observation training data from torch save files
+
+        Intended for use within a control barrier function (CBF) with learned risk metric map (LRMM) network model
+
+        Args:
+            datapaths : List[str]
+                list of paths to pytorch data files
+            val_ratio : float
+                ratio of data to be used in validation set. 0=no validation data, 1=all validation data
+            batch_size : int
+                size of training batches
+            num_workers : int
+                number of workers to use for dataloader
+            state_feature_map : callable
+                function for computing state feature vectors from state samples so that
+                state features don't have to be predefined, precomuputed, and saved during data 
+                generation time
+        '''
+        super().__init__(
+            datapaths = datapaths,
+            val_ratio = val_ratio,
+            batch_size = batch_size,
+            num_workers = num_workers,
+            compile_verify_func = compile_verify_func
+        )
+        self.state_feature_map = state_feature_map
+
+    def format_scaled_dataset(self, pt_scaled_data:BaseRiskMetricTrainingData):
+        """format scaled observations and risk metrics into training dataset
+
+        Args:
+            pt_scaled_data : BaseRiskMetricTrainingData
+                pytorch tensor data regularized and stored in a namespace-like object
+
+        Refs:
+            For reference, see Creating a custom PyTorch Dataset in
+            https://rosenfelder.ai/multi-input-neural-network-pytorch/
+        """
+
+        return deprecated_StateFeatureObservationRiskDataset(
+            sro_data=pt_scaled_data,
+            state_feature_map=self.state_feature_map
+        )

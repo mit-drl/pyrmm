@@ -14,7 +14,7 @@ from hydra_zen import make_custom_builds_fn, make_config, instantiate
 from hydra.core.config_store import ConfigStore
 
 from pyrmm.modelgen.data_modules import \
-    BaseRiskMetricTrainingData, CBFLRMMDataModule, \
+    BaseRiskMetricTrainingData, deprecated_CBFLRMMDataModule, \
     LSFORDataModule
 from pyrmm.modelgen.modules import \
     ShallowRiskCBFPerceptron, \
@@ -60,7 +60,7 @@ pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 #     compile_verify_func=None
 # )
 
-DataConf = pbuilds(CBFLRMMDataModule, 
+DataConf = pbuilds(deprecated_CBFLRMMDataModule, 
     val_ratio=0.15, 
     batch_size=64, 
     num_workers=4,

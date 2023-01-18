@@ -112,7 +112,7 @@ def trivial_state_feature_map_w_bias(state_sample):
             pytorch tensor of the particular state sample
     
     """
-    return torch.cat((state_sample, torch.ones(1)))
+    return np.concatenate((state_sample, np.ones(1)))
 
 # def local_coord_map(abs_state, ref_state):
 #     """conversion of euclidean state to local frame about ref_state
@@ -121,7 +121,7 @@ def trivial_state_feature_map_w_bias(state_sample):
 #     """
 #     return abs_state-ref_state
 
-def local_states_datagen(separated_raw_data:Dict):
+def local_states_datagen(separated_raw_data:Dict)->BaseRiskMetricTrainingData:
     """Generates new data by mapping states to local coords of other states
 
     Args:

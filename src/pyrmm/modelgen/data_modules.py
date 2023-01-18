@@ -577,37 +577,57 @@ class LSFORDataModule(CBFLRMMDataModule):
 
     def setup(self, stage: Optional[str] = None):
         """ Load data and then expand the dataset using state-pairing
-
-        Note: this becomes a somewhat convoluted (error-prone?) process
-        because you are calling parent methods multiple times that 
-        overwrite instance variable sometimes but not always. 
-        
-        Furthermore, there is more than one parent class making
-        it even more difficult to hunt down which function is actually
-        called
-
-        Unforturnately this was the cleanest implementation of this data
-        expansion process that I could come up with 
         """
 
-        # initial pass through setup process to load data from save files 
-        super().setup(stage=stage, np_data=None, store_raw_data=True)
+        # extract raw data separated by datafile (i.e. datagen
+        # environment instance)
+        _, separated_raw_data = compile_raw_data(
+            datapaths=self.datapaths, 
+            verify_func=self.compile_verify_func,
+            ctrl_data=False)
 
         # using the separated raw data from the first setup pass
         # generate new data points based upon the localization process
         # that uses state-pairs to describe relative states in local
         # reference frames of other states
-        localized_states_data = self.local_states_datagen(separated_raw_data=self.separated_raw_data)
+        localized_states_data = self.local_states_datagen(separated_raw_data=separated_raw_data)
 
-        # re-run parent setup process with expanded set 
-        # of "state-localized" data
-        # Note that store_raw_data is False, so self.separated_raw_data
-        # is not overwritten, but it still exists from the first setup
-        # call. This is a bit confusing because now self.separated_raw_data
-        # and self.np_data don't contain the same values or even have the same 
-        # sizes
+        # run parent setup process with expanded set 
+        # of "state-localized" data as numpy data
         super().setup(stage=stage, np_data=localized_states_data, store_raw_data=False)
 
+    # def setup(self, stage: Optional[str] = None):
+    #     """ Load data and then expand the dataset using state-pairing
+
+    #     Note: this becomes a somewhat convoluted (error-prone?) process
+    #     because you are calling parent methods multiple times that 
+    #     overwrite instance variable sometimes but not always. 
+        
+    #     Furthermore, there is more than one parent class making
+    #     it even more difficult to hunt down which function is actually
+    #     called
+
+    #     Unforturnately this was the cleanest implementation of this data
+    #     expansion process that I could come up with 
+    #     """
+
+    #     # initial pass through setup process to load data from save files 
+    #     super().setup(stage=stage, np_data=None, store_raw_data=True)
+
+    #     # using the separated raw data from the first setup pass
+    #     # generate new data points based upon the localization process
+    #     # that uses state-pairs to describe relative states in local
+    #     # reference frames of other states
+    #     localized_states_data = self.local_states_datagen(separated_raw_data=self.separated_raw_data)
+
+    #     # re-run parent setup process with expanded set 
+    #     # of "state-localized" data
+    #     # Note that store_raw_data is False, so self.separated_raw_data
+    #     # is not overwritten, but it still exists from the first setup
+    #     # call. This is a bit confusing because now self.separated_raw_data
+    #     # and self.np_data don't contain the same values or even have the same 
+    #     # sizes
+    #     super().setup(stage=stage, np_data=localized_states_data, store_raw_data=False)
 
     # def get_full_dataset(self, pt_scaled_data:BaseRiskMetricTrainingData):
     #     """format scaled observations and risk metrics into training dataset

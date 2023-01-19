@@ -113,11 +113,25 @@ def trivial_state_feature_map_w_bias(state_sample):
     the origin of a local coord frame)
 
     Args:
-        state_sample : tensor
-            pytorch tensor of the particular state sample
+        state_sample : ArrayLike
+            numpy array of the particular state sample
     
     """
     return np.concatenate((state_sample, np.ones(1)))
+
+def quadratic_state_feature_map(state_sample):
+    """state feature that reproduces the state sample and a bias term
+
+    The bias term is intended to allow for non-zero risk metric 
+    when the rest of the state features are zero (e.g. at a 
+    the origin of a local coord frame)
+
+    Args:
+        state_sample : ArrayLike
+            numpy array of the particular state sample
+    
+    """
+    return np.concatenate((state_sample, np.square(state_sample), np.ones(1)))
 
 # def local_coord_map(abs_state, ref_state):
 #     """conversion of euclidean state to local frame about ref_state
@@ -189,14 +203,16 @@ DataConf = pbuilds(DoubleIntegrator1DDataModule,
     val_ratio=0.15, 
     batch_size=64, 
     num_workers=4,
-    state_feature_map=trivial_state_feature_map_w_bias,
+    # state_feature_map=trivial_state_feature_map_w_bias,
+    state_feature_map=quadratic_state_feature_map,
     local_states_datagen=local_states_datagen,
     compile_verify_func=verify_compiled_data
 )
 
 ModelConf = pbuilds(ShallowRiskCBFPerceptron,  
     # num_obs_inputs=2,
-    num_state_features=3,
+    # num_state_features=3,
+    num_state_features=5,
     num_neurons=8
 )
 

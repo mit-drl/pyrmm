@@ -659,8 +659,8 @@ class LSFORDataModule(BaseRiskMetricDataModule):
         # Ref: https://pytorch-lightning.readthedocs.io/en/stable/extensions/datamodules.html#what-is-a-datamodule
         self.state_scaler = MinMaxScaler()
         self.state_scaler.fit(np_data.state_samples)
-        self.feature_scaler = MinMaxScaler()
-        self.feature_scaler.fit(np_data.state_features)
+        # self.feature_scaler = MinMaxScaler()
+        # self.feature_scaler.fit(np_data.state_features)
         self.observation_scaler = MinMaxScaler()
         self.observation_scaler.fit(np_data.observations)
         # self.risk_metric_scaler = MinMaxScaler()
@@ -669,7 +669,8 @@ class LSFORDataModule(BaseRiskMetricDataModule):
         # scale and convert to tensor
         pt_scaled_data = SFORData(
             state_samples=torch.from_numpy(self.state_scaler.transform(np_data.state_samples)),
-            state_features=torch.from_numpy(self.feature_scaler.transform(np_data.state_features)),
+            # state_features=torch.from_numpy(self.feature_scaler.transform(np_data.state_features)),
+            state_features=torch.from_numpy(np_data.state_features),
             observations=torch.from_numpy(self.observation_scaler.transform(np_data.observations)),
             risk_metrics=torch.from_numpy(np_data.risk_metrics),
         )

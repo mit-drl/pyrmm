@@ -52,7 +52,12 @@ class DoubleIntegrator1DDataModule(LSFORDataModule):
             compile_verify_func=compile_verify_func)
 
     def raw_data_to_numpy(self, raw_data: BaseRiskMetricTrainingData):
-        '''instance-method that re-directs to static method'''
+        '''instance-method that re-directs to static method
+
+        This re-direct allows for overwritting a parent class while the
+        static method allows this method to be called without creating an 
+        instance of this child class
+        '''
         return DoubleIntegrator1DDataModule.raw_data_to_numpy(raw_data=raw_data)
 
     @staticmethod

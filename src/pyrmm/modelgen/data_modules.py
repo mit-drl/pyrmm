@@ -242,6 +242,9 @@ class deprecated_StateFeatureObservationRiskDataset(Dataset):
     at that layer) which estimates the scalar risk values. 
     The risk values in the dataset are therefore the target variables
 
+    Deprecated in favor of implementation that does not evaluate state features during
+    data point access in __getitem__
+
     Ref:
         for implementation reference, see https://rosenfelder.ai/multi-input-neural-network-pytorch/
     """

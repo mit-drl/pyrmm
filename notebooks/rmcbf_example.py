@@ -33,7 +33,8 @@ XTIL_2 = 0.0
 # initial/current state of system, or 
 # state at which observation z is taken
 P_Z_ARR = np.linspace(-1.0, 4.5)    # [m]
-V_Z_ARR = np.arange(-1, 2.5, 0.5)   # [m/s]
+# V_Z_ARR = np.arange(-1, 2.5, 0.5)   # [m/s]
+V_Z_ARR = np.linspace(-1, 2.5)   # [m/s]
 
 # plotting params
 MARKER = itertools.cycle((',', '+', '.', 'o', '*')) 
@@ -117,10 +118,13 @@ def run_rmcbf_analysis():
     # Note: this is hacky to have to remember the exact number of observation
     # inputs, state features, and neurons. There has got to be a better way 
     # save these params at model save time
+    n_obsv_dim = 3
+    n_feat_dim = 5
+    n_neurons = 8
     rmcbf_model = ShallowRiskCBFPerceptron(
-        num_obs_inputs=3,
-        num_state_features=5,
-        num_neurons=8
+        num_obs_inputs=n_obsv_dim,
+        num_state_features=n_feat_dim,
+        num_neurons=n_neurons
     )
 
     # load checkpoint
@@ -168,6 +172,7 @@ def run_rmcbf_analysis():
 
     # iterate through states
     risks = np.empty((len(V_Z_ARR), len(P_Z_ARR)))
+    cbf_weights = np.empty((len(V_Z_ARR), len(P_Z_ARR), n_feat_dim))
     ctrls = np.empty((len(V_Z_ARR), len(P_Z_ARR)))
     for i, v_z in enumerate(V_Z_ARR):
         for j, p_z in enumerate(P_Z_ARR):
@@ -188,10 +193,10 @@ def run_rmcbf_analysis():
             o_z_scaled_pt = torch.from_numpy(
                 np.float32(
                     rmcbf_data_mod.observation_scaler.transform(
-                        o_z_np.reshape(1,3)
+                        o_z_np.reshape(1,n_obsv_dim)
                     )
                 )
-            ).reshape(3,)
+            ).reshape(n_obsv_dim,)
             print("DEBUG: scaled observation = ",o_z_scaled_pt)
 
             # compute state features of localized state
@@ -202,7 +207,7 @@ def run_rmcbf_analysis():
             # infer risk metric and output cbf weights from trained model
             rho_z_pt, w_cbf_pt = rmcbf.forward(observation=o_z_scaled_pt, state_features=torch.from_numpy(ftil_z_np))
             risks[i,j] = rho_z_pt.detach().numpy()
-            w_cbf_pt = w_cbf_pt.detach()
+            cbf_weights[i,j,:] = w_cbf_pt.detach().numpy()
             print("DEBUG: inferred risk metric = ", rho_z_pt)
 
         plt.plot(P_Z_ARR, risks[i], marker = next(MARKER), label="v={} m/s".format(v_z))
@@ -213,6 +218,79 @@ def run_rmcbf_analysis():
     plt.legend()
     plt.show()
 
+
+    p_mesh, v_mesh = np.meshgrid(P_Z_ARR, V_Z_ARR)
+    fig, ax = plt.subplots()
+    pcm = ax.pcolormesh(p_mesh, v_mesh, risks, cmap="turbo", vmin=0, vmax=1)
+    fig.colorbar(pcm, ax=ax)
+    plt.title("Risk Estimate (Failure Probability) Inferred at Each State\n"+
+        "for 1-D Double Integrator System with Obstacle at position=5")
+    plt.xlabel("position [m]")
+    plt.ylabel("velocity [m/s]")
+    plt.show()
+
+    #################################
+
+    # analyze inferred risk function from single observation
+    # package state in np array and convert state to ompl
+    # s_z_np = np.zeros(2)
+    # s_z_np = np.array([4.5, 0.0])
+    # s_z_np = np.array([4.5, 2.0])
+    s_z_np = np.array([2.0, 1.0])
+    s_z_ompl = di1d_setup.space_info.allocState()
+    di1d_setup.state_numpy_to_ompl(np_state=s_z_np, omplState=s_z_ompl)
+    print("DEBUG: state = ",s_z_np)
+
+    # get observation of state
+    o_z_np = di1d_setup.observeState(state=s_z_ompl)
+    print("DEBUG: observation = ",o_z_np)
+
+    # scale observation
+    o_z_scaled_pt = torch.from_numpy(
+        np.float32(
+            rmcbf_data_mod.observation_scaler.transform(
+                o_z_np.reshape(1,n_obsv_dim)
+            )
+        )
+    ).reshape(n_obsv_dim,)
+    print("DEBUG: scaled observation = ",o_z_scaled_pt)
+
+    # iterate through states
+    risks_0_0 = np.empty((len(V_Z_ARR), len(P_Z_ARR)))
+    # stil_z_np = np.empty((len(V_Z_ARR), len(P_Z_ARR), 2))
+    for i, v_z in enumerate(V_Z_ARR):
+        for j, p_z in enumerate(P_Z_ARR):
+
+            # compute state features of localized state
+            stil_z_np = np.array([p_z, v_z]) - s_z_np
+            ftil_z_np = rmcbf_data_mod.state_feature_map(stil_z_np)
+            print("DEBUG: state feature of local state = ", ftil_z_np)
+
+            # infer risk metric and output cbf weights from trained model
+            rho_z_pt, w_cbf_pt = rmcbf.forward(observation=o_z_scaled_pt, state_features=torch.from_numpy(ftil_z_np))
+            risks_0_0[i,j] = rho_z_pt.detach().numpy()
+            cbf_weights[i,j,:] = w_cbf_pt.detach().numpy()
+            print("DEBUG: cbf weights = ", cbf_weights[i,j,:])
+
+        # plt.plot(P_Z_ARR, risks_0_0[i], marker = next(MARKER), label="v={} m/s".format(v_z))
+
+    # ref: https://stackoverflow.com/a/54088910/4055705
+    p_mesh, v_mesh = np.meshgrid(P_Z_ARR, V_Z_ARR)
+    fig, ax = plt.subplots()
+    pcm = ax.pcolormesh(p_mesh, v_mesh, risks_0_0, cmap="turbo", vmin=0, vmax=1)
+    fig.colorbar(pcm, ax=ax)
+    plt.title("Risk Estimate (Failure Probability) Extrapolated from\n"+
+        "Single-Point Risk Function at p={} [m], v= {} [m/s]\n".format(s_z_np[0], s_z_np[1])+
+        "for 1-D Double Integrator System with Obstacle at position=5")
+    plt.xlabel("position [m]")
+    plt.ylabel("velocity [m/s]")
+    plt.show()
+
+    # plt.title("Risk Estimate As Function of Position and Velocity\nfrom Single Point Risk Function\n1-D Double Integrator System with Obstacle at position=5")
+    # plt.xlabel("position [m]")
+    # plt.ylabel("probability of failure [-]")
+    # plt.legend()
+    # plt.show()
 
 
 if __name__ == "__main__":

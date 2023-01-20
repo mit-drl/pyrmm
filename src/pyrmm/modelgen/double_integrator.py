@@ -131,7 +131,7 @@ def quadratic_state_feature_map(state_sample):
             numpy array of the particular state sample
     
     """
-    return np.concatenate((state_sample, np.square(state_sample), np.ones(1)))
+    return np.concatenate((state_sample, np.square(state_sample), [state_sample[0]*state_sample[1]], np.ones(1)))
 
 # def local_coord_map(abs_state, ref_state):
 #     """conversion of euclidean state to local frame about ref_state
@@ -212,7 +212,7 @@ DataConf = pbuilds(DoubleIntegrator1DDataModule,
 ModelConf = pbuilds(ShallowRiskCBFPerceptron,  
     # num_obs_inputs=2,
     # num_state_features=3,
-    num_state_features=5,
+    num_state_features=6,
     num_neurons=8
 )
 

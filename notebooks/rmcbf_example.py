@@ -12,7 +12,7 @@ from pyrmm.environments.dubins4d_reachavoid import cvx_qp_solver
 from pyrmm.setups.double_integrator import DoubleIntegrator1DSetup
 
 from pyrmm.modelgen.data_modules import LSFORDataModule
-from pyrmm.modelgen.modules import ShallowRiskCBFPerceptron, CBFLRMMModule
+from pyrmm.modelgen.modules import ShallowRiskCBFPerceptron, CBFLRMMModule, DeepRiskCBFPerceptron
 from pyrmm.modelgen.double_integrator import quadratic_state_feature_map, local_states_datagen
 
 ###
@@ -120,11 +120,16 @@ def run_rmcbf_analysis():
     # save these params at model save time
     n_obsv_dim = 3
     n_feat_dim = 6 
-    n_neurons = 8
-    rmcbf_model = ShallowRiskCBFPerceptron(
+    # n_neurons = 8
+    # rmcbf_model = ShallowRiskCBFPerceptron(
+    #     num_obs_inputs=n_obsv_dim,
+    #     num_state_features=n_feat_dim,
+    #     num_neurons=n_neurons
+    # )
+    rmcbf_model = DeepRiskCBFPerceptron(
         num_obs_inputs=n_obsv_dim,
         num_state_features=n_feat_dim,
-        num_neurons=n_neurons
+        num_neurons=[32, 16, 8]
     )
 
     # load checkpoint
@@ -133,10 +138,14 @@ def run_rmcbf_analysis():
     #     "outputs/2023-01-19/12-34-03/lightning_logs/version_0/" +
     #     "checkpoints/epoch=511-step=308735.ckpt"
     # )
+    # chkpt_file = (
+    #     "/home/ross/Projects/AIIA/risk_metric_maps/" +
+    #     "outputs/2023-01-20/15-35-25/lightning_logs/version_0/" +
+    #     "checkpoints/epoch=511-step=308735.ckpt"
+    # )
     chkpt_file = (
         "/home/ross/Projects/AIIA/risk_metric_maps/" +
-        "outputs/2023-01-20/15-35-25/lightning_logs/version_0/" +
-        "checkpoints/epoch=511-step=308735.ckpt"
+        "outputs/2023-02-03/13-43-20/lightning_logs/version_0/checkpoints/epoch=511-step=308735.ckpt"
     )
     chkpt = torch.load(chkpt_file)
 
@@ -229,7 +238,8 @@ def run_rmcbf_analysis():
     pcm = ax.pcolormesh(p_mesh, v_mesh, risks, cmap="turbo", vmin=0, vmax=1)
     fig.colorbar(pcm, ax=ax)
     plt.title("Risk Estimate (Failure Probability) Inferred at Each State\n"+
-        "for 1-D Double Integrator System with Obstacle at position=5")
+        "for 1-D Double Integrator System with Uniform Random Policy and\n"+
+        "Obstacle at position=5")
     plt.xlabel("position [m]")
     plt.ylabel("velocity [m/s]")
     plt.show()
@@ -241,7 +251,7 @@ def run_rmcbf_analysis():
     # s_z_np = np.zeros(2)
     # s_z_np = np.array([4.5, 0.0])
     # s_z_np = np.array([4.5, 2.0])
-    s_z_np = np.array([2.0, 1.0])
+    s_z_np = np.array([2.0, 1.5])
     s_z_ompl = di1d_setup.space_info.allocState()
     di1d_setup.state_numpy_to_ompl(np_state=s_z_np, omplState=s_z_ompl)
     print("DEBUG: state = ",s_z_np)
@@ -284,9 +294,11 @@ def run_rmcbf_analysis():
     fig, ax = plt.subplots()
     pcm = ax.pcolormesh(p_mesh, v_mesh, risks_0_0, cmap="turbo", vmin=0, vmax=1)
     fig.colorbar(pcm, ax=ax)
+    plt.plot(s_z_np[0], s_z_np[1], 'k+', ms=10, mew=3)
     plt.title("Risk Estimate (Failure Probability) Extrapolated from\n"+
         "Single-Point Risk Function at p={} [m], v= {} [m/s]\n".format(s_z_np[0], s_z_np[1])+
-        "for 1-D Double Integrator System with Obstacle at position=5")
+        "for 1-D Double Integrator System with\n" + 
+        "Uniform Random Policy and Obstacle at position=5")
     plt.xlabel("position [m]")
     plt.ylabel("velocity [m/s]")
     plt.show()

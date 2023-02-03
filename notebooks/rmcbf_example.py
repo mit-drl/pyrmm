@@ -119,7 +119,7 @@ def run_rmcbf_analysis():
     # inputs, state features, and neurons. There has got to be a better way 
     # save these params at model save time
     n_obsv_dim = 3
-    n_feat_dim = 5
+    n_feat_dim = 6 
     n_neurons = 8
     rmcbf_model = ShallowRiskCBFPerceptron(
         num_obs_inputs=n_obsv_dim,
@@ -128,9 +128,14 @@ def run_rmcbf_analysis():
     )
 
     # load checkpoint
+    # chkpt_file = (
+    #     "/home/ross/Projects/AIIA/risk_metric_maps/" +
+    #     "outputs/2023-01-19/12-34-03/lightning_logs/version_0/" +
+    #     "checkpoints/epoch=511-step=308735.ckpt"
+    # )
     chkpt_file = (
         "/home/ross/Projects/AIIA/risk_metric_maps/" +
-        "outputs/2023-01-19/12-34-03/lightning_logs/version_0/" +
+        "outputs/2023-01-20/15-35-25/lightning_logs/version_0/" +
         "checkpoints/epoch=511-step=308735.ckpt"
     )
     chkpt = torch.load(chkpt_file)

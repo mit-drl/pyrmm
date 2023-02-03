@@ -21,7 +21,7 @@ from pyrmm.setups.double_integrator import \
 from pyrmm.modelgen.data_modules import \
     BaseRiskMetricTrainingData, LSFORDataModule
 from pyrmm.modelgen.modules import \
-    ShallowRiskCBFPerceptron, CBFLRMMModule
+    ShallowRiskCBFPerceptron, CBFLRMMModule, DeepRiskCBFPerceptron
 
 _CONFIG_NAME = "doubleintegrator1d_modelgen_app"
 
@@ -209,11 +209,18 @@ DataConf = pbuilds(DoubleIntegrator1DDataModule,
     compile_verify_func=verify_compiled_data
 )
 
-ModelConf = pbuilds(ShallowRiskCBFPerceptron,  
+# ModelConf = pbuilds(ShallowRiskCBFPerceptron,  
+#     # num_obs_inputs=2,
+#     # num_state_features=3,
+#     num_state_features=6,
+#     num_neurons=8
+# )
+
+ModelConf = pbuilds(DeepRiskCBFPerceptron,  
     # num_obs_inputs=2,
     # num_state_features=3,
     num_state_features=6,
-    num_neurons=8
+    num_neurons=[32, 16, 8]
 )
 
 OptimConf = pbuilds(optim.Adam)

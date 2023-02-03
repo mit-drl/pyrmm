@@ -8,6 +8,7 @@ from torchmetrics.functional import mean_absolute_error, mean_squared_error
 
 from pytorch_lightning import LightningModule
 from hydra_zen.typing import Partial
+from typing import List
 
 def single_layer_nn(num_inputs: int, num_neurons: int) -> nn.Module:
     """y = sum(V sigmoid(X W + b))"""
@@ -84,6 +85,79 @@ class ShallowRiskCBFPerceptron(nn.Module):
         # return risk estimate and cbf layer weights
         return rho, w_cbf
 
+class DeepRiskCBFPerceptron(nn.Module):
+    def __init__(self,
+        num_obs_inputs: int,
+        num_state_features: int,
+        num_neurons: List[int]):
+        """Deep feed-forward network with a "CBF (control barrier function) layer"
+
+        This is a multi-input network: takes both observations and (local) state features, which
+        are used together to compute an estimated risk value
+
+        Technically it is also a multi-output network: outputting both the scalar risk metric 
+        estimation value and the weights at the final layer of the perceptron which are then
+        linear combined with the (local) state features 
+
+        The CBF layer outputs weights for a linear combination of state features used to compute the risk metric
+
+        Args:
+            num_obs_inputs : int
+                number of inputs from observation of state, used as input at the "front" of the network
+            num_state_features : int
+                number of elements in the state feature vector (phi in many SVM/kernel literature),
+                used as input at the "middle" of the network 
+                linearly combined with the CBF-layer outputs in order to compute risk metric at model ouput
+            num_neurons : List[int]
+                number of hidden units per each layer
+
+        Ref:
+            + multi-input networks in pytorch lightning: https://rosenfelder.ai/multi-input-neural-network-pytorch/
+            + example of polynomial kernel (i.e. feature vector): https://en.wikipedia.org/wiki/Polynomial_kernel
+        """
+        super().__init__()
+        self.num_state_features = num_state_features
+        self.num_neurons = num_neurons
+
+        # define sequence of fully connected layers
+        # See need for ModuleList here: https://stackoverflow.com/questions/54678896/pytorch-valueerror-optimizer-got-an-empty-parameter-list
+        # self.num_layers = len(num_neurons)+1
+        self.fc_layers = nn.ModuleList()
+        self.fc_layers.append(nn.Linear(num_obs_inputs, num_neurons[0]))
+        self.fc_layers.append(nn.ELU())
+        for i in range(1,len(self.num_neurons)):
+            self.fc_layers.append(nn.Linear(num_neurons[i-1], num_neurons[i]))
+            self.fc_layers.append(nn.ELU())
+        self.fc_layers.append(nn.Linear(num_neurons[-1], num_state_features))
+
+    def forward(self, observation, state_features):
+
+        # pass observation (not state features) through all layers
+        # to get CBF weights at output layer
+        x = observation
+        for layer in self.fc_layers:
+            x = layer(x)
+        w_cbf = x
+        # x = self.fc_layers[0](observation)
+        # x = nn.ELU()(x)
+        # for i in range(1, self.num_layers-1):
+        #     x = self.fc_layers[i](x)
+        #     x = nn.ELU()(x)
+        # w_cbf = self.fc_layers[-1](x)
+
+        # w vector is now the weights on the linear combination of state_features
+        # to compute risk estimate
+        # perform "batch dot product" with dot product on final dimension
+        # see this thread for implementation: https://github.com/pytorch/pytorch/issues/18027
+        # TODO: replace with vecdot in newer version of pytorch: https://pytorch.org/docs/1.13/generated/torch.linalg.vecdot.html
+        rho = (w_cbf * state_features).sum(-1, keepdim=True)
+
+        # bound risk to [0,1]
+        rho = torch.sigmoid(rho)
+
+        # return risk estimate and cbf layer weights
+        return rho, w_cbf
+
 
 class ShallowRiskCtrlMLP(nn.Module):
     def __init__(self,
@@ -121,6 +195,7 @@ class ShallowRiskCtrlMLP(nn.Module):
         durs = x.narrow(-1,-1,1)
         
         return torch.cat((risks, ctrls, durs), -1)
+
 
 
 class BaseRiskMetricModule(LightningModule):

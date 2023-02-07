@@ -11,6 +11,7 @@ import torch.optim as optim
 
 from pathlib import Path
 from typing import List, Dict
+from functools import partial
 from hydra.core.config_store import ConfigStore
 from pytorch_lightning import Trainer, seed_everything
 from hydra_zen import builds, make_custom_builds_fn, make_config, instantiate
@@ -24,9 +25,6 @@ from pyrmm.modelgen.modules import \
     ShallowRiskCBFPerceptron, CBFLRMMModule, DeepRiskCBFPerceptron
 
 _CONFIG_NAME = "doubleintegrator1d_modelgen_app"
-
-# state distance threshold for generating localized state data
-_REL_STATE_DIST_THRESH = 1.0
 
 #############################################
 ### SYSTEM-SPECIFIC FUNCTIONS AND CLASSES ###
@@ -140,10 +138,16 @@ def quadratic_state_feature_map(state_sample):
 #     """
 #     return abs_state-ref_state
 
-def local_states_datagen(separated_raw_data:Dict)->BaseRiskMetricTrainingData:
+def local_states_datagen(
+    dist_thresh : float,
+    separated_raw_data : Dict, 
+    )->BaseRiskMetricTrainingData:
     """Generates new data by mapping states to local coords of other states
 
     Args:
+        dist_thresh : float
+            relative state distance threshold that decides if 
+            states are in each other's neighborhood
         separated_raw_data : Dict
             raw data from original datagen process separated by data files
             (i.e. separated by environment instances)
@@ -181,7 +185,7 @@ def local_states_datagen(separated_raw_data:Dict)->BaseRiskMetricTrainingData:
                 rel_state = abs_state - ref_state
 
                 # if within distance threshold, save state sample
-                if np.linalg.norm(rel_state) < _REL_STATE_DIST_THRESH:
+                if np.linalg.norm(rel_state) < dist_thresh:
                     localized_state_samples.append(rel_state)
                     localized_risk_metrics.append(np_data_i.risk_metrics[abs_idx])
                     localized_observations.append(np_data_i.observations[abs_idx])
@@ -199,13 +203,21 @@ def local_states_datagen(separated_raw_data:Dict)->BaseRiskMetricTrainingData:
 ##############################################
 pbuilds = make_custom_builds_fn(zen_partial=True, populate_full_signature=True)
 
+
+# state distance threshold for generating localized state data
+_DEFAULT_REL_STATE_DIST_THRESH = 1.0
+
+# LocalStatesDatagen = pbuilds(local_states_datagen,
+#     dist_thresh = _DEFAULT_REL_STATE_DIST_THRESH
+# )
+
 DataConf = pbuilds(DoubleIntegrator1DDataModule, 
     val_ratio=0.15, 
     batch_size=64, 
     num_workers=4,
     # state_feature_map=trivial_state_feature_map_w_bias,
     state_feature_map=quadratic_state_feature_map,
-    local_states_datagen=local_states_datagen,
+    # local_states_datagen=LocalStatesDatagen,
     compile_verify_func=verify_compiled_data
 )
 
@@ -244,6 +256,7 @@ ExperimentConfig = make_config(
     pl_model=ModelConf,
     pl_module=PLModuleConf,
     trainer=TrainerConf,
+    local_state_dist_thresh = _DEFAULT_REL_STATE_DIST_THRESH,
     seed=1,
 )
 
@@ -272,7 +285,8 @@ def task_function(cfg: ExperimentConfig):
     datapaths = U.get_abs_pt_data_paths(obj.train_data)
 
     # finish instantiating data module
-    data_module = obj.data_module(datapaths=datapaths)
+    local_states_datagen_func = partial(local_states_datagen, obj.local_state_dist_thresh)
+    data_module = obj.data_module(datapaths=datapaths, local_states_datagen=local_states_datagen_func)
     data_module.setup(stage='fit')
     hlog.info("training:n_data:{}".format(data_module.n_data))
 

@@ -6,6 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import itertools
 
+from functools import partial
+
 import pyrmm.utils.utils as U
 from pyrmm.environments.dubins4d_reachavoid import cvx_qp_solver
 
@@ -141,9 +143,13 @@ rmcbf_model = DeepRiskCBFPerceptron(
 #     "outputs/2023-01-20/15-35-25/lightning_logs/version_0/" +
 #     "checkpoints/epoch=511-step=308735.ckpt"
 # )
+# chkpt_file = (
+#     "/home/ross/Projects/AIIA/risk_metric_maps/" +
+#     "outputs/2023-02-03/13-43-20/lightning_logs/version_0/checkpoints/epoch=511-step=308735.ckpt"
+# )
 chkpt_file = (
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
-    "outputs/2023-02-03/13-43-20/lightning_logs/version_0/checkpoints/epoch=511-step=308735.ckpt"
+    "outputs/2023-02-07/08-08-31/lightning_logs/version_0/epoch=246-step=1842125.ckpt"
 )
 chkpt = torch.load(chkpt_file)
 
@@ -156,17 +162,23 @@ rmcbf.load_state_dict(chkpt['state_dict'])
 rmcbf.eval()
 
 # create data module and load training data to get observation scaler
+# datapaths = U.get_abs_pt_data_paths(
+#     "/home/ross/Projects/AIIA/risk_metric_maps/" +
+#     "outputs/2022-12-19/14-09-56/"
+# )
 datapaths = U.get_abs_pt_data_paths(
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
-    "outputs/2022-12-19/14-09-56/"
+    "outputs/2023-02-03/15-30-08/"
 )
+
+local_states_datagen_func = partial(local_states_datagen, 1.5)  # again, this is just something you need to know was used during modelgen
 rmcbf_data_mod = LSFORDataModule(
     datapaths=datapaths,
     val_ratio=0,
     batch_size=1,
     num_workers=0,
     state_feature_map=quadratic_state_feature_map,  # again this is something you just need to know was used during modelgen, very hacky/brittle to encode this way
-    local_states_datagen=local_states_datagen,
+    local_states_datagen=local_states_datagen_func,
     compile_verify_func=None
 )
 rmcbf_data_mod.setup("test")
@@ -316,5 +328,5 @@ def run_irbf_local_analysis():
 
 if __name__ == "__main__":
     # run_analytical_cbf_analysis()
-    # run_irbf_global_analysis()
+    run_irbf_global_analysis()
     run_irbf_local_analysis()

@@ -475,6 +475,17 @@ def test_hypothesis_update_pickler_PathControl_DoubleIntegrator1D_0(posb, velb, 
     assert np.allclose(np_ctrls_orig, np_ctrls_copy)
     assert np.allclose(np_times_orig, np_times_copy)
 
+def test_observation_shape_0():
+    """Check that inheritance of observation shape behaves as expected"""
+
+    # ~~~ ARRANGE ~~~
+    
+    # ~~~ ACT ~~~
+
+    # ~~~ ASSERT ~~~
+    assert DoubleIntegrator1DSetup.observation_shape == (3,)
+
+
 
 if __name__ == "__main__":
     # test_DoubleIntegrator1DSetup_propagate_path_0()

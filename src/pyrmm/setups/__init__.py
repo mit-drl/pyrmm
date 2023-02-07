@@ -16,6 +16,11 @@ class SystemSetup:
     Refs:
         https://ompl.kavrakilab.org/api_overview.html
     '''
+
+    # Define observation shape as a class property 
+    # that must be implemented by child class
+    observation_shape = NotImplemented
+    
     def __init__(self, space_information, risk_fn=np.mean):
         ''' create SimpleSetup object
         Args:

@@ -21,6 +21,9 @@ LIDAR_RANGE = 1000.0    # max range of lidar observation [m]
 class DoubleIntegrator1DSetup(SystemSetup):
     ''' Double integrator system in 1D with an obstacle(s)
     '''
+
+    observation_shape = (3,)
+
     def __init__(self, pos_bounds, vel_bounds, acc_bounds, obst_bounds):
         '''
         Args:

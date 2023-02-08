@@ -298,7 +298,8 @@ ModelConf = pbuilds(DeepRiskCBFPerceptron,
     num_neurons=[32, 16, 8]
 )
 
-OptimConf = pbuilds(optim.AdamW)
+# OptimConf = pbuilds(optim.AdamW)
+OptimConf = pbuilds(optim.Adam)
 
 PLModuleConf = pbuilds(CBFLRMMModule, 
     # num_inputs = 2,

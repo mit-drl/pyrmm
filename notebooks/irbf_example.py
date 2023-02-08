@@ -151,9 +151,17 @@ rmcbf_model = DeepRiskCBFPerceptron(
 #     "/home/ross/Projects/AIIA/risk_metric_maps/" +
 #     'outputs/2023-02-07/08-08-31/lightning_logs/version_0/checkpoints/epoch=284-step=2125529.ckpt'
 # )
+# chkpt_file = (
+#     "/home/ross/Projects/AIIA/risk_metric_maps/" +
+#     'outputs/2023-02-07/12-49-53/lightning_logs/version_0/epoch=71-step=1339919.ckpt'
+# )
+# chkpt_file = (
+#     "/home/ross/Projects/AIIA/risk_metric_maps/" +
+#     'outputs/2023-02-07/15-02-24/lightning_logs/version_0/epoch=263-step=1240535.ckpt'
+# )
 chkpt_file = (
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
-    'outputs/2023-02-07/12-49-53/lightning_logs/version_0/epoch=71-step=1339919.ckpt'
+    'outputs/2023-02-07/16-39-56/lightning_logs/version_0/checkpoints/epoch=247-step=1111287.ckpt'
 )
 chkpt = torch.load(chkpt_file)
 
@@ -166,17 +174,18 @@ rmcbf.load_state_dict(chkpt['state_dict'])
 rmcbf.eval()
 
 # create data module and load training data to get observation scaler
-# datapaths = U.get_abs_pt_data_paths(
-#     "/home/ross/Projects/AIIA/risk_metric_maps/" +
-#     "outputs/2022-12-19/14-09-56/"
-# )
 datapaths = U.get_abs_pt_data_paths(
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
-    "outputs/2023-02-03/15-30-08/"
+    "outputs/2022-12-19/14-09-56/"
 )
+# datapaths = U.get_abs_pt_data_paths(
+#     "/home/ross/Projects/AIIA/risk_metric_maps/" +
+#     "outputs/2023-02-03/15-30-08/"
+# )
 
 # local_states_datagen_func = partial(local_states_datagen, 1.5)  # again, this is just something you need to know was used during modelgen
-local_states_datagen_func = partial(local_states_datagen, 3)  # again, this is just something you need to know was used during modelgen
+# local_states_datagen_func = partial(local_states_datagen, 3)  # again, this is just something you need to know was used during modelgen
+local_states_datagen_func = partial(local_states_datagen, 1.0)  # again, this is just something you need to know was used during modelgen
 rmcbf_data_mod = LSFORDataModule(
     datapaths=datapaths,
     val_ratio=0,

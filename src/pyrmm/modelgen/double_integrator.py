@@ -244,8 +244,9 @@ def local_states_datagen(
                 rel_state = abs_state - ref_state
 
                 # check if relative state is in same obstacle topology class
-                if (rel_state[0] >= 0 and rel_state[0] < np_data_i.observations[abs_idx][0]) or \
-                    (rel_state[0] < 0 and -rel_state[0] < np_data_i.observations[abs_idx][1]):
+                if ((rel_state[0] >= 0 and rel_state[0] < np_data_i.observations[abs_idx][0]) or 
+                    (rel_state[0] < 0 and -rel_state[0] < np_data_i.observations[abs_idx][1])) and \
+                    not np.allclose(rel_state, [0, 0])    :
                     localized_state_samples.append(rel_state)
                     localized_risk_metrics.append(np_data_i.risk_metrics[abs_idx])
                     localized_observations.append(np_data_i.observations[abs_idx])

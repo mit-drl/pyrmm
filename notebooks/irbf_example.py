@@ -119,8 +119,8 @@ def run_analytical_cbf_analysis():
 # inputs, state features, and neurons. There has got to be a better way 
 # save these params at model save time
 n_obsv_dim = 3
-# n_feat_dim = 6 
-n_feat_dim = 2
+n_feat_dim = 6 
+# n_feat_dim = 2
 # n_neurons = 8
 # rmcbf_model = ShallowRiskCBFPerceptron(
 #     num_obs_inputs=n_obsv_dim,
@@ -164,9 +164,13 @@ rmcbf_model = DeepRiskCBFPerceptron(
 #     "/home/ross/Projects/AIIA/risk_metric_maps/" +
 #     'outputs/2023-02-07/16-39-56/lightning_logs/version_0/checkpoints/epoch=247-step=1111287.ckpt'
 # )
+# chkpt_file = (
+#     "/home/ross/Projects/AIIA/risk_metric_maps/" +
+#     'outputs/2023-02-07/19-08-10/lightning_logs/version_0/epoch=123-step=555643.ckpt'
+# )
 chkpt_file = (
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
-    'outputs/2023-02-07/19-08-10/lightning_logs/version_0/epoch=123-step=555643.ckpt'
+    'outputs/2023-02-07/20-59-56/lightning_logs/version_0/epoch=66-step=300226.ckpt'
 )
 chkpt = torch.load(chkpt_file)
 
@@ -196,8 +200,8 @@ rmcbf_data_mod = LSFORDataModule(
     val_ratio=0,
     batch_size=1,
     num_workers=0,
-    # state_feature_map=quadratic_state_feature_map,  # again this is something you just need to know was used during modelgen, very hacky/brittle to encode this way
-    state_feature_map=trivial_state_feature_map,  # again this is something you just need to know was used during modelgen, very hacky/brittle to encode this way
+    state_feature_map=quadratic_state_feature_map,  # again this is something you just need to know was used during modelgen, very hacky/brittle to encode this way
+    # state_feature_map=trivial_state_feature_map,  # again this is something you just need to know was used during modelgen, very hacky/brittle to encode this way
     local_states_datagen=local_states_datagen_func,
     compile_verify_func=None
 )
@@ -287,8 +291,8 @@ def run_irbf_local_analysis():
     # s_z_np = np.array([4.5, 0.0])
     # s_z_np = np.array([4.5, 2.0])
     # s_z_np = np.array([2.0, 1.5])
-    # s_z_np = np.array([3.0, 1.0])
-    s_z_np = np.array([3.0, 2.0])
+    s_z_np = np.array([3.0, 1.0])
+    # s_z_np = np.array([3.0, 2.0])
     s_z_ompl = di1d_setup.space_info.allocState()
     di1d_setup.state_numpy_to_ompl(np_state=s_z_np, omplState=s_z_ompl)
     print("DEBUG: state = ",s_z_np)

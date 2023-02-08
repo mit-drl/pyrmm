@@ -129,7 +129,7 @@ def quadratic_state_feature_map(state_sample):
             numpy array of the particular state sample
     
     """
-    return np.concatenate((state_sample, np.square(state_sample), [state_sample[0]*state_sample[1]], np.ones(1)))
+    return np.concatenate((state_sample, np.square(state_sample), [state_sample[0]*state_sample[1]], 1e-3*np.ones(1)))
 
 # def local_coord_map(abs_state, ref_state):
 #     """conversion of euclidean state to local frame about ref_state
@@ -276,9 +276,9 @@ DataConf = pbuilds(DoubleIntegrator1DDataModule,
     val_ratio=0.15, 
     batch_size=64, 
     num_workers=4,
-    state_feature_map=trivial_state_feature_map,
+    # state_feature_map=trivial_state_feature_map,
     # state_feature_map=trivial_state_feature_map_w_bias,
-    # state_feature_map=quadratic_state_feature_map,
+    state_feature_map=quadratic_state_feature_map,
     # local_states_datagen=LocalStatesDatagen,
     compile_verify_func=verify_compiled_data
 )
@@ -292,9 +292,9 @@ DataConf = pbuilds(DoubleIntegrator1DDataModule,
 
 ModelConf = pbuilds(DeepRiskCBFPerceptron,  
     # num_obs_inputs=2,
-    num_state_features=2,
+    # num_state_features=2,
     # num_state_features=3,
-    # num_state_features=6,
+    num_state_features=6,
     num_neurons=[32, 16, 8]
 )
 

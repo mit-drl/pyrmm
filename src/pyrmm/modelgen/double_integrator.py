@@ -129,7 +129,7 @@ def quadratic_state_feature_map(state_sample):
             numpy array of the particular state sample
     
     """
-    return np.concatenate((state_sample, np.square(state_sample), [state_sample[0]*state_sample[1]], 1e-3*np.ones(1)))
+    return np.concatenate((state_sample, np.square(state_sample), [state_sample[0]*state_sample[1]], np.ones(1)))
 
 # def local_coord_map(abs_state, ref_state):
 #     """conversion of euclidean state to local frame about ref_state
@@ -245,8 +245,8 @@ def local_states_datagen(
 
                 # check if relative state is in same obstacle topology class
                 if ((rel_state[0] >= 0 and rel_state[0] < np_data_i.observations[abs_idx][0]) or 
-                    (rel_state[0] < 0 and -rel_state[0] < np_data_i.observations[abs_idx][1])) and \
-                    not np.allclose(rel_state, [0, 0])    :
+                    (rel_state[0] < 0 and -rel_state[0] < np_data_i.observations[abs_idx][1])):
+                    # not np.allclose(rel_state, [0, 0])    :
                     localized_state_samples.append(rel_state)
                     localized_risk_metrics.append(np_data_i.risk_metrics[abs_idx])
                     localized_observations.append(np_data_i.observations[abs_idx])
@@ -298,7 +298,7 @@ ModelConf = pbuilds(DeepRiskCBFPerceptron,
     num_neurons=[32, 16, 8]
 )
 
-OptimConf = pbuilds(optim.Adam)
+OptimConf = pbuilds(optim.AdamW)
 
 PLModuleConf = pbuilds(CBFLRMMModule, 
     # num_inputs = 2,

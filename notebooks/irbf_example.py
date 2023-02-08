@@ -168,9 +168,13 @@ rmcbf_model = DeepRiskCBFPerceptron(
 #     "/home/ross/Projects/AIIA/risk_metric_maps/" +
 #     'outputs/2023-02-07/19-08-10/lightning_logs/version_0/epoch=123-step=555643.ckpt'
 # )
+# chkpt_file = (
+#     "/home/ross/Projects/AIIA/risk_metric_maps/" +
+#     'outputs/2023-02-07/20-59-56/lightning_logs/version_0/epoch=66-step=300226.ckpt'
+# )
 chkpt_file = (
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
-    'outputs/2023-02-07/20-59-56/lightning_logs/version_0/epoch=66-step=300226.ckpt'
+    'outputs/2023-02-07/21-36-53/lightning_logs/version_0/epoch=73-step=347725.ckpt'
 )
 chkpt = torch.load(chkpt_file)
 

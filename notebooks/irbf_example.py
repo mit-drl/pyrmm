@@ -34,9 +34,9 @@ XTIL_2 = 0.0
 
 # initial/current state of system, or 
 # state at which observation z is taken
-P_Z_ARR = np.linspace(-1.0, 4.5, 20)    # [m]
+P_Z_ARR = np.linspace(-1.0, 4.5)    # [m]
 # V_Z_ARR = np.arange(-1, 2.5, 0.5)   # [m/s]
-V_Z_ARR = np.linspace(-1, 2.5, 20)   # [m/s]
+V_Z_ARR = np.linspace(-1, 2.5)   # [m/s]
 
 # plotting params
 MARKER = itertools.cycle((',', '+', '.', 'o', '*')) 

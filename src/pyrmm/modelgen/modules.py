@@ -125,11 +125,11 @@ class DeepRiskCBFPerceptron(nn.Module):
         self.fc_layers = nn.ModuleList()
         self.fc_layers.append(nn.Linear(num_obs_inputs, num_neurons[0]))
         self.fc_layers.append(nn.ELU())
-        # self.fc_layers.append(nn.Dropout())
+        self.fc_layers.append(nn.Dropout())
         for i in range(1,len(self.num_neurons)):
             self.fc_layers.append(nn.Linear(num_neurons[i-1], num_neurons[i]))
             self.fc_layers.append(nn.ELU())
-        self.fc_layers.append(nn.Dropout())
+            self.fc_layers.append(nn.Dropout())
         self.fc_layers.append(nn.Linear(num_neurons[-1], num_state_features))
 
     def forward(self, observation, state_features):

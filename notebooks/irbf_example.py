@@ -188,9 +188,13 @@ rmcbf_model = DeepRiskCBFPerceptron(
 #     "/home/ross/Projects/AIIA/risk_metric_maps/" +
 #     'outputs/2023-02-08/09-24-03/lightning_logs/version_0/epoch=42-step=800229.ckpt'
 # )
+# chkpt_file = (
+#     "/home/ross/Projects/AIIA/risk_metric_maps/" +
+#     'outputs/2023-02-08/12-07-19/lightning_logs/version_0/epoch=10-step=204709.ckpt'
+# )
 chkpt_file = (
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
-    'outputs/2023-02-08/12-07-19/lightning_logs/version_0/epoch=10-step=204709.ckpt'
+    'outputs/2023-02-08/12-07-19/lightning_logs/version_0/epoch=52-step=986329.ckpt'
 )
 chkpt = torch.load(chkpt_file)
 
@@ -311,7 +315,8 @@ def run_irbf_local_analysis():
     # s_z_np = np.array([4.5, 0.0])
     # s_z_np = np.array([4.5, 2.0])
     # s_z_np = np.array([2.0, 1.5])
-    s_z_np = np.array([3.0, 1.0])
+    # s_z_np = np.array([3.0, 1.0])
+    s_z_np = np.array([3.2, 1.2])
     # s_z_np = np.array([1.0, 0.5])
     s_z_ompl = di1d_setup.space_info.allocState()
     di1d_setup.state_numpy_to_ompl(np_state=s_z_np, omplState=s_z_ompl)
@@ -374,5 +379,5 @@ def run_irbf_local_analysis():
 
 if __name__ == "__main__":
     # run_analytical_cbf_analysis()
-    # run_irbf_global_analysis()
+    run_irbf_global_analysis()
     run_irbf_local_analysis()

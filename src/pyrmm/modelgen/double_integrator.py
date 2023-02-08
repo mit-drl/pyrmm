@@ -276,8 +276,9 @@ DataConf = pbuilds(DoubleIntegrator1DDataModule,
     val_ratio=0.15, 
     batch_size=64, 
     num_workers=4,
+    state_feature_map=trivial_state_feature_map,
     # state_feature_map=trivial_state_feature_map_w_bias,
-    state_feature_map=quadratic_state_feature_map,
+    # state_feature_map=quadratic_state_feature_map,
     # local_states_datagen=LocalStatesDatagen,
     compile_verify_func=verify_compiled_data
 )
@@ -291,8 +292,9 @@ DataConf = pbuilds(DoubleIntegrator1DDataModule,
 
 ModelConf = pbuilds(DeepRiskCBFPerceptron,  
     # num_obs_inputs=2,
+    num_state_features=2,
     # num_state_features=3,
-    num_state_features=6,
+    # num_state_features=6,
     num_neurons=[32, 16, 8]
 )
 

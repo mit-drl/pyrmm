@@ -172,9 +172,13 @@ rmcbf_model = DeepRiskCBFPerceptron(
 #     "/home/ross/Projects/AIIA/risk_metric_maps/" +
 #     'outputs/2023-02-07/20-59-56/lightning_logs/version_0/epoch=66-step=300226.ckpt'
 # )
+# chkpt_file = (
+#     "/home/ross/Projects/AIIA/risk_metric_maps/" +
+#     'outputs/2023-02-07/21-36-53/lightning_logs/version_0/epoch=73-step=347725.ckpt'
+# )
 chkpt_file = (
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
-    'outputs/2023-02-07/21-36-53/lightning_logs/version_0/epoch=73-step=347725.ckpt'
+    'outputs/2023-02-07/22-48-57/lightning_logs/version_0/epoch=118-step=501822.ckpt'
 )
 chkpt = torch.load(chkpt_file)
 
@@ -187,14 +191,14 @@ rmcbf.load_state_dict(chkpt['state_dict'])
 rmcbf.eval()
 
 # create data module and load training data to get observation scaler
-datapaths = U.get_abs_pt_data_paths(
-    "/home/ross/Projects/AIIA/risk_metric_maps/" +
-    "outputs/2022-12-19/14-09-56/"
-)
 # datapaths = U.get_abs_pt_data_paths(
 #     "/home/ross/Projects/AIIA/risk_metric_maps/" +
-#     "outputs/2023-02-03/15-30-08/"
+#     "outputs/2022-12-19/14-09-56/"
 # )
+datapaths = U.get_abs_pt_data_paths(
+    "/home/ross/Projects/AIIA/risk_metric_maps/" +
+    "outputs/2023-02-03/15-30-08/"
+)
 
 # local_states_datagen_func = partial(local_states_datagen, 1.5)  # again, this is just something you need to know was used during modelgen
 # local_states_datagen_func = partial(local_states_datagen, 3)  # again, this is just something you need to know was used during modelgen

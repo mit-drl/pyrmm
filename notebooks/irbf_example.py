@@ -15,7 +15,7 @@ from pyrmm.setups.double_integrator import DoubleIntegrator1DSetup
 
 from pyrmm.modelgen.data_modules import LSFORDataModule
 from pyrmm.modelgen.modules import ShallowRiskCBFPerceptron, CBFLRMMModule, DeepRiskCBFPerceptron
-from pyrmm.modelgen.double_integrator import quadratic_state_feature_map, local_states_datagen, trivial_state_feature_map
+from pyrmm.modelgen.double_integrator import quadratic_state_feature_map, local_states_datagen, trivial_state_feature_map, cubic_state_feature_map
 
 ###
 # Problem parameters
@@ -119,7 +119,8 @@ def run_analytical_cbf_analysis():
 # inputs, state features, and neurons. There has got to be a better way 
 # save these params at model save time
 n_obsv_dim = 3
-n_feat_dim = 6 
+# n_feat_dim = 6 
+n_feat_dim = 8 
 # n_feat_dim = 2
 # n_neurons = 8
 # rmcbf_model = ShallowRiskCBFPerceptron(
@@ -192,9 +193,13 @@ rmcbf_model = DeepRiskCBFPerceptron(
 #     "/home/ross/Projects/AIIA/risk_metric_maps/" +
 #     'outputs/2023-02-08/12-07-19/lightning_logs/version_0/epoch=10-step=204709.ckpt'
 # )
+# chkpt_file = (
+#     "/home/ross/Projects/AIIA/risk_metric_maps/" +
+#     'outputs/2023-02-08/12-07-19/lightning_logs/version_0/epoch=52-step=986329.ckpt'
+# )
 chkpt_file = (
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
-    'outputs/2023-02-08/12-07-19/lightning_logs/version_0/epoch=52-step=986329.ckpt'
+    'outputs/2023-02-08/15-14-06/lightning_logs/version_0/epoch=28-step=1078103.ckpt'
 )
 chkpt = torch.load(chkpt_file)
 
@@ -224,8 +229,9 @@ rmcbf_data_mod = LSFORDataModule(
     val_ratio=0,
     batch_size=1,
     num_workers=0,
-    state_feature_map=quadratic_state_feature_map,  # again this is something you just need to know was used during modelgen, very hacky/brittle to encode this way
+    # state_feature_map=quadratic_state_feature_map,  # again this is something you just need to know was used during modelgen, very hacky/brittle to encode this way
     # state_feature_map=trivial_state_feature_map,  # again this is something you just need to know was used during modelgen, very hacky/brittle to encode this way
+    state_feature_map=cubic_state_feature_map,  # again this is something you just need to know was used during modelgen, very hacky/brittle to encode this way
     local_states_datagen=local_states_datagen_func,
     compile_verify_func=None
 )
@@ -315,8 +321,8 @@ def run_irbf_local_analysis():
     # s_z_np = np.array([4.5, 0.0])
     # s_z_np = np.array([4.5, 2.0])
     # s_z_np = np.array([2.0, 1.5])
-    # s_z_np = np.array([3.0, 1.0])
-    s_z_np = np.array([3.2, 1.2])
+    s_z_np = np.array([3.0, 1.0])
+    # s_z_np = np.array([3.2, 1.2])
     # s_z_np = np.array([1.0, 0.5])
     s_z_ompl = di1d_setup.space_info.allocState()
     di1d_setup.state_numpy_to_ompl(np_state=s_z_np, omplState=s_z_ompl)

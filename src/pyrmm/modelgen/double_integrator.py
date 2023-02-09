@@ -118,7 +118,7 @@ def trivial_state_feature_map_w_bias(state_sample):
     return np.concatenate((state_sample, np.ones(1)))
 
 def quadratic_state_feature_map(state_sample):
-    """state feature that reproduces the state sample and a bias term
+    """state feature with quadratic terms and a bias
 
     The bias term is intended to allow for non-zero risk metric 
     when the rest of the state features are zero (e.g. at a 
@@ -131,71 +131,26 @@ def quadratic_state_feature_map(state_sample):
     """
     return np.concatenate((state_sample, np.square(state_sample), [state_sample[0]*state_sample[1]], np.ones(1)))
 
+def cubic_state_feature_map(state_sample):
+    """state feature with cubic terms and a bias
+
+    The bias term is intended to allow for non-zero risk metric 
+    when the rest of the state features are zero (e.g. at a 
+    the origin of a local coord frame)
+
+    Args:
+        state_sample : ArrayLike
+            numpy array of the particular state sample
+    
+    """
+    return np.concatenate((state_sample, np.square(state_sample), np.power(state_sample, 3), [state_sample[0]*state_sample[1]], np.ones(1)))
+
 # def local_coord_map(abs_state, ref_state):
 #     """conversion of euclidean state to local frame about ref_state
 
 #     Assumes no angular states that need to be handled
 #     """
 #     return abs_state-ref_state
-
-def local_states_datagen(
-    dist_thresh : float,
-    separated_raw_data : Dict, 
-    )->BaseRiskMetricTrainingData:
-    """Generates new data by mapping states to local coords of other states
-
-    Args:
-        dist_thresh : float
-            relative state distance threshold that decides if 
-            states are in each other's neighborhood
-        separated_raw_data : Dict
-            raw data from original datagen process separated by data files
-            (i.e. separated by environment instances)
-
-    Returns:
-        localized_states_data : BaseRiskMetricTrainingData
-            newly generated data from localization process compiled into single
-            namespace-like-object BaseRiskMetricTrainingData containing numpy arrays
-    """
-
-    # iterate through each environment instance
-    localized_state_samples = []
-    localized_risk_metrics = []
-    localized_observations = []
-    for dpath, raw_data_i in separated_raw_data.items():
-
-        assert len(raw_data_i[0]) == 5
-
-        # package raw datatype in namespace-like object for dot
-        # access to member variables
-        raw_state_samples_i, raw_risk_metrics_i, raw_observations_i, _, _ = tuple(zip(*raw_data_i))
-        raw_data_obj_i = BaseRiskMetricTrainingData(
-            state_samples=raw_state_samples_i,
-            risk_metrics=raw_risk_metrics_i,
-            observations=raw_observations_i)
-
-        # convert raw data to numpy-like format
-        np_data_i = DoubleIntegrator1DDataModule.raw_data_to_numpy(raw_data=raw_data_obj_i)
-
-        # iterate through each state pair in environment instance
-        for abs_idx, abs_state in enumerate(np_data_i.state_samples):
-            for _, ref_state in enumerate(np_data_i.state_samples):
-
-                # compute relative state
-                rel_state = abs_state - ref_state
-
-                # if within distance threshold, save state sample
-                if np.linalg.norm(rel_state) < dist_thresh:
-                    localized_state_samples.append(rel_state)
-                    localized_risk_metrics.append(np_data_i.risk_metrics[abs_idx])
-                    localized_observations.append(np_data_i.observations[abs_idx])
-
-    # compile all localized state data and return
-    return BaseRiskMetricTrainingData(
-        state_samples=np.asarray(localized_state_samples),
-        risk_metrics=np.asarray(localized_risk_metrics),
-        observations=np.asarray(localized_observations)
-    )
 
 # def local_states_datagen(
 #     dist_thresh : float,
@@ -243,10 +198,8 @@ def local_states_datagen(
 #                 # compute relative state
 #                 rel_state = abs_state - ref_state
 
-#                 # check if relative state is in same obstacle topology class
-#                 if ((rel_state[0] >= 0 and rel_state[0] < np_data_i.observations[abs_idx][0]) or 
-#                     (rel_state[0] < 0 and -rel_state[0] < np_data_i.observations[abs_idx][1])):
-#                     # not np.allclose(rel_state, [0, 0])    :
+#                 # if within distance threshold, save state sample
+#                 if np.linalg.norm(rel_state) < dist_thresh:
 #                     localized_state_samples.append(rel_state)
 #                     localized_risk_metrics.append(np_data_i.risk_metrics[abs_idx])
 #                     localized_observations.append(np_data_i.observations[abs_idx])
@@ -257,6 +210,70 @@ def local_states_datagen(
 #         risk_metrics=np.asarray(localized_risk_metrics),
 #         observations=np.asarray(localized_observations)
 #     )
+
+def local_states_datagen(
+    dist_thresh : float,
+    separated_raw_data : Dict, 
+    )->BaseRiskMetricTrainingData:
+    """Generates new data by mapping states to local coords of other states
+
+    This is an "observation-based" grouping. If you can "see" another state,
+    then you include it in your neighborhood
+
+    Args:
+        dist_thresh : float
+            relative state distance threshold that decides if 
+            states are in each other's neighborhood
+        separated_raw_data : Dict
+            raw data from original datagen process separated by data files
+            (i.e. separated by environment instances)
+
+    Returns:
+        localized_states_data : BaseRiskMetricTrainingData
+            newly generated data from localization process compiled into single
+            namespace-like-object BaseRiskMetricTrainingData containing numpy arrays
+    """
+
+    # iterate through each environment instance
+    localized_state_samples = []
+    localized_risk_metrics = []
+    localized_observations = []
+    for dpath, raw_data_i in separated_raw_data.items():
+
+        assert len(raw_data_i[0]) == 5
+
+        # package raw datatype in namespace-like object for dot
+        # access to member variables
+        raw_state_samples_i, raw_risk_metrics_i, raw_observations_i, _, _ = tuple(zip(*raw_data_i))
+        raw_data_obj_i = BaseRiskMetricTrainingData(
+            state_samples=raw_state_samples_i,
+            risk_metrics=raw_risk_metrics_i,
+            observations=raw_observations_i)
+
+        # convert raw data to numpy-like format
+        np_data_i = DoubleIntegrator1DDataModule.raw_data_to_numpy(raw_data=raw_data_obj_i)
+
+        # iterate through each state pair in environment instance
+        for abs_idx, abs_state in enumerate(np_data_i.state_samples):
+            for _, ref_state in enumerate(np_data_i.state_samples):
+
+                # compute relative state
+                rel_state = abs_state - ref_state
+
+                # check if relative state is in same obstacle topology class
+                if ((rel_state[0] >= 0 and rel_state[0] < np_data_i.observations[abs_idx][0]) or 
+                    (rel_state[0] < 0 and -rel_state[0] < np_data_i.observations[abs_idx][1])):
+                    # not np.allclose(rel_state, [0, 0])    :
+                    localized_state_samples.append(rel_state)
+                    localized_risk_metrics.append(np_data_i.risk_metrics[abs_idx])
+                    localized_observations.append(np_data_i.observations[abs_idx])
+
+    # compile all localized state data and return
+    return BaseRiskMetricTrainingData(
+        state_samples=np.asarray(localized_state_samples),
+        risk_metrics=np.asarray(localized_risk_metrics),
+        observations=np.asarray(localized_observations)
+    )
 
 
 ##############################################
@@ -278,7 +295,8 @@ DataConf = pbuilds(DoubleIntegrator1DDataModule,
     num_workers=4,
     # state_feature_map=trivial_state_feature_map,
     # state_feature_map=trivial_state_feature_map_w_bias,
-    state_feature_map=quadratic_state_feature_map,
+    # state_feature_map=quadratic_state_feature_map,
+    state_feature_map=cubic_state_feature_map,
     # local_states_datagen=LocalStatesDatagen,
     compile_verify_func=verify_compiled_data
 )
@@ -294,7 +312,8 @@ ModelConf = pbuilds(DeepRiskCBFPerceptron,
     # num_obs_inputs=2,
     # num_state_features=2,
     # num_state_features=3,
-    num_state_features=6,
+    # num_state_features=6,
+    num_state_features=8,
     num_neurons=[32, 16, 8]
 )
 

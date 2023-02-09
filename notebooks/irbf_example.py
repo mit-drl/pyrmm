@@ -15,7 +15,8 @@ from pyrmm.setups.double_integrator import DoubleIntegrator1DSetup
 
 from pyrmm.modelgen.data_modules import LSFORDataModule
 from pyrmm.modelgen.modules import ShallowRiskCBFPerceptron, CBFLRMMModule, DeepRiskCBFPerceptron
-from pyrmm.modelgen.double_integrator import quadratic_state_feature_map, local_states_datagen, trivial_state_feature_map, cubic_state_feature_map
+from pyrmm.modelgen.double_integrator import local_states_datagen, \
+    trivial_state_feature_map, first_order_state_feature_map, quadratic_state_feature_map,  cubic_state_feature_map
 
 ###
 # Problem parameters
@@ -119,8 +120,9 @@ def run_analytical_cbf_analysis():
 # inputs, state features, and neurons. There has got to be a better way 
 # save these params at model save time
 n_obsv_dim = 3
-# n_feat_dim = 6 
-n_feat_dim = 8 
+# n_feat_dim = 4
+n_feat_dim = 6 
+# n_feat_dim = 8 
 # n_feat_dim = 2
 # n_neurons = 8
 # rmcbf_model = ShallowRiskCBFPerceptron(
@@ -197,9 +199,17 @@ rmcbf_model = DeepRiskCBFPerceptron(
 #     "/home/ross/Projects/AIIA/risk_metric_maps/" +
 #     'outputs/2023-02-08/12-07-19/lightning_logs/version_0/epoch=52-step=986329.ckpt'
 # )
+# chkpt_file = (
+#     "/home/ross/Projects/AIIA/risk_metric_maps/" +
+#     'outputs/2023-02-08/15-14-06/lightning_logs/version_0/epoch=28-step=1078103.ckpt'
+# )
+# chkpt_file = (
+#     "/home/ross/Projects/AIIA/risk_metric_maps/" +
+#     'outputs/2023-02-08/18-10-51/lightning_logs/version_0/epoch=165-step=780033.ckpt'
+# )
 chkpt_file = (
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
-    'outputs/2023-02-08/15-14-06/lightning_logs/version_0/epoch=28-step=1078103.ckpt'
+    'outputs/2023-02-08/20-15-02/lightning_logs/version_0/epoch=44-step=1672919.ckpt'
 )
 chkpt = torch.load(chkpt_file)
 
@@ -222,16 +232,17 @@ datapaths = U.get_abs_pt_data_paths(
 )
 
 # local_states_datagen_func = partial(local_states_datagen, 1.5)  # again, this is just something you need to know was used during modelgen
-local_states_datagen_func = partial(local_states_datagen, 3)  # again, this is just something you need to know was used during modelgen
-# local_states_datagen_func = partial(local_states_datagen, 1.0)  # again, this is just something you need to know was used during modelgen
+# local_states_datagen_func = partial(local_states_datagen, 3)  # again, this is just something you need to know was used during modelgen
+local_states_datagen_func = partial(local_states_datagen, 1.0)  # again, this is just something you need to know was used during modelgen
 rmcbf_data_mod = LSFORDataModule(
     datapaths=datapaths,
     val_ratio=0,
     batch_size=1,
     num_workers=0,
-    # state_feature_map=quadratic_state_feature_map,  # again this is something you just need to know was used during modelgen, very hacky/brittle to encode this way
+    # state_feature_map=first_order_state_feature_map,  # again this is something you just need to know was used during modelgen, very hacky/brittle to encode this way
+    state_feature_map=quadratic_state_feature_map,  # again this is something you just need to know was used during modelgen, very hacky/brittle to encode this way
     # state_feature_map=trivial_state_feature_map,  # again this is something you just need to know was used during modelgen, very hacky/brittle to encode this way
-    state_feature_map=cubic_state_feature_map,  # again this is something you just need to know was used during modelgen, very hacky/brittle to encode this way
+    # state_feature_map=cubic_state_feature_map,  # again this is something you just need to know was used during modelgen, very hacky/brittle to encode this way
     local_states_datagen=local_states_datagen_func,
     compile_verify_func=None
 )

@@ -117,6 +117,20 @@ def trivial_state_feature_map_w_bias(state_sample):
     """
     return np.concatenate((state_sample, np.ones(1)))
 
+def first_order_state_feature_map(state_sample):
+    """state feature with only first order terms and bias
+
+    The bias term is intended to allow for non-zero risk metric 
+    when the rest of the state features are zero (e.g. at a 
+    the origin of a local coord frame)
+
+    Args:
+        state_sample : ArrayLike
+            numpy array of the particular state sample
+    
+    """
+    return np.concatenate((state_sample, [state_sample[0]*state_sample[1]], np.ones(1)))
+
 def quadratic_state_feature_map(state_sample):
     """state feature with quadratic terms and a bias
 
@@ -295,8 +309,9 @@ DataConf = pbuilds(DoubleIntegrator1DDataModule,
     num_workers=4,
     # state_feature_map=trivial_state_feature_map,
     # state_feature_map=trivial_state_feature_map_w_bias,
-    # state_feature_map=quadratic_state_feature_map,
-    state_feature_map=cubic_state_feature_map,
+    # state_feature_map=first_order_state_feature_map,
+    state_feature_map=quadratic_state_feature_map,
+    # state_feature_map=cubic_state_feature_map,
     # local_states_datagen=LocalStatesDatagen,
     compile_verify_func=verify_compiled_data
 )
@@ -312,8 +327,9 @@ ModelConf = pbuilds(DeepRiskCBFPerceptron,
     # num_obs_inputs=2,
     # num_state_features=2,
     # num_state_features=3,
-    # num_state_features=6,
-    num_state_features=8,
+    # num_state_features=4,
+    num_state_features=6,
+    # num_state_features=8,
     num_neurons=[32, 16, 8]
 )
 

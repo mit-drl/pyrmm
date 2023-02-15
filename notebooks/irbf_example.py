@@ -211,9 +211,13 @@ rmcbf_model = DeepRiskCBFPerceptron(
 #     "/home/ross/Projects/AIIA/risk_metric_maps/" +
 #     'outputs/2023-02-09/17-00-05/lightning_logs/version_0/checkpoints/saved_epoch=87-step=1637679.ckpt'
 # )
+# chkpt_file = (
+#     "/home/ross/Projects/AIIA/risk_metric_maps/" +
+#     'outputs/2023-02-09/17-00-05/lightning_logs/version_0/checkpoints/saved_epoch=389-step=7257899.ckpt'
+# )
 chkpt_file = (
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
-    'outputs/2023-02-09/17-00-05/lightning_logs/version_0/checkpoints/saved_epoch=389-step=7257899.ckpt'
+    'outputs/2023-02-15/11-06-29/lightning_logs/version_0/checkpoints/saved_epoch=57-step=244469.ckpt'
 )
 chkpt = torch.load(chkpt_file)
 
@@ -236,8 +240,8 @@ datapaths = U.get_abs_pt_data_paths(
 )
 
 # local_states_datagen_func = partial(local_states_datagen, 1.5)  # again, this is just something you need to know was used during modelgen
-local_states_datagen_func = partial(local_states_datagen, 3)  # again, this is just something you need to know was used during modelgen
-# local_states_datagen_func = partial(local_states_datagen, 1.0)  # again, this is just something you need to know was used during modelgen
+# local_states_datagen_func = partial(local_states_datagen, 3)  # again, this is just something you need to know was used during modelgen
+local_states_datagen_func = partial(local_states_datagen, 1.0)  # again, this is just something you need to know was used during modelgen
 rmcbf_data_mod = LSFORDataModule(
     datapaths=datapaths,
     val_ratio=0,

@@ -217,7 +217,7 @@ rmcbf_model = DeepRiskCBFPerceptron(
 # )
 chkpt_file = (
     "/home/ross/Projects/AIIA/risk_metric_maps/" +
-    'outputs/2023-02-15/11-06-29/lightning_logs/version_0/checkpoints/saved_epoch=57-step=244469.ckpt'
+    'outputs/2023-02-15/11-06-29/lightning_logs/version_0/checkpoints/epoch=511-step=2158079.ckpt'
 )
 chkpt = torch.load(chkpt_file)
 
@@ -340,9 +340,9 @@ def run_irbf_local_analysis():
     # s_z_np = np.array([4.5, 0.0])
     # s_z_np = np.array([4.5, 2.0])
     # s_z_np = np.array([2.0, 1.5])
-    s_z_np = np.array([3.0, 1.0])
+    # s_z_np = np.array([3.0, 1.0])
     # s_z_np = np.array([3.2, 1.2])
-    # s_z_np = np.array([1.0, 0.5])
+    s_z_np = np.array([1.0, 0.5])
     s_z_ompl = di1d_setup.space_info.allocState()
     di1d_setup.state_numpy_to_ompl(np_state=s_z_np, omplState=s_z_ompl)
     print("DEBUG: state = ",s_z_np)

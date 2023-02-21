@@ -63,3 +63,5 @@ conda activate pyrmm
 
 ### Risk Metric Model Training
 
+## Example Usage: Parallel Autonomy for Dubins Vehicle
+

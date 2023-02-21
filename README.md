@@ -2,6 +2,8 @@
 
 ## Overview
 
+![Dubins Example in 2D](docs/20220915_DubinsRiskMetricResults_2.png)
+
 The pyrmm library is used for development of neural network models that predict risk (e.g. probability of failure) for kinodynamic systems (e.g. cars, airplanes, etc.)
 
 ## Citation

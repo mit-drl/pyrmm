@@ -35,4 +35,13 @@ This addition conda environment was created because we need an environment with 
 
 Note: unfortunately `optimized_dp`, which is currently used for HJ-reach algorithms, has a poorly defined dependency structure consisting of an entire pip-freeze. Therefor we have to start with this over-specified set of dependencies
 
+## Reproducing ICRA 2023 Results
+
+The repository was tagged [`v0.0.4`](https://github.com/mit-drl/pyrmm/releases/tag/v0.0.4). To run the same experiments run in the paper "Learned Risk Metric Maps for Kinodynamic Systems"
+
+```bash
+git checkout v0.0.4
+# TODO: Complete experiments instructions
+```
+
 

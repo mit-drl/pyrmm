@@ -278,7 +278,16 @@ class SystemSetup:
         Returns:
             np_ctrl : ArrayLike
                 the ranomly sampled control in numpy-format (instead of ompl-format)
-        
         """
-        raise NotImplementedError('To be implemented by child class')
+
+        cspace = self.space_info.getControlSpace()
+        cbounds = cspace.getBounds()
+        cdim = cspace.getDimension()
+        return np.random.uniform(
+            [cbounds.low[i] for i in range(cdim)], 
+            [cbounds.high[i] for i in range(cdim)], 
+            (cdim,)
+        )
+
+        # raise NotImplementedError('To be implemented by child class')
         

@@ -182,25 +182,25 @@ class DoubleIntegrator1DSetup(SystemSetup):
 
             return obs
 
-    def sample_control_numpy(self):
-        """Randomly sample valid control in numpy format using numpy random
+    # def sample_control_numpy(self):
+    #     """Randomly sample valid control in numpy format using numpy random
 
-        Note: an error was found where the OMPL-provided control sampler
-        produced repeated values when run in parallel processes using
-        multiprocessing.Pool. No direct fix could be determined so
-        this is a workaround that forces control sampling in numpy
+    #     Note: an error was found where the OMPL-provided control sampler
+    #     produced repeated values when run in parallel processes using
+    #     multiprocessing.Pool. No direct fix could be determined so
+    #     this is a workaround that forces control sampling in numpy
 
-        No equivalent bug has yet been identified in state sampling
+    #     No equivalent bug has yet been identified in state sampling
 
-        Args: 
-            None
+    #     Args: 
+    #         None
 
-        Returns:
-            np_ctrl : ArrayLike
-                the ranomly sampled control in numpy-format (instead of ompl-format)
+    #     Returns:
+    #         np_ctrl : ArrayLike
+    #             the ranomly sampled control in numpy-format (instead of ompl-format)
         
-        """
-        return np.random.uniform(*self.acc_bounds, (1,))
+    #     """
+    #     return np.random.uniform(*self.acc_bounds, (1,))
 
     def control_ompl_to_numpy(self, omplCtrl, npCtrl=None):
         """convert double integrator ompl control object to numpy array

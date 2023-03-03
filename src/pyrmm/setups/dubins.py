@@ -204,6 +204,27 @@ class DubinsPPMSetup(SystemSetup):
         assert self.lidar_angles is not None
         assert len(self.lidar_angles) > 0
         return [self.cast_ray(state, theta, self.lidar_resolution) for theta in self.lidar_angles]
+    
+    # def sample_control_numpy(self):
+    #     """Randomly sample valid control in numpy format using numpy random
+
+    #     Note: an error was found where the OMPL-provided control sampler
+    #     produced repeated values when run in parallel processes using
+    #     multiprocessing.Pool. No direct fix could be determined so
+    #     this is a workaround that forces control sampling in numpy
+
+    #     No equivalent bug has yet been identified in state sampling
+
+    #     Args: 
+    #         None
+
+    #     Returns:
+    #         np_ctrl : ArrayLike
+    #             the ranomly sampled control in numpy-format (instead of ompl-format)
+        
+    #     """
+    #     cbounds = self.space_info.getControlSpace().getBounds()
+    #     return np.random.uniform(cbounds.low[0], cbounds.high[0], (1,))
 
     @staticmethod
     def control_ompl_to_numpy(omplCtrl, npCtrl=None):

@@ -91,6 +91,9 @@ Then make that script executable by running
 sudo chmod a+x /usr/local/bin/blender
 ```
 
+### Verify Installation
+
+TODO
 
 ## Example Usage: Dubins Vehicle in PPM Mazes
 

@@ -23,6 +23,11 @@ def get_dummy_r2_setup():
 
     # def control_ompl_to_numpy(self, omplCtrl, npCtrl):
     #     return np.zeros(2)
+    def control_numpy_to_ompl(npCtrl, omplCtrl):
+        """convert double integrator control from numpy array to ompl control object in-place
+        """
+        omplCtrl[0] = npCtrl[0]
+        omplCtrl[1] = npCtrl[1]
 
     # state_space = ob.SO2StateSpace()
     state_space = ob.RealVectorStateSpace(dim=2)
@@ -33,7 +38,8 @@ def get_dummy_r2_setup():
     si.setStatePropagator(prop_cls(si))
     sys_setup = SystemSetup(space_information=si)
     sys_setup.control_ompl_to_numpy = lambda omplCtrl, npCtrl=None: np.array([omplCtrl[0], omplCtrl[1]])
-    # sys_setup.control_ompl_to_numpy = control_ompl_to_numpy
+    sys_setup.sample_control_numpy = lambda: np.random.uniform(size=(2,))
+    sys_setup.control_numpy_to_ompl = control_numpy_to_ompl
     return sys_setup
 
 

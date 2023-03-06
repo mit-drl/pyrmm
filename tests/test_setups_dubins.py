@@ -1044,6 +1044,43 @@ def test_hypothesis_DubinsPPMSetup_isPathValid_3point(x0, y0, yaw0, x1, y1, yaw1
         assert not is_valid
 
 
+@given(
+    st.floats(min_value=0, max_value=1e3, exclude_min=True, allow_nan=False, allow_infinity=False),
+    st.floats(min_value=1e-3, max_value=1e2, exclude_min=True, allow_nan=False, allow_infinity=False),
+)
+def test_hypothesis_DubinsPPMSetup_convert_control_ompl_numpy_0(spd, trn,):
+    '''check that conversion between ompl and numpy does not alter control value'''
+
+    # ~~~ ARRANGE ~~~
+    # create system setup
+    ds = DubinsPPMSetup(PPM_PARTITION_FILE, speed=spd, min_turn_radius=trn)
+
+    # generate random control
+    sampler = ds.space_info.allocControlSampler()
+    c_ompl_orig = ds.space_info.allocControl()
+    sampler.sample(c_ompl_orig)
+
+    # ~~~ ACT ~~~
+    # convert to numpy then back to ompl
+    c_np = DubinsPPMSetup.control_ompl_to_numpy(c_ompl_orig)
+    c_ompl_copy = ds.space_info.allocControl()
+    DubinsPPMSetup.control_numpy_to_ompl(c_np, c_ompl_copy)
+
+    # ~~~ ASSERT ~~~
+    # check that original and copy are the same
+    assert np.isclose(c_ompl_orig[0], c_ompl_copy[0])
+
+    # ~~~ ACT ~~~
+    # convert to numpy (in-place) then back to ompl
+    c_np_2 = np.zeros(1)
+    DubinsPPMSetup.control_ompl_to_numpy(c_ompl_orig, c_np_2)
+    c_ompl_copy_2 = ds.space_info.allocControl()
+    DubinsPPMSetup.control_numpy_to_ompl(c_np_2, c_ompl_copy_2)
+
+    # ~~~ ASSERT ~~~
+    # check that original and copy are the same
+    assert np.isclose(c_ompl_orig[0], c_ompl_copy_2[0])
+
 if __name__ == "__main__":
     faulthandler.enable()
     test_DubinsPPMSetup_cast_ray_0()

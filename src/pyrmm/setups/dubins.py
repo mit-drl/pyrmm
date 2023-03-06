@@ -66,6 +66,7 @@ class DubinsPPMSetup(SystemSetup):
         state_space.setBounds(sbounds)
 
         # create control space and set bounds
+        # Control space is turnrate in [rad/sec]
         control_space = oc.RealVectorControlSpace(stateSpace=state_space, dim=1)
         dtheta = self.speed/self.min_turn_radius
         cbounds = ob.RealVectorBounds(1)
@@ -226,15 +227,34 @@ class DubinsPPMSetup(SystemSetup):
     #     cbounds = self.space_info.getControlSpace().getBounds()
     #     return np.random.uniform(cbounds.low[0], cbounds.high[0], (1,))
 
-    @staticmethod
-    def control_ompl_to_numpy(omplCtrl, npCtrl=None):
-        """convert Dubins4d ompl control object to numpy array
+    def control_ompl_to_numpy(self, omplCtrl, npCtrl=None):
+        """convert dubins ompl control object to numpy array
 
         Args:
             omplCtrl : oc.Control
-                dubins4d control in ompl RealVectorControl format
-            npCtrl : ndarray (2,)
-                dubins4d control represented in np array with [turnrate, acceleration] ordering
+                Dubins control (i.e. turnrate) in ompl RealVectorControl format
+            npCtrl : ndarray (1,)
+                Dubins control represented in np array [acceleration]
+                if not None, input argument is modified in place, else returned
+        """
+
+        # redirect to static method
+        DubinsPPMSetup.control_ompl_to_numpy(omplCtrl=omplCtrl, npCtrl=npCtrl)
+
+    @staticmethod
+    def control_ompl_to_numpy(omplCtrl, npCtrl=None):
+        """convert Dubins ompl control object to numpy array
+
+        Note: this is static so that it can be called elsewhere (e.g. within StatePropagator
+        class) without creating a dummy instance of the SystemSetup object.
+        Note: at the same time, control_ompl_to_numpy is not made static itself because 
+        we need to overload it at the parent class SystemSetup level 
+
+        Args:
+            omplCtrl : oc.Control
+                dubins control in ompl RealVectorControl format
+            npCtrl : ndarray (1,)
+                dubins control (turnrate in [rad/sec]) represented in np array with 
                 if not None, input argument is modified in place, else returned
         """
         ret = False
@@ -246,6 +266,40 @@ class DubinsPPMSetup(SystemSetup):
 
         if ret:
             return npCtrl
+        
+    def control_numpy_to_ompl(self, npCtrl, omplCtrl):
+        """convert dubins control from numpy array to ompl control object in-place
+
+
+        Args:
+            npCtrl : ArrayLike (1,)
+                Dubins control represented in np array [turnrate]
+            omplCtrl : oc.Control
+                Dubins control [turnrate] in ompl RealVectorControl format
+        """
+
+        # redirect to static method
+        DubinsPPMSetup.control_numpy_to_ompl(omplCtrl=omplCtrl, npCtrl=npCtrl)
+
+    @staticmethod
+    def control_numpy_to_ompl(npCtrl, omplCtrl):
+        """convert dubins control from numpy array to ompl control object in-place
+
+        Note: this is static so that it can be called elsewhere (e.g. within StatePropagator
+        class) without creating a dummy instance of the SystemSetup object.
+        Note: at the same time, control_numpy_to_ompl is not made static itself because 
+        we need to overload it at the parent class SystemSetup level 
+
+
+        Args:
+            npCtrl : ArrayLike (1,)
+                Dubins control represented in np array [turnrate]
+            omplCtrl : oc.Control
+                Dubins control [turnrate] in ompl RealVectorControl format
+        """
+
+        assert npCtrl.shape == (1,), "Unexpected shape {}".format(npCtrl.shape)
+        omplCtrl[0] = npCtrl[0]
 
     def dummyRiskMetric(self, state, trajectory, distance, branch_fact, depth, n_steps, policy='uniform_random', samples=None):
         '''A stand-in for the actual risk metric estimator used for model training testing purposes
@@ -296,7 +350,7 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
             state : ob.State
                 start state of propagation
             control : oc.Control
-                control to apply during propagation
+                control (turnrate in [rad/sec]) to apply during propagation
             duration : float
                 duration of propagation
             result : ob.State
@@ -337,7 +391,7 @@ class DubinsPPMStatePropagator(oc.StatePropagator):
             state : ob.State
                 start state of propagation
             control : oc.Control
-                control to apply during propagation
+                control (turnrate in [rad/sec]) to apply during propagation
             duration : float
                 duration of propagation
             path : oc.ControlPath

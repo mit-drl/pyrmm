@@ -342,7 +342,6 @@ def test_hypothesis_DoubleIntegrator1DSetup_convert_control_ompl_numpy_0(posb, v
     # ~~~ ASSERT ~~~
     # check that original and copy are the same
     assert np.isclose(c_ompl_orig[0], c_ompl_copy[0])
-    assert np.isclose(c_ompl_orig[1], c_ompl_copy[1])
 
     # ~~~ ACT ~~~
     # convert to numpy (in-place) then back to ompl
@@ -354,7 +353,6 @@ def test_hypothesis_DoubleIntegrator1DSetup_convert_control_ompl_numpy_0(posb, v
     # ~~~ ASSERT ~~~
     # check that original and copy are the same
     assert np.isclose(c_ompl_orig[0], c_ompl_copy_2[0])
-    assert np.isclose(c_ompl_orig[1], c_ompl_copy_2[1])
 
 @given(
     st.floats(min_value=0, max_value=1e3, exclude_min=True, allow_nan=False, allow_infinity=False),

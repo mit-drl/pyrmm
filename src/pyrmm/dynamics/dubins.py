@@ -11,11 +11,11 @@ def ode_dubins(y, t, u, speed):
     
     Args:
         y : array-like
-            state variable vector [x, y, theta]
+            state variable vector [x, y, theta] with theta in radians
         t : array-like
             time variable
         u : array-like
-            control vector [dtheta]
+            control vector [dtheta] in radians/sec
         speed : float
             constant tangential speed
 

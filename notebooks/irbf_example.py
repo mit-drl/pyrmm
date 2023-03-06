@@ -281,7 +281,7 @@ def run_irbf_global_analysis():
             # package state in np array and convert state to ompl
             s_z_np = np.array([p_z, v_z])
             s_z_ompl = di1d_setup.space_info.allocState()
-            di1d_setup.state_numpy_to_ompl(np_state=s_z_np, omplState=s_z_ompl)
+            di1d_setup.state_numpy_to_ompl(npState=s_z_np, omplState=s_z_ompl)
             print("DEBUG: state = ",s_z_np)
 
             # get observation of state
@@ -344,7 +344,7 @@ def run_irbf_local_analysis():
     # s_z_np = np.array([3.2, 1.2])
     s_z_np = np.array([1.0, 0.5])
     s_z_ompl = di1d_setup.space_info.allocState()
-    di1d_setup.state_numpy_to_ompl(np_state=s_z_np, omplState=s_z_ompl)
+    di1d_setup.state_numpy_to_ompl(npState=s_z_np, omplState=s_z_ompl)
     print("DEBUG: state = ",s_z_np)
 
     # get observation of state

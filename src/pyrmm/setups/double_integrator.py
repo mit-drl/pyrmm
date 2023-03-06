@@ -266,33 +266,37 @@ class DoubleIntegrator1DSetup(SystemSetup):
         assert npCtrl.shape == (1,), "Unexpected shape {}".format(npCtrl.shape)
         omplCtrl[0] = npCtrl[0]
 
-    def state_ompl_to_numpy(omplState, np_state=None):
+    def state_ompl_to_numpy(self, omplState, npState=None):
         """ redirect to static method"""
-        DoubleIntegrator1DSetup.state_ompl_to_numpy(omplState=omplState, np_state=np_state)
+        DoubleIntegrator1DSetup.state_ompl_to_numpy(omplState=omplState, npState=npState)
 
     @staticmethod
-    def state_ompl_to_numpy(omplState, np_state=None):
+    def state_ompl_to_numpy(omplState, npState=None):
         """convert 1D double integrator ompl state to numpy array
 
         Args:
             omplState : ob.State
                 double integrator state in [pos, vel] ordering
-            np_state : ArrayLike (2,)
+            npState : ArrayLike (2,)
                 double integrator state represented in np array in [pos, vel] ordering
                 if None, return np array, otherwise modify in place
         """
         ret = False
-        if np_state is None:
-            np_state = np.empty(2,)
+        if npState is None:
+            npState = np.empty(2,)
             ret = True
-        np_state[0] = omplState[0]
-        np_state[1] = omplState[1]
+        npState[0] = omplState[0]
+        npState[1] = omplState[1]
 
         if ret:
-            return np_state
+            return npState
+        
+    def state_numpy_to_ompl(self, npState, omplState):
+        """ redirect to static method"""
+        DoubleIntegrator1DSetup.state_numpy_to_ompl(npState=npState, omplState=omplState)
 
     @staticmethod
-    def state_numpy_to_ompl(np_state, omplState):
+    def state_numpy_to_ompl(npState, omplState):
         """convert 1D double integrator state from numpy array to ompl object in-place
 
         Args:
@@ -301,11 +305,11 @@ class DoubleIntegrator1DSetup(SystemSetup):
             omplState : ob.State
                 double integrator state in [pos, vel] ordering
         """
-        assert np_state.shape == (2,)
-        omplState[0] = np_state[0]
-        omplState[1] = np_state[1]
+        assert npState.shape == (2,)
+        omplState[0] = npState[0]
+        omplState[1] = npState[1]
 
-    def path_numpy_to_ompl(np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike, omplPath):
+    def path_numpy_to_ompl(self, np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike, omplPath):
         """redirect to static method
         """
         DoubleIntegrator1DSetup.path_numpy_to_ompl(
@@ -347,7 +351,7 @@ class DoubleIntegrator1DSetup(SystemSetup):
         for i in range(nsteps-1):
 
             # write the state
-            DoubleIntegrator1DSetup.state_numpy_to_ompl(np_state=np_states[i], omplState=pstates[i])
+            DoubleIntegrator1DSetup.state_numpy_to_ompl(npState=np_states[i], omplState=pstates[i])
 
             # write the control 
             DoubleIntegrator1DSetup.control_numpy_to_ompl(npCtrl=np_controls[i], omplCtrl=pcontrols[i])
@@ -356,9 +360,9 @@ class DoubleIntegrator1DSetup(SystemSetup):
             pdurs[i] = np_times[i+1] - np_times[i]
         
         # store final state
-        DoubleIntegrator1DSetup.state_numpy_to_ompl(np_state=np_states[-1], omplState=pstates[-1])
+        DoubleIntegrator1DSetup.state_numpy_to_ompl(npState=np_states[-1], omplState=pstates[-1])
 
-    def path_ompl_to_numpy(omplPath, np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike,):
+    def path_ompl_to_numpy(self, omplPath, np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike,):
         """ redirect to static method
         """
         DoubleIntegrator1DSetup.path_ompl_to_numpy(
@@ -401,7 +405,7 @@ class DoubleIntegrator1DSetup(SystemSetup):
         for i in range(nsteps-1):
 
             # write the state
-            DoubleIntegrator1DSetup.state_ompl_to_numpy(omplState=pstates[i], np_state=np_states[i])
+            DoubleIntegrator1DSetup.state_ompl_to_numpy(omplState=pstates[i], npState=np_states[i])
 
             # write the control 
             DoubleIntegrator1DSetup.control_ompl_to_numpy(omplCtrl=pcontrols[i], npCtrl=np_controls[i])
@@ -410,7 +414,7 @@ class DoubleIntegrator1DSetup(SystemSetup):
             np_times[i+1] = pdurs[i] + np_times[i]
         
         # store final state
-        DoubleIntegrator1DSetup.state_ompl_to_numpy(omplState=pstates[-1], np_state=np_states[-1])
+        DoubleIntegrator1DSetup.state_ompl_to_numpy(omplState=pstates[-1], npState=np_states[-1])
 
 # class DoubleIntegrator1DStatePropagator(oc.StatePropagator):
 

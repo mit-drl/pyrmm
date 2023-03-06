@@ -245,15 +245,26 @@ class SystemSetup:
         '''
         raise NotImplementedError('To be implemented by child class')
     
-    def state_ompl_to_numpy(self, omplCtrl, npCtrl=None):
+    def state_ompl_to_numpy(self, omplState, npState=None):
         """convert ompl state to numpy array
 
         Args:
             omplState : ob.State
                 ompl state object
-            np_state : ArrayLike OR None
-                ompl state represented in np array in
+            npState : ArrayLike OR None
+                state represented in numpy array
                 if None, return np array, otherwise modify in place
+        """
+        raise NotImplementedError('To be implemented by child class')
+    
+    def state_numpy_to_ompl(self, npState, omplState):
+        """convert state from numpy array to ompl object in-place
+
+        Args:
+            npState : ArrayLike
+                state represented in numpy array
+            omplState : ob.State
+                ompl state object to be modified in place
         """
         raise NotImplementedError('To be implemented by child class')
 

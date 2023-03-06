@@ -4,10 +4,10 @@ for different systems that can be used to compute risk metric
 maps
 '''
 import numpy as np
-from copy import deepcopy
-from functools import partial
+from scipy.integrate import odeint
 
-from ompl import base as ob
+from numpy.typing import ArrayLike
+
 from ompl import control as oc
 
 class SystemSetup:
@@ -42,14 +42,22 @@ class SystemSetup:
         # ensure that a state validity checker has been set
         if self.space_info.getStateValidityChecker() is None:
             raise AttributeError("State validity checker must be set by child class!")
+        
+        # ensure that a ompl state propagator has NOT been set
+        if self.space_info.getStatePropagator() is not None:
+            raise AttributeError("OMPL state propagator class deprecated in favor of propagate_path function!")
+        
+        # ensure that equations of motion ODE have been defined
+        if not hasattr(self, "eom_ode") or not callable(self.eom_ode):
+            raise AttributeError("callable equation of motion ODE must be set by child class!")
 
-        # ensure that a state propagator has been set
-        if self.space_info.getStatePropagator() is None:
-            raise AttributeError("State propagator must be set by child class!")
+        # # ensure that a state propagator has been set
+        # if self.space_info.getStatePropagator() is None:
+        #     raise AttributeError("State propagator must be set by child class!")
 
-        # ensure that state propagator has a propagator that returns a path
-        if not hasattr(self.space_info.getStatePropagator(), 'propagate_path'):
-            raise AttributeError("State propagator must implement propagate_path function that computes path to result!")
+        # # ensure that state propagator has a propagator that returns a path
+        # if not hasattr(self.space_info.getStatePropagator(), 'propagate_path'):
+        #     raise AttributeError("State propagator must implement propagate_path function that computes path to result!")
 
     def isPathValid(self, path):
         '''check if any state on path is in collision with obstacles
@@ -123,7 +131,8 @@ class SystemSetup:
                 self.control_numpy_to_ompl(npCtrl=np_c, omplCtrl=c)
 
                 # propagate sampled control
-                si.getStatePropagator().propagate_path(
+                # si.getStatePropagator().propagate_path(
+                self.propagate_path(
                     state = state,
                     control = c,
                     duration = distance,
@@ -235,6 +244,18 @@ class SystemSetup:
                 array giving observation values
         '''
         raise NotImplementedError('To be implemented by child class')
+    
+    def state_ompl_to_numpy(self, omplCtrl, npCtrl=None):
+        """convert ompl state to numpy array
+
+        Args:
+            omplState : ob.State
+                ompl state object
+            np_state : ArrayLike OR None
+                ompl state represented in np array in
+                if None, return np array, otherwise modify in place
+        """
+        raise NotImplementedError('To be implemented by child class')
 
     def control_ompl_to_numpy(self, omplCtrl, npCtrl=None):
         """ convert OMPL control object to numpy
@@ -258,6 +279,55 @@ class SystemSetup:
             omplCtrl : oc.Control
                 OMPL control object to be modified in-place
                 https://ompl.kavrakilab.org/classompl_1_1control_1_1ControlSpace.html
+        """
+        raise NotImplementedError('To be implemented by child class')
+    
+    def path_numpy_to_ompl(np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike, omplPath):
+        """ Convert numpy-like description of a trajectory into ompl PathControl object (in place)
+
+        Args:
+            np_states : ArrayLike (n,2)
+                array of n states in path in numpy-like format
+            np_controls : ArrayLike (n-1,1)
+                array of n-1 control inputs along path in numpy-like format
+            np_times : ArrayLike (n,)
+                array of n time steps of path in numpy-like format
+            omplPath : oc.PathControl
+                ompl PathControl object, modified in-place
+        
+        Returns:
+            None
+        """
+        raise NotImplementedError('To be implemented by child class')
+
+    def path_ompl_to_numpy(omplPath, np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike):
+        """ Convert ompl PathControl object to numpy arrays in-place
+
+        Args:
+            omplPath : oc.PathControl
+                ompl PathControl object, modified in-place
+            np_states : ArrayLike (n,2)
+                array of n states in path in numpy-like format
+            np_controls : ArrayLike (n-1,1)
+                array of n-1 control inputs along path in numpy-like format
+            np_times : ArrayLike (n,)
+                array of n time steps of path in numpy-like format
+        
+        Returns:
+            None (conversion performed in-place)
+        """
+        raise NotImplementedError('To be implemented by child class')
+    
+    def eom_ode(y: ArrayLike, t: ArrayLike, u: ArrayLike):
+        """ ordinary differential equation defining equations of motion
+
+        Args:
+            y : ArrayLike
+                state variable vector
+            t : ArrayLike
+                time variable
+            u : ArrayLike
+                control vector
         """
         raise NotImplementedError('To be implemented by child class')
 
@@ -290,4 +360,90 @@ class SystemSetup:
         )
 
         # raise NotImplementedError('To be implemented by child class')
+
+    def propagate_path(self, state, control, duration, path):
+        """ propagate from start based on control, store path in-place
+
+        Args:
+            state : ob.State internal
+                start state of propagation
+            control : oc.Control
+                control to apply during propagation,
+                will be bounded by control space bounds
+            duration : float
+                duration of propagation
+            path : oc.ControlPath
+                path from state to result in nsteps. initial state is state, final state is result
+
+        Returns:
+            None
+
+        Notes:
+            This function is similar, but disctinct from 'StatePropagator.propogate', thus its different name to no overload `propagate`. 
+            propogate does not store or return the path to get to result
+            
+            Currently using scipy's odeint. This creates a dependency on scipy and is likely inefficient
+            because it's perform the numerical integration in python instead of C++. 
+            Could be improved later
+        """
+
+        # unpack objects from space information for ease of use
+        nstatedims = self.space_info.getStateDimension()
+        cspace = self.space_info.getControlSpace()
+        nctrldims = cspace.getDimension()
+        cbounds = cspace.getBounds()
+        nsteps = path.getStateCount()
+        assert nsteps >= 2
+        assert nctrldims == 1
+        assert duration >= 0
+
+        # package init state and time vector
+        np_state = self.state_ompl_to_numpy(omplState=state)
+        assert len(np_state) == nstatedims, "Inconsistency found between state dims and ompl-to-numpy state conversion"
         
+        # create equi-spaced time vector based on number or elements
+        # in path object
+        t = np.linspace(0.0, duration, nsteps)
+
+        # clip the control to ensure it is within the control bounds
+        np_control = self.control_ompl_to_numpy(omplCtrl=control)
+        assert len(np_control) == nctrldims, "Inconsistency found between control dims and ompl-to-numpy control conversion"
+        np_bounded_control = [np.clip(np_control[i], cbounds.low[i], cbounds.high[i]) for i in range(nctrldims)]
+
+        # call scipy's ode integrator
+        sol = odeint(self.eom_ode, np_state, t, args=(np_bounded_control,))
+
+        # expand bounded_control into array for conversion to ompl
+        # PathControl object
+        ctrl_array = np.array([np_bounded_control for i in range(nsteps-1)])
+
+        self.path_numpy_to_ompl(
+            np_states=sol, 
+            np_times=t, 
+            np_controls=ctrl_array, 
+            omplPath=path)
+        
+# class SystemStatePropagator(oc.StatePropagator):
+
+#     def __init__(self, spaceInformation):
+#         """
+#         Args:
+#             spaceInformation : oc.SpaceInformation
+#                 ompl object containing information on state and control space
+#         """
+
+#         # Store information about space propagator operates on
+#         # NOTE: this serves the same purpose as the  protected attribute si_ 
+#         # but si_ does not seem to be accessible in python
+#         # Ref: https://ompl.kavrakilab.org/classompl_1_1control_1_1StatePropagator.html
+#         self.__si = spaceInformation
+#         super().__init__(si=spaceInformation)
+
+#     def canPropagateBackwards(self):
+#         return False
+
+#     def steer(self, from_state, to_state, control, duration):
+#         return False
+
+#     def canSteer(self):
+#         return False

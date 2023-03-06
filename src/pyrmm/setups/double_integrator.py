@@ -6,7 +6,6 @@ from __future__ import division
 import copyreg
 import numpy as np
 from numpy.typing import ArrayLike
-from scipy.integrate import odeint
 from functools import partial
 
 from ompl import util as ou
@@ -71,8 +70,9 @@ class DoubleIntegrator1DSetup(SystemSetup):
         space_info = oc.SpaceInformation(stateSpace=state_space, controlSpace=control_space)
 
         # create and set propagator class from ODEs
-        propagator = DoubleIntegrator1DStatePropagator(spaceInformation=space_info)
-        space_info.setStatePropagator(propagator)
+        # propagator = DoubleIntegrator1DStatePropagator(spaceInformation=space_info)
+        # space_info.setStatePropagator(propagator)
+        self.eom_ode = ode_1d
 
         # create and set state validity checker
         validityChecker = ob.StateValidityCheckerFn(partial(self.isStateValid, space_info))
@@ -88,6 +88,19 @@ class DoubleIntegrator1DSetup(SystemSetup):
         https://stackoverflow.com/a/50308545/4055705
         '''
         return (DoubleIntegrator1DSetup, (self.pos_bounds, self.vel_bounds, self.acc_bounds, self.obst_bounds))
+    
+    # def eom_ode(y: ArrayLike, t: ArrayLike, u: ArrayLike):
+    #     """ ordinary differential equation defining equations of motion
+
+    #     Args:
+    #         y : ArrayLike
+    #             state variable vector
+    #         t : ArrayLike
+    #             time variable
+    #         u : ArrayLike
+    #             control vector
+    #     """
+    #     return ode_1d(y=y, t=t, u=u)
 
     def isStateValid(self, spaceInformation, state):
         ''' check if state is in collision with obstacle (state bounds used for sampling)
@@ -203,17 +216,8 @@ class DoubleIntegrator1DSetup(SystemSetup):
     #     return np.random.uniform(*self.acc_bounds, (1,))
 
     def control_ompl_to_numpy(self, omplCtrl, npCtrl=None):
-        """convert double integrator ompl control object to numpy array
-
-        Args:
-            omplCtrl : oc.Control
-                1D double integrator control (i.e. acceleration) in ompl RealVectorControl format
-            npCtrl : ndarray (1,)
-                1D double integrator control represented in np array [acceleration]
-                if not None, input argument is modified in place, else returned
+        """redirect to static method
         """
-
-        # redirect to static method
         DoubleIntegrator1DSetup.control_ompl_to_numpy(omplCtrl=omplCtrl, npCtrl=npCtrl)
 
     @staticmethod
@@ -243,17 +247,8 @@ class DoubleIntegrator1DSetup(SystemSetup):
             return npCtrl
 
     def control_numpy_to_ompl(self, npCtrl, omplCtrl):
-        """convert double integrator control from numpy array to ompl control object in-place
-
-
-        Args:
-            npCtrl : ArrayLike (1,)
-                1D double integrator control represented in np array [acceleration]
-            omplCtrl : oc.Control
-                1D double integrator control (i.e. acceleration) in ompl RealVectorControl format
+        """ redirect to static method
         """
-
-        # redirect to static method
         DoubleIntegrator1DSetup.control_numpy_to_ompl(omplCtrl=omplCtrl, npCtrl=npCtrl)
 
     @staticmethod
@@ -270,6 +265,10 @@ class DoubleIntegrator1DSetup(SystemSetup):
 
         assert npCtrl.shape == (1,), "Unexpected shape {}".format(npCtrl.shape)
         omplCtrl[0] = npCtrl[0]
+
+    def state_ompl_to_numpy(omplState, np_state=None):
+        """ redirect to static method"""
+        DoubleIntegrator1DSetup.state_ompl_to_numpy(omplState=omplState, np_state=np_state)
 
     @staticmethod
     def state_ompl_to_numpy(omplState, np_state=None):
@@ -305,6 +304,16 @@ class DoubleIntegrator1DSetup(SystemSetup):
         assert np_state.shape == (2,)
         omplState[0] = np_state[0]
         omplState[1] = np_state[1]
+
+    def path_numpy_to_ompl(np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike, omplPath):
+        """redirect to static method
+        """
+        DoubleIntegrator1DSetup.path_numpy_to_ompl(
+            np_states=np_states,
+            np_controls=np_controls,
+            np_times=np_times,
+            omplPath=omplPath
+        )
 
     @staticmethod
     def path_numpy_to_ompl(np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike, omplPath):
@@ -348,6 +357,16 @@ class DoubleIntegrator1DSetup(SystemSetup):
         
         # store final state
         DoubleIntegrator1DSetup.state_numpy_to_ompl(np_state=np_states[-1], omplState=pstates[-1])
+
+    def path_ompl_to_numpy(omplPath, np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike,):
+        """ redirect to static method
+        """
+        DoubleIntegrator1DSetup.path_ompl_to_numpy(
+            omplPath=omplPath,
+            np_states=np_states,
+            np_controls=np_controls,
+            np_times=np_times
+        )
 
     @staticmethod
     def path_ompl_to_numpy(omplPath, np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike,):
@@ -393,85 +412,85 @@ class DoubleIntegrator1DSetup(SystemSetup):
         # store final state
         DoubleIntegrator1DSetup.state_ompl_to_numpy(omplState=pstates[-1], np_state=np_states[-1])
 
-class DoubleIntegrator1DStatePropagator(oc.StatePropagator):
+# class DoubleIntegrator1DStatePropagator(oc.StatePropagator):
 
-    def __init__(self, spaceInformation):
+#     def __init__(self, spaceInformation):
 
-        # Store information about space propagator operates on
-        # NOTE: this serves the same purpose as the  protected attribute si_ 
-        # but si_ does not seem to be accessible in python
-        # Ref: https://ompl.kavrakilab.org/classompl_1_1control_1_1StatePropagator.html
-        self.__si = spaceInformation
-        super().__init__(si=spaceInformation)
+#         # Store information about space propagator operates on
+#         # NOTE: this serves the same purpose as the  protected attribute si_ 
+#         # but si_ does not seem to be accessible in python
+#         # Ref: https://ompl.kavrakilab.org/classompl_1_1control_1_1StatePropagator.html
+#         self.__si = spaceInformation
+#         super().__init__(si=spaceInformation)
 
-    def propagate_path(self, state, control, duration, path):
-        """ propagate from start based on control, store path in-place
+#     def propagate_path(self, state, control, duration, path):
+#         """ propagate from start based on control, store path in-place
 
-        TODO: move this to parent class, should be possible if all children define
-                a state_ompl_to_numpy and pathcontrol_numpy_to_ompl function
+#         TODO: move this to parent class, should be possible if all children define
+#                 a state_ompl_to_numpy and pathcontrol_numpy_to_ompl function
 
-        Args:
-            state : ob.State internal
-                start state of propagation
-            control : oc.Control
-                control to apply during propagation
-            duration : float
-                duration of propagation
-            path : oc.ControlPath
-                path from state to result in nsteps. initial state is state, final state is result
+#         Args:
+#             state : ob.State internal
+#                 start state of propagation
+#             control : oc.Control
+#                 control to apply during propagation
+#             duration : float
+#                 duration of propagation
+#             path : oc.ControlPath
+#                 path from state to result in nsteps. initial state is state, final state is result
 
-        Returns:
-            None
+#         Returns:
+#             None
 
-        Notes:
-            This function is similar, but disctinct from 'StatePropagator.propogate', thus its different name to no overload `propagate`. 
-            propogate does not store or return the path to get to result
+#         Notes:
+#             This function is similar, but disctinct from 'StatePropagator.propogate', thus its different name to no overload `propagate`. 
+#             propogate does not store or return the path to get to result
             
-            Currently using scipy's odeint. This creates a dependency on scipy and is likely inefficient
-            because it's perform the numerical integration in python instead of C++. 
-            Could be improved later
-        """
+#             Currently using scipy's odeint. This creates a dependency on scipy and is likely inefficient
+#             because it's perform the numerical integration in python instead of C++. 
+#             Could be improved later
+#         """
 
-        # unpack objects from space information for ease of use
-        cspace = self.__si.getControlSpace()
-        nctrldims = cspace.getDimension()
-        cbounds = cspace.getBounds()
-        nsteps = path.getStateCount()
-        assert nsteps >= 2
-        assert nctrldims == 1
-        assert duration >= 0
+#         # unpack objects from space information for ease of use
+#         cspace = self.__si.getControlSpace()
+#         nctrldims = cspace.getDimension()
+#         cbounds = cspace.getBounds()
+#         nsteps = path.getStateCount()
+#         assert nsteps >= 2
+#         assert nctrldims == 1
+#         assert duration >= 0
 
-        # package init state and time vector
-        s0 = [state[0], state[1]]
+#         # package init state and time vector
+#         s0 = [state[0], state[1]]
         
-        # create equi-spaced time vector based on number or elements
-        # in path object
-        t = np.linspace(0.0, duration, nsteps)
+#         # create equi-spaced time vector based on number or elements
+#         # in path object
+#         t = np.linspace(0.0, duration, nsteps)
 
-        # clip the control to ensure it is within the control bounds
-        bounded_control = [np.clip(control[i], cbounds.low[i], cbounds.high[i]) for i in range(nctrldims)]
+#         # clip the control to ensure it is within the control bounds
+#         bounded_control = [np.clip(control[i], cbounds.low[i], cbounds.high[i]) for i in range(nctrldims)]
 
-        # call scipy's ode integrator
-        sol = odeint(ode_1d, s0, t, args=(bounded_control,))
+#         # call scipy's ode integrator
+#         sol = odeint(ode_1d, s0, t, args=(bounded_control,))
 
-        # expand bounded_control into array for conversion to ompl
-        # PathControl object
-        ctrl_array = np.array([bounded_control for i in range(nsteps-1)])
+#         # expand bounded_control into array for conversion to ompl
+#         # PathControl object
+#         ctrl_array = np.array([bounded_control for i in range(nsteps-1)])
 
-        DoubleIntegrator1DSetup.path_numpy_to_ompl(
-            np_states=sol, 
-            np_times=t, 
-            np_controls=ctrl_array, 
-            omplPath=path)
+#         DoubleIntegrator1DSetup.path_numpy_to_ompl(
+#             np_states=sol, 
+#             np_times=t, 
+#             np_controls=ctrl_array, 
+#             omplPath=path)
 
-    def canPropagateBackwards(self):
-        return False
+#     def canPropagateBackwards(self):
+#         return False
 
-    def steer(self, from_state, to_state, control, duration):
-        return False
+#     def steer(self, from_state, to_state, control, duration):
+#         return False
 
-    def canSteer(self):
-        return False
+#     def canSteer(self):
+#         return False
 
 _DUMMY_REALVECTORSTATESPACE2 = ob.RealVectorStateSpace(2)
 _DUMMY_REALVECTORCONTROLSPACE1 = oc.RealVectorControlSpace(stateSpace=_DUMMY_REALVECTORSTATESPACE2, dim=1)

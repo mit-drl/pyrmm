@@ -96,7 +96,7 @@ def test_DoubleIntegrator1DSetup_propagate_path_0():
         acc_bounds=acc_bounds, 
         obst_bounds=obst_bounds)
     si = ds.space_info
-    propagator = ds.space_info.getStatePropagator()
+    # propagator = ds.space_info.getStatePropagator()
 
     # set cases to be tested
     init_pos = [0.0, 0.0, 0.0, 10, 0.0, -1.0]
@@ -126,7 +126,7 @@ def test_DoubleIntegrator1DSetup_propagate_path_0():
 
         # ~~~ ACT ~~~
         # propagate state
-        propagator.propagate_path(s0, c0, duration, path)
+        ds.propagate_path(s0, c0, duration, path)
         
         # ~~~ ASSERT ~~~
         assert cspace.getDimension() == 1
@@ -249,7 +249,7 @@ def test_DoubleIntegrator1DSetup_sampleReachableSet_0():
         sp_sub0.append(state=ds.space_info.allocState())
 
         # perform path propagation over first step of sampled trajectory
-        ds.space_info.getStatePropagator().propagate_path(
+        ds.propagate_path(
             state = s0,
             control = ctrl,
             duration = ctrl_dur,

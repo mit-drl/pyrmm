@@ -3,6 +3,7 @@ collection of modules used to create OMPL SimpleSetup objects
 for different systems that can be used to compute risk metric
 maps
 '''
+import inspect
 import numpy as np
 from scipy.integrate import odeint
 
@@ -21,11 +22,24 @@ class SystemSetup:
     # that must be implemented by child class
     observation_shape = NotImplemented
     
-    def __init__(self, space_information, risk_fn=np.mean):
+    def __init__(
+            self, 
+            space_information, 
+            eom_ode: callable, 
+            risk_fn: callable = np.mean):
         ''' create SimpleSetup object
         Args:
             space_information : ob.SpaceInformation OR oc.SpaceInformation
                 state and control space info for which risk metrics are to be evaluated
+            eom_ode : callable
+                ordinary diff eq defining system's equations of motion
+                function with strictly 3 input arguments
+                y : ArrayLike
+                    state variable vector
+                t : ArrayLike
+                    time variable
+                u : ArrayLike
+                    control vector
             risk_fn : callable
                 function for evaluating risk metrics (e.g. expected risk, CVaR)
             # state_validity_fn : callable
@@ -48,8 +62,17 @@ class SystemSetup:
             raise AttributeError("OMPL state propagator class deprecated in favor of propagate_path function!")
         
         # ensure that equations of motion ODE have been defined
-        if not hasattr(self, "eom_ode") or not callable(self.eom_ode):
-            raise AttributeError("callable equation of motion ODE must be set by child class!")
+        self.eom_ode = eom_ode
+        if not callable(self.eom_ode):
+            raise AttributeError("Equations of motion ODE must be callable")
+        
+        # ensure eoms only have three input arguments: [y, t, u]
+        # which correspond to state, time, and control vectors.
+        # This ensurese the EOM it is compatible with scipy.odeint API 
+        # Other parameters of EOMS should be defined by using a lambda function
+        # to make a parameterized function have only the three above variables
+        if len(inspect.getfullargspec(self.eom_ode)[0]) != 3:
+            raise AttributeError("callable equation of motion ODE must only have 3 input arguments!")
 
     def isPathValid(self, path):
         '''check if any state on path is in collision with obstacles
@@ -386,20 +409,6 @@ class SystemSetup:
         
         # store final state
         state_ompl_to_numpy_func(omplState=pstates[-1], npState=np_states[-1])
-    
-    @staticmethod
-    def eom_ode(y: ArrayLike, t: ArrayLike, u: ArrayLike):
-        """ ordinary differential equation defining equations of motion
-
-        Args:
-            y : ArrayLike
-                state variable vector
-            t : ArrayLike
-                time variable
-            u : ArrayLike
-                control vector
-        """
-        raise NotImplementedError('To be implemented by child class')
 
     def sample_control_numpy(self):
         """Randomly sample valid control in numpy format using numpy random
@@ -462,7 +471,6 @@ class SystemSetup:
         cbounds = cspace.getBounds()
         nsteps = path.getStateCount()
         assert nsteps >= 2
-        assert nctrldims == 1
         assert duration >= 0
 
         # package init state and time vector

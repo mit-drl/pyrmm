@@ -15,19 +15,25 @@ def dummy_r2_setup():
 def get_dummy_r2_setup():
     '''define a system in R2 state space with trivial functions'''
 
-    class prop_cls(oc.StatePropagator):
-        def __init__(self, spaceInformation):
-            super().__init__(spaceInformation)
-        def propagate_path(self, **kwargs):
-            pass
+    # class prop_cls(oc.StatePropagator):
+    #     def __init__(self, spaceInformation):
+    #         super().__init__(spaceInformation)
+    #     def propagate_path(self, **kwargs):
+    #         pass
 
     # def control_ompl_to_numpy(self, omplCtrl, npCtrl):
     #     return np.zeros(2)
     def control_numpy_to_ompl(npCtrl, omplCtrl):
-        """convert double integrator control from numpy array to ompl control object in-place
+        """convert 2d control from numpy array to ompl control object in-place
         """
         omplCtrl[0] = npCtrl[0]
         omplCtrl[1] = npCtrl[1]
+
+    def state_numpy_to_ompl(npState, omplState):
+        """convert 2d state from numpy array to ompl control object in-place
+        """
+        omplState[0] = npState[0]
+        omplState[1] = npState[1]
 
     # state_space = ob.SO2StateSpace()
     state_space = ob.RealVectorStateSpace(dim=2)
@@ -35,11 +41,13 @@ def get_dummy_r2_setup():
     si = oc.SpaceInformation(state_space, control_space)
     state_validity_fn = lambda spaceInformation, state: True
     si.setStateValidityChecker(ob.StateValidityCheckerFn(partial(state_validity_fn, si)))
-    si.setStatePropagator(prop_cls(si))
-    sys_setup = SystemSetup(space_information=si)
+    # si.setStatePropagator(prop_cls(si))
+    sys_setup = SystemSetup(space_information=si, eom_ode=lambda y, t, u: [y[0], y[1]])
     sys_setup.control_ompl_to_numpy = lambda omplCtrl, npCtrl=None: np.array([omplCtrl[0], omplCtrl[1]])
-    sys_setup.sample_control_numpy = lambda: np.random.uniform(size=(2,))
+    # sys_setup.sample_control_numpy = lambda: np.random.uniform(size=(2,))
     sys_setup.control_numpy_to_ompl = control_numpy_to_ompl
+    sys_setup.state_ompl_to_numpy = lambda omplState, npState=None: np.array([omplState[0], omplState[1]])
+    sys_setup.state_numpy_to_ompl = state_numpy_to_ompl
     return sys_setup
 
 
@@ -50,7 +58,7 @@ def test_SystemSetup_init_0(dummy_r2_setup):
 
 
 def test_SystemSetup_init_raises_0():
-    ''' check that init SystemSetup without validity checker and propagator raises error
+    ''' check that init SystemSetup without validity checker and eom raises error
     '''
 
     state_space = ob.SO2StateSpace()
@@ -60,24 +68,22 @@ def test_SystemSetup_init_raises_0():
     # calling SystemSetup constructor should raise error because no 
     # state validity checker or state propagator
     with pytest.raises(AttributeError):
-        SystemSetup(si)
+        SystemSetup(si, eom_ode=lambda y, t, u: [y,t,u])
 
     # now add state validity checker
     state_validity_fn=lambda spaceInformation, state: True
     si.setStateValidityChecker(ob.StateValidityCheckerFn(partial(state_validity_fn, si)))
 
-    # this should still raise error because no propagator
+    # this should still raise error because eom not callable
     with pytest.raises(AttributeError):
-        SystemSetup(si)
+        SystemSetup(si, eom_ode=True)
 
-    # now add propagator, should no longer raise error
-    class prop_cls(oc.StatePropagator):
-        def __init__(self, spaceInformation):
-            super().__init__(spaceInformation)
-        def propagate_path():
-            pass
-    si.setStatePropagator(prop_cls(si))
-    SystemSetup(si)
+    # this should still raise error because eom not have correct number of inputs
+    with pytest.raises(AttributeError):
+        SystemSetup(si, eom_ode=lambda y, t: [y,t])
+
+    # now add EOMs, should no longer raise error
+    SystemSetup(si, eom_ode=lambda y, t, u: [y,t,u])
 
 def test_SystemSeutp_isPathValid_0(dummy_r2_setup):
     '''check that an always valid state give valid path'''

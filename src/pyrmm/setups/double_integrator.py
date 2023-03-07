@@ -69,15 +69,15 @@ class DoubleIntegrator1DSetup(SystemSetup):
         # create space information for state and control space
         space_info = oc.SpaceInformation(stateSpace=state_space, controlSpace=control_space)
 
-        # set callable equations of motion ODEs
-        self.eom_ode = ode_1d
-
         # create and set state validity checker
         validityChecker = ob.StateValidityCheckerFn(partial(self.isStateValid, space_info))
         space_info.setStateValidityChecker(validityChecker)
 
         # call parent init to create simple setup
-        super().__init__(space_information=space_info)
+        super().__init__(
+            space_information=space_info,
+            eom_ode=ode_1d
+        )
 
     def __reduce__(self):
         ''' Function to enable re-creation of unpickable object

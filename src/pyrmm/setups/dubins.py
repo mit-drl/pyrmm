@@ -77,17 +77,15 @@ class DubinsPPMSetup(SystemSetup):
         # create space information for state and control space
         space_info = oc.SpaceInformation(stateSpace=state_space, controlSpace=control_space)
 
-        # create and set propagator class from ODEs
-        self.eom_ode = lambda y, t, u: ode_dubins(y, t, u, self.speed)
-        # propagator = DubinsPPMStatePropagator(speed=speed, spaceInformation=space_info)
-        # space_info.setStatePropagator(propagator)
-
         # create and set state validity checker
         validityChecker = ob.StateValidityCheckerFn(partial(self.isStateValid, space_info))
         space_info.setStateValidityChecker(validityChecker)
 
         # call parent init to create simple setup
-        super().__init__(space_information=space_info)
+        super().__init__(
+            space_information=space_info,
+            eom_ode=lambda y, t, u: ode_dubins(y, t, u, self.speed)
+        )
 
     def __reduce__(self):
         ''' Function to enable re-creation of unpickable object

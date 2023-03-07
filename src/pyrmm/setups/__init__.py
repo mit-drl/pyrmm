@@ -51,14 +51,6 @@ class SystemSetup:
         if not hasattr(self, "eom_ode") or not callable(self.eom_ode):
             raise AttributeError("callable equation of motion ODE must be set by child class!")
 
-        # # ensure that a state propagator has been set
-        # if self.space_info.getStatePropagator() is None:
-        #     raise AttributeError("State propagator must be set by child class!")
-
-        # # ensure that state propagator has a propagator that returns a path
-        # if not hasattr(self.space_info.getStatePropagator(), 'propagate_path'):
-        #     raise AttributeError("State propagator must implement propagate_path function that computes path to result!")
-
     def isPathValid(self, path):
         '''check if any state on path is in collision with obstacles
         
@@ -437,8 +429,6 @@ class SystemSetup:
             (cdim,)
         )
 
-        # raise NotImplementedError('To be implemented by child class')
-
     def propagate_path(self, state, control, duration, path):
         """ propagate from start based on control, store path in-place
 
@@ -502,28 +492,3 @@ class SystemSetup:
             omplPath=path,
             state_numpy_to_ompl_func=self.state_numpy_to_ompl,
             control_numpy_to_ompl_func=self.control_numpy_to_ompl)
-        
-# class SystemStatePropagator(oc.StatePropagator):
-
-#     def __init__(self, spaceInformation):
-#         """
-#         Args:
-#             spaceInformation : oc.SpaceInformation
-#                 ompl object containing information on state and control space
-#         """
-
-#         # Store information about space propagator operates on
-#         # NOTE: this serves the same purpose as the  protected attribute si_ 
-#         # but si_ does not seem to be accessible in python
-#         # Ref: https://ompl.kavrakilab.org/classompl_1_1control_1_1StatePropagator.html
-#         self.__si = spaceInformation
-#         super().__init__(si=spaceInformation)
-
-#     def canPropagateBackwards(self):
-#         return False
-
-#     def steer(self, from_state, to_state, control, duration):
-#         return False
-
-#     def canSteer(self):
-#         return False

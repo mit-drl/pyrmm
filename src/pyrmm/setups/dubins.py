@@ -228,22 +228,57 @@ class DubinsPPMSetup(SystemSetup):
     #     cbounds = self.space_info.getControlSpace().getBounds()
     #     return np.random.uniform(cbounds.low[0], cbounds.high[0], (1,))
 
-    def control_ompl_to_numpy(self, omplCtrl, npCtrl=None):
-        """convert dubins ompl control object to numpy array
-
-        Args:
-            omplCtrl : oc.Control
-                Dubins control (i.e. turnrate) in ompl RealVectorControl format
-            npCtrl : ndarray (1,)
-                Dubins control represented in np array [acceleration]
-                if not None, input argument is modified in place, else returned
-        """
-
-        # redirect to static method
-        DubinsPPMSetup.control_ompl_to_numpy(omplCtrl=omplCtrl, npCtrl=npCtrl)
+    def state_ompl_to_numpy(self, omplState, npState=None):
+        """ redirect to static method """
+        return DubinsPPMSetup._state_ompl_to_numpy(omplState=omplState, npState=npState)
 
     @staticmethod
-    def control_ompl_to_numpy(omplCtrl, npCtrl=None):
+    def _state_ompl_to_numpy(omplState, npState=None):
+        """convert dubins ompl state to numpy array
+
+        Args:
+            omplState : ob.State
+                ompl state object
+            npState : ArrayLike OR None
+                state represented in numpy array in [x, y, yaw] ordering
+                if None, return np array, otherwise modify in place
+        """
+        ret = False
+        if npState is None:
+            npState = np.empty(3,)
+            ret = True
+
+        npState[0] = omplState.getX()
+        npState[1] = omplState.getY()
+        npState[2] = omplState.getYaw()
+
+        if ret:
+            return npState
+        
+    def state_numpy_to_ompl(self, npState, omplState):
+        """ redirect to static method """
+        return DubinsPPMSetup._state_numpy_to_ompl(npState=npState, omplState=omplState)
+
+    @staticmethod
+    def _state_numpy_to_ompl(npState, omplState):
+        """convert dubins state from numpy array to ompl object in-place
+
+        Args:
+            npState : ArrayLike
+                state represented in numpy array in [x, y, yaw] ordering
+            omplState : ob.State
+                ompl state object to be modified in place
+        """
+        omplState.setX(npState[0])
+        omplState.setY(npState[1])
+        omplState.setYaw(npState[2])
+
+    def control_ompl_to_numpy(self, omplCtrl, npCtrl=None):
+        """ redirect to static method """
+        return DubinsPPMSetup._control_ompl_to_numpy(omplCtrl=omplCtrl, npCtrl=npCtrl)
+
+    @staticmethod
+    def _control_ompl_to_numpy(omplCtrl, npCtrl=None):
         """convert Dubins ompl control object to numpy array
 
         Note: this is static so that it can be called elsewhere (e.g. within StatePropagator
@@ -269,21 +304,11 @@ class DubinsPPMSetup(SystemSetup):
             return npCtrl
         
     def control_numpy_to_ompl(self, npCtrl, omplCtrl):
-        """convert dubins control from numpy array to ompl control object in-place
-
-
-        Args:
-            npCtrl : ArrayLike (1,)
-                Dubins control represented in np array [turnrate]
-            omplCtrl : oc.Control
-                Dubins control [turnrate] in ompl RealVectorControl format
-        """
-
-        # redirect to static method
-        DubinsPPMSetup.control_numpy_to_ompl(omplCtrl=omplCtrl, npCtrl=npCtrl)
+        """redirect to static method"""
+        return DubinsPPMSetup._control_numpy_to_ompl(omplCtrl=omplCtrl, npCtrl=npCtrl)
 
     @staticmethod
-    def control_numpy_to_ompl(npCtrl, omplCtrl):
+    def _control_numpy_to_ompl(npCtrl, omplCtrl):
         """convert dubins control from numpy array to ompl control object in-place
 
         Note: this is static so that it can be called elsewhere (e.g. within StatePropagator

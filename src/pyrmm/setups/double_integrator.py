@@ -218,10 +218,10 @@ class DoubleIntegrator1DSetup(SystemSetup):
     def control_ompl_to_numpy(self, omplCtrl, npCtrl=None):
         """redirect to static method
         """
-        DoubleIntegrator1DSetup.control_ompl_to_numpy(omplCtrl=omplCtrl, npCtrl=npCtrl)
+        return DoubleIntegrator1DSetup._control_ompl_to_numpy(omplCtrl=omplCtrl, npCtrl=npCtrl)
 
     @staticmethod
-    def control_ompl_to_numpy(omplCtrl, npCtrl=None):
+    def _control_ompl_to_numpy(omplCtrl, npCtrl=None):
         """a static method to convert double integrator ompl control object to numpy array
 
         Note: this is static so that it can be called elsewhere (e.g. within StatePropagator
@@ -249,10 +249,10 @@ class DoubleIntegrator1DSetup(SystemSetup):
     def control_numpy_to_ompl(self, npCtrl, omplCtrl):
         """ redirect to static method
         """
-        DoubleIntegrator1DSetup.control_numpy_to_ompl(omplCtrl=omplCtrl, npCtrl=npCtrl)
+        return DoubleIntegrator1DSetup._control_numpy_to_ompl(omplCtrl=omplCtrl, npCtrl=npCtrl)
 
     @staticmethod
-    def control_numpy_to_ompl(npCtrl, omplCtrl):
+    def _control_numpy_to_ompl(npCtrl, omplCtrl):
         """convert double integrator control from numpy array to ompl control object in-place
 
 
@@ -268,10 +268,10 @@ class DoubleIntegrator1DSetup(SystemSetup):
 
     def state_ompl_to_numpy(self, omplState, npState=None):
         """ redirect to static method"""
-        DoubleIntegrator1DSetup.state_ompl_to_numpy(omplState=omplState, npState=npState)
+        return DoubleIntegrator1DSetup._state_ompl_to_numpy(omplState=omplState, npState=npState)
 
     @staticmethod
-    def state_ompl_to_numpy(omplState, npState=None):
+    def _state_ompl_to_numpy(omplState, npState=None):
         """convert 1D double integrator ompl state to numpy array
 
         Args:
@@ -293,10 +293,10 @@ class DoubleIntegrator1DSetup(SystemSetup):
         
     def state_numpy_to_ompl(self, npState, omplState):
         """ redirect to static method"""
-        DoubleIntegrator1DSetup.state_numpy_to_ompl(npState=npState, omplState=omplState)
+        return DoubleIntegrator1DSetup._state_numpy_to_ompl(npState=npState, omplState=omplState)
 
     @staticmethod
-    def state_numpy_to_ompl(npState, omplState):
+    def _state_numpy_to_ompl(npState, omplState):
         """convert 1D double integrator state from numpy array to ompl object in-place
 
         Args:
@@ -309,112 +309,112 @@ class DoubleIntegrator1DSetup(SystemSetup):
         omplState[0] = npState[0]
         omplState[1] = npState[1]
 
-    def path_numpy_to_ompl(self, np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike, omplPath):
-        """redirect to static method
-        """
-        DoubleIntegrator1DSetup.path_numpy_to_ompl(
-            np_states=np_states,
-            np_controls=np_controls,
-            np_times=np_times,
-            omplPath=omplPath
-        )
+    # def path_numpy_to_ompl(self, np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike, omplPath):
+    #     """redirect to static method
+    #     """
+    #     DoubleIntegrator1DSetup.path_numpy_to_ompl(
+    #         np_states=np_states,
+    #         np_controls=np_controls,
+    #         np_times=np_times,
+    #         omplPath=omplPath
+    #     )
 
-    @staticmethod
-    def path_numpy_to_ompl(np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike, omplPath):
-        """ Convert numpy-like description of a trajectory into ompl PathControl object (in place)
+    # @staticmethod
+    # def path_numpy_to_ompl(np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike, omplPath):
+    #     """ Convert numpy-like description of a trajectory into ompl PathControl object (in place)
 
-        TODO: This could probably be abstract up to the parent class, but would need to properly handle static methods
-        (probably through re-directs in instance methods)
+    #     TODO: This could probably be abstract up to the parent class, but would need to properly handle static methods
+    #     (probably through re-directs in instance methods)
 
-        Args:
-            np_states : ArrayLike (n,2)
-                array of n states in path in numpy-like format
-            np_controls : ArrayLike (n-1,1)
-                array of n-1 control inputs along path in numpy-like format
-            np_times : ArrayLike (n,)
-                array of n time steps of path in numpy-like format
-            omplPath : oc.PathControl
-                ompl PathControl object, modified in-place
+    #     Args:
+    #         np_states : ArrayLike (n,2)
+    #             array of n states in path in numpy-like format
+    #         np_controls : ArrayLike (n-1,1)
+    #             array of n-1 control inputs along path in numpy-like format
+    #         np_times : ArrayLike (n,)
+    #             array of n time steps of path in numpy-like format
+    #         omplPath : oc.PathControl
+    #             ompl PathControl object, modified in-place
         
-        Returns:
-            None
-        """
+    #     Returns:
+    #         None
+    #     """
 
-        nsteps = len(np_states)
-        assert nsteps == omplPath.getStateCount() == len(np_times)
+    #     nsteps = len(np_states)
+    #     assert nsteps == omplPath.getStateCount() == len(np_times)
 
-        # store each intermediate point in the solution as pat of the path
-        pstates = omplPath.getStates()
-        pcontrols = omplPath.getControls()
-        pdurs = omplPath.getControlDurations()
-        assert len(pcontrols) == len(pdurs) == len(np_controls) == nsteps-1
-        for i in range(nsteps-1):
+    #     # store each intermediate point in the solution as pat of the path
+    #     pstates = omplPath.getStates()
+    #     pcontrols = omplPath.getControls()
+    #     pdurs = omplPath.getControlDurations()
+    #     assert len(pcontrols) == len(pdurs) == len(np_controls) == nsteps-1
+    #     for i in range(nsteps-1):
 
-            # write the state
-            DoubleIntegrator1DSetup.state_numpy_to_ompl(npState=np_states[i], omplState=pstates[i])
+    #         # write the state
+    #         DoubleIntegrator1DSetup.state_numpy_to_ompl(npState=np_states[i], omplState=pstates[i])
 
-            # write the control 
-            DoubleIntegrator1DSetup.control_numpy_to_ompl(npCtrl=np_controls[i], omplCtrl=pcontrols[i])
+    #         # write the control 
+    #         DoubleIntegrator1DSetup.control_numpy_to_ompl(npCtrl=np_controls[i], omplCtrl=pcontrols[i])
 
-            # write the timing values
-            pdurs[i] = np_times[i+1] - np_times[i]
+    #         # write the timing values
+    #         pdurs[i] = np_times[i+1] - np_times[i]
         
-        # store final state
-        DoubleIntegrator1DSetup.state_numpy_to_ompl(npState=np_states[-1], omplState=pstates[-1])
+    #     # store final state
+    #     DoubleIntegrator1DSetup.state_numpy_to_ompl(npState=np_states[-1], omplState=pstates[-1])
 
-    def path_ompl_to_numpy(self, omplPath, np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike,):
-        """ redirect to static method
-        """
-        DoubleIntegrator1DSetup.path_ompl_to_numpy(
-            omplPath=omplPath,
-            np_states=np_states,
-            np_controls=np_controls,
-            np_times=np_times
-        )
+    # def path_ompl_to_numpy(self, omplPath, np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike,):
+    #     """ redirect to static method
+    #     """
+    #     DoubleIntegrator1DSetup.path_ompl_to_numpy(
+    #         omplPath=omplPath,
+    #         np_states=np_states,
+    #         np_controls=np_controls,
+    #         np_times=np_times
+    #     )
 
-    @staticmethod
-    def path_ompl_to_numpy(omplPath, np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike,):
-        """ Convert ompl PathControl object to numpy arrays in-place
+    # @staticmethod
+    # def path_ompl_to_numpy(omplPath, np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike,):
+    #     """ Convert ompl PathControl object to numpy arrays in-place
 
-        TODO: This could probably be abstract up to the parent class, but would need to properly handle static methods
-        (probably through re-directs in instance methods)
+    #     TODO: This could probably be abstract up to the parent class, but would need to properly handle static methods
+    #     (probably through re-directs in instance methods)
 
-        Args:
-            omplPath : oc.PathControl
-                ompl PathControl object, modified in-place
-            np_states : ArrayLike (n,2)
-                array of n states in path in numpy-like format
-            np_controls : ArrayLike (n-1,1)
-                array of n-1 control inputs along path in numpy-like format
-            np_times : ArrayLike (n,)
-                array of n time steps of path in numpy-like format
+    #     Args:
+    #         omplPath : oc.PathControl
+    #             ompl PathControl object, modified in-place
+    #         np_states : ArrayLike (n,2)
+    #             array of n states in path in numpy-like format
+    #         np_controls : ArrayLike (n-1,1)
+    #             array of n-1 control inputs along path in numpy-like format
+    #         np_times : ArrayLike (n,)
+    #             array of n time steps of path in numpy-like format
         
-        Returns:
-            None (conversion performed in-place)
-        """
+    #     Returns:
+    #         None (conversion performed in-place)
+    #     """
 
-        nsteps = len(np_states)
-        assert nsteps == omplPath.getStateCount() == len(np_times)
+    #     nsteps = len(np_states)
+    #     assert nsteps == omplPath.getStateCount() == len(np_times)
 
-        # store each intermediate point in the solution as pat of the path
-        pstates = omplPath.getStates()
-        pcontrols = omplPath.getControls()
-        pdurs = omplPath.getControlDurations()
-        assert len(pcontrols) == len(pdurs) == len(np_controls) == nsteps-1
-        np_times[0] = 0.0
-        for i in range(nsteps-1):
+    #     # store each intermediate point in the solution as pat of the path
+    #     pstates = omplPath.getStates()
+    #     pcontrols = omplPath.getControls()
+    #     pdurs = omplPath.getControlDurations()
+    #     assert len(pcontrols) == len(pdurs) == len(np_controls) == nsteps-1
+    #     np_times[0] = 0.0
+    #     for i in range(nsteps-1):
 
-            # write the state
-            DoubleIntegrator1DSetup.state_ompl_to_numpy(omplState=pstates[i], npState=np_states[i])
+    #         # write the state
+    #         DoubleIntegrator1DSetup.state_ompl_to_numpy(omplState=pstates[i], npState=np_states[i])
 
-            # write the control 
-            DoubleIntegrator1DSetup.control_ompl_to_numpy(omplCtrl=pcontrols[i], npCtrl=np_controls[i])
+    #         # write the control 
+    #         DoubleIntegrator1DSetup.control_ompl_to_numpy(omplCtrl=pcontrols[i], npCtrl=np_controls[i])
 
-            # write the timing values
-            np_times[i+1] = pdurs[i] + np_times[i]
+    #         # write the timing values
+    #         np_times[i+1] = pdurs[i] + np_times[i]
         
-        # store final state
-        DoubleIntegrator1DSetup.state_ompl_to_numpy(omplState=pstates[-1], npState=np_states[-1])
+    #     # store final state
+    #     DoubleIntegrator1DSetup.state_ompl_to_numpy(omplState=pstates[-1], npState=np_states[-1])
 
 # class DoubleIntegrator1DStatePropagator(oc.StatePropagator):
 
@@ -525,10 +525,15 @@ def _pickle_PathControl_DoubleIntegrator1D(path):
     np_times = np.empty(nsteps)
     
     # convert ompl to numpy objects in place
-    DoubleIntegrator1DSetup.path_ompl_to_numpy(omplPath=path, np_states=np_states, np_controls=np_controls, np_times=np_times)
+    DoubleIntegrator1DSetup.path_ompl_to_numpy(
+        omplPath=path, 
+        np_states=np_states, 
+        np_controls=np_controls, 
+        np_times=np_times,
+        state_ompl_to_numpy_func=DoubleIntegrator1DSetup._state_ompl_to_numpy,
+        control_ompl_to_numpy_func=DoubleIntegrator1DSetup._control_ompl_to_numpy)
 
     return _unpickle_PathControl_DoubleIntegrator1D, (np_states, np_controls, np_times)
-
 
 def _unpickle_PathControl_DoubleIntegrator1D(np_states, np_controls, np_times):
     # instantiate ompl path object
@@ -539,7 +544,13 @@ def _unpickle_PathControl_DoubleIntegrator1D(np_states, np_controls, np_times):
     path.append(state=_DUMMY_SPACEINFO.allocState())
 
     # convert numpy values to omple object
-    DoubleIntegrator1DSetup.path_numpy_to_ompl(np_states=np_states, np_controls=np_controls, np_times=np_times, omplPath=path)
+    DoubleIntegrator1DSetup.path_numpy_to_ompl(
+        np_states=np_states, 
+        np_controls=np_controls, 
+        np_times=np_times, 
+        omplPath=path,
+        state_numpy_to_ompl_func=DoubleIntegrator1DSetup._state_numpy_to_ompl,
+        control_numpy_to_ompl_func=DoubleIntegrator1DSetup._control_numpy_to_ompl)
 
     return path
 

@@ -293,42 +293,109 @@ class SystemSetup:
         """
         raise NotImplementedError('To be implemented by child class')
     
-    def path_numpy_to_ompl(np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike, omplPath):
+    @staticmethod
+    def path_numpy_to_ompl(
+        np_states: ArrayLike, 
+        np_controls: ArrayLike, 
+        np_times: ArrayLike, 
+        omplPath,
+        state_numpy_to_ompl_func: callable,
+        control_numpy_to_ompl_func: callable,
+        ):
         """ Convert numpy-like description of a trajectory into ompl PathControl object (in place)
 
         Args:
-            np_states : ArrayLike (n,2)
+            np_states : ArrayLike (n,nStateDims)
                 array of n states in path in numpy-like format
-            np_controls : ArrayLike (n-1,1)
+            np_controls : ArrayLike (n-1,nCtrlDims)
                 array of n-1 control inputs along path in numpy-like format
             np_times : ArrayLike (n,)
                 array of n time steps of path in numpy-like format
             omplPath : oc.PathControl
                 ompl PathControl object, modified in-place
+            state_numpy_to_ompl_func: callable
+                function for converting state from numpy array to ompl object
+            control_numpy_to_ompl_func: callable
+                function for converting control from numpy array to ompl object
         
         Returns:
             None
         """
-        raise NotImplementedError('To be implemented by child class')
+        nsteps = len(np_states)
+        assert nsteps == omplPath.getStateCount() == len(np_times)
 
-    def path_ompl_to_numpy(omplPath, np_states: ArrayLike, np_controls: ArrayLike, np_times: ArrayLike):
+        # store each intermediate point in the solution as pat of the path
+        pstates = omplPath.getStates()
+        pcontrols = omplPath.getControls()
+        pdurs = omplPath.getControlDurations()
+        assert len(pcontrols) == len(pdurs) == len(np_controls) == nsteps-1
+        for i in range(nsteps-1):
+
+            # write the state
+            state_numpy_to_ompl_func(npState=np_states[i], omplState=pstates[i])
+
+            # write the control 
+            control_numpy_to_ompl_func(npCtrl=np_controls[i], omplCtrl=pcontrols[i])
+
+            # write the timing values
+            pdurs[i] = np_times[i+1] - np_times[i]
+        
+        # store final state
+        state_numpy_to_ompl_func(npState=np_states[-1], omplState=pstates[-1])
+
+    @staticmethod
+    def path_ompl_to_numpy(
+        omplPath, 
+        np_states: ArrayLike, 
+        np_controls: ArrayLike, 
+        np_times: ArrayLike,
+        state_ompl_to_numpy_func: callable,
+        control_ompl_to_numpy_func: callable,
+        ):
         """ Convert ompl PathControl object to numpy arrays in-place
 
         Args:
             omplPath : oc.PathControl
                 ompl PathControl object, modified in-place
-            np_states : ArrayLike (n,2)
+            np_states : ArrayLike (n,nStateDims)
                 array of n states in path in numpy-like format
-            np_controls : ArrayLike (n-1,1)
+            np_controls : ArrayLike (n-1,nCtrlDims)
                 array of n-1 control inputs along path in numpy-like format
             np_times : ArrayLike (n,)
                 array of n time steps of path in numpy-like format
+            state_ompl_to_numpy_func: callable
+                function for converting state from ompl object to numpy array
+            control_ompl_to_numpy_func: callable
+                function for converting control from ompl object to numpy array
         
         Returns:
             None (conversion performed in-place)
         """
-        raise NotImplementedError('To be implemented by child class')
+
+        nsteps = len(np_states)
+        assert nsteps == omplPath.getStateCount() == len(np_times)
+
+        # store each intermediate point in the solution as pat of the path
+        pstates = omplPath.getStates()
+        pcontrols = omplPath.getControls()
+        pdurs = omplPath.getControlDurations()
+        assert len(pcontrols) == len(pdurs) == len(np_controls) == nsteps-1
+        np_times[0] = 0.0
+        for i in range(nsteps-1):
+
+            # write the state
+            state_ompl_to_numpy_func(omplState=pstates[i], npState=np_states[i])
+
+            # write the control 
+            control_ompl_to_numpy_func(omplCtrl=pcontrols[i], npCtrl=np_controls[i])
+
+            # write the timing values
+            np_times[i+1] = pdurs[i] + np_times[i]
+        
+        # store final state
+        state_ompl_to_numpy_func(omplState=pstates[-1], npState=np_states[-1])
     
+    @staticmethod
     def eom_ode(y: ArrayLike, t: ArrayLike, u: ArrayLike):
         """ ordinary differential equation defining equations of motion
 
@@ -432,7 +499,9 @@ class SystemSetup:
             np_states=sol, 
             np_times=t, 
             np_controls=ctrl_array, 
-            omplPath=path)
+            omplPath=path,
+            state_numpy_to_ompl_func=self.state_numpy_to_ompl,
+            control_numpy_to_ompl_func=self.control_numpy_to_ompl)
         
 # class SystemStatePropagator(oc.StatePropagator):
 

@@ -287,9 +287,9 @@ def test_hypothesis_DoubleIntegrator1DSetup_convert_state_ompl_numpy_0(posb, vel
 
     # ~~~ ACT ~~~
     # convert to numpy then back to ompl
-    s_np = DoubleIntegrator1DSetup.state_ompl_to_numpy(s_ompl_orig)
+    s_np = DoubleIntegrator1DSetup._state_ompl_to_numpy(s_ompl_orig)
     s_ompl_copy = ds.space_info.allocState()
-    DoubleIntegrator1DSetup.state_numpy_to_ompl(s_np, s_ompl_copy)
+    DoubleIntegrator1DSetup._state_numpy_to_ompl(s_np, s_ompl_copy)
 
     # ~~~ ASSERT ~~~
     # check that original and copy are the same
@@ -299,9 +299,9 @@ def test_hypothesis_DoubleIntegrator1DSetup_convert_state_ompl_numpy_0(posb, vel
     # ~~~ ACT ~~~
     # convert to numpy (in-place) then back to ompl
     s_np_2 = np.zeros(2)
-    DoubleIntegrator1DSetup.state_ompl_to_numpy(s_ompl_orig, s_np_2)
+    DoubleIntegrator1DSetup._state_ompl_to_numpy(s_ompl_orig, s_np_2)
     s_ompl_copy_2 = ds.space_info.allocState()
-    DoubleIntegrator1DSetup.state_numpy_to_ompl(s_np_2, s_ompl_copy_2)
+    DoubleIntegrator1DSetup._state_numpy_to_ompl(s_np_2, s_ompl_copy_2)
 
     # ~~~ ASSERT ~~~
     # check that original and copy are the same
@@ -335,9 +335,9 @@ def test_hypothesis_DoubleIntegrator1DSetup_convert_control_ompl_numpy_0(posb, v
 
     # ~~~ ACT ~~~
     # convert to numpy then back to ompl
-    c_np = DoubleIntegrator1DSetup.control_ompl_to_numpy(c_ompl_orig)
+    c_np = DoubleIntegrator1DSetup._control_ompl_to_numpy(c_ompl_orig)
     c_ompl_copy = ds.space_info.allocControl()
-    DoubleIntegrator1DSetup.control_numpy_to_ompl(c_np, c_ompl_copy)
+    DoubleIntegrator1DSetup._control_numpy_to_ompl(c_np, c_ompl_copy)
 
     # ~~~ ASSERT ~~~
     # check that original and copy are the same
@@ -346,9 +346,9 @@ def test_hypothesis_DoubleIntegrator1DSetup_convert_control_ompl_numpy_0(posb, v
     # ~~~ ACT ~~~
     # convert to numpy (in-place) then back to ompl
     c_np_2 = np.zeros(1)
-    DoubleIntegrator1DSetup.control_ompl_to_numpy(c_ompl_orig, c_np_2)
+    DoubleIntegrator1DSetup._control_ompl_to_numpy(c_ompl_orig, c_np_2)
     c_ompl_copy_2 = ds.space_info.allocControl()
-    DoubleIntegrator1DSetup.control_numpy_to_ompl(c_np_2, c_ompl_copy_2)
+    DoubleIntegrator1DSetup._control_numpy_to_ompl(c_np_2, c_ompl_copy_2)
 
     # ~~~ ASSERT ~~~
     # check that original and copy are the same
@@ -391,7 +391,7 @@ def test_hypothesis_DoubleIntegrator1DSetup_convert_path_ompl_numpy_0(posb, velb
 
     # ~~~ ACT ~~~
     # convert to ompl 
-    DoubleIntegrator1DSetup.path_numpy_to_ompl(np_states_orig, np_ctrls_orig, np_times_orig, omplPath)
+    ds.path_numpy_to_ompl(np_states_orig, np_ctrls_orig, np_times_orig, omplPath, ds.state_numpy_to_ompl, ds.control_numpy_to_ompl)
 
     # instantiate new np objects to hold converted values
     np_states_copy = np.random.uniform(
@@ -402,7 +402,7 @@ def test_hypothesis_DoubleIntegrator1DSetup_convert_path_ompl_numpy_0(posb, velb
     np_times_copy = np.random.rand(nsteps)
 
     # convert to numpy
-    DoubleIntegrator1DSetup.path_ompl_to_numpy(omplPath, np_states_copy, np_ctrls_copy, np_times_copy)
+    ds.path_ompl_to_numpy(omplPath, np_states_copy, np_ctrls_copy, np_times_copy, ds.state_ompl_to_numpy, ds.control_ompl_to_numpy)
 
     # ~~~ ASSERT ~~~
     # check that original and copy match
@@ -448,7 +448,7 @@ def test_hypothesis_update_pickler_PathControl_DoubleIntegrator1D_0(posb, velb, 
 
     # ~~~ ACT ~~~
     # convert to ompl 
-    DoubleIntegrator1DSetup.path_numpy_to_ompl(np_states_orig, np_ctrls_orig, np_times_orig, omplPath)
+    ds.path_numpy_to_ompl(np_states_orig, np_ctrls_orig, np_times_orig, omplPath, ds.state_numpy_to_ompl, ds.control_numpy_to_ompl)
 
     # update pickler
     update_pickler_PathControl_DoubleIntegrator1D()
@@ -465,7 +465,7 @@ def test_hypothesis_update_pickler_PathControl_DoubleIntegrator1D_0(posb, velb, 
     np_times_copy = np.random.rand(nsteps)
 
     # convert de-pickled ompl object back to numpy
-    DoubleIntegrator1DSetup.path_ompl_to_numpy(omplPath_copy, np_states_copy, np_ctrls_copy, np_times_copy)
+    ds.path_ompl_to_numpy(omplPath_copy, np_states_copy, np_ctrls_copy, np_times_copy, ds.state_ompl_to_numpy, ds.control_ompl_to_numpy)
 
     # ~~~ ASSERT ~~~
     # check that original and copy match
@@ -486,7 +486,7 @@ def test_observation_shape_0():
 
 
 if __name__ == "__main__":
-    # test_DoubleIntegrator1DSetup_propagate_path_0()
+    test_DoubleIntegrator1DSetup_propagate_path_0()
     # test_DoubleIntegrator1DSetup_estimateRiskMetric_0()
     # test_DoubleIntegrator1DSetup_observeState_0()
     test_DoubleIntegrator1DSetup_sampleReachableSet_0()

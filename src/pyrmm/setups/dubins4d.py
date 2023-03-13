@@ -136,27 +136,6 @@ class Dubins4dReachAvoidSetup(SystemSetup):
         np_state = state_ompl_to_numpy(omplState=state)
         return self.env._get_observation(state=np_state)
 
-    def control_ompl_to_numpy(self, omplCtrl, npCtrl=None):
-        """convert Dubins4d ompl control object to numpy array
-
-        Args:
-            omplCtrl : oc.Control
-                dubins4d control in ompl RealVectorControl format
-            npCtrl : ndarray (2,)
-                dubins4d control represented in np array with [turnrate, acceleration] ordering
-                if not None, input argument is modified in place, else returned
-        """
-        ret = False
-        if npCtrl is None:
-            npCtrl = np.empty(2,)
-            ret = True
-
-        npCtrl[0] = omplCtrl[0]
-        npCtrl[1] = omplCtrl[1]
-
-        if ret:
-            return npCtrl
-
     def base_risk_estimator(self, state):
         """heuristic for estimate risk at leaf node of tree"""
 
@@ -203,41 +182,92 @@ class Dubins4dReachAvoidSetup(SystemSetup):
         min_risk_ctrl_dur_est = t_s
 
         return risk_est, min_risk_ctrl_est, min_risk_ctrl_dur_est
+    
+    def state_ompl_to_numpy(self, omplState, npState=None):
+        """redirect to static method"""
+        return state_ompl_to_numpy(omplState=omplState, npState=npState)
+    
+    def state_numpy_to_ompl(self, npState, omplState):
+        """redirect to static method"""
+        return state_numpy_to_ompl(npState=npState, omplState=omplState)
+    
+    def control_ompl_to_numpy(self, omplCtrl, npCtrl=None):
+        """redirect to static method"""
+        return control_ompl_to_numpy(omplCtrl=omplCtrl, npCtrl=npCtrl)
+    
+    def control_numpy_to_ompl(self, npCtrl, omplCtrl):
+        """redirect to static method"""
+        return control_numpy_to_ompl(omplCtrl=omplCtrl, npCtrl=npCtrl)
 
-def state_ompl_to_numpy(omplState, np_state=None):
+def state_ompl_to_numpy(omplState, npState=None):
     """convert Dubins4d ompl state to numpy array
 
     Args:
         omplState : ob.CompoundState
             dubins 4d state in ompl CompoundState format
-        np_state : ndarray (4,)
+        npState : ndarray (4,)
             dubins 4d state represented in np array in [x,y,theta,v] ordering
     """
     ret = False
-    if np_state is None:
-        np_state = np.empty(4,)
+    if npState is None:
+        npState = np.empty(4,)
         ret = True
-    np_state[0] = omplState[0][0]
-    np_state[1] = omplState[0][1]
-    np_state[2] = omplState[1].value
-    np_state[3] = omplState[2][0]
+    npState[0] = omplState[0][0]
+    npState[1] = omplState[0][1]
+    npState[2] = omplState[1].value
+    npState[3] = omplState[2][0]
 
     if ret:
-        return np_state
+        return npState
 
-def state_numpy_to_ompl(np_state, omplState):
+def state_numpy_to_ompl(npState, omplState):
     """convert dubins4d state in numpy array in [x,y,theta,v] to ompl compound state
 
     Args:
-        np_state : ndarray (4,)
+        npState : ndarray (4,)
             dubins 4d state represented in np array in [x,y,theta,v] ordering
         omplState : ob.CompoundState
             dubins 4d state in ompl CompoundState format
     """
-    omplState[0][0] = np_state[0]
-    omplState[0][1] = np_state[1]
-    omplState[1].value = np_state[2]
-    omplState[2][0] = np_state[3]
+    omplState[0][0] = npState[0]
+    omplState[0][1] = npState[1]
+    omplState[1].value = npState[2]
+    omplState[2][0] = npState[3]
+
+def control_ompl_to_numpy(omplCtrl, npCtrl=None):
+        """convert Dubins4d ompl control object to numpy array
+
+        Args:
+            omplCtrl : oc.Control
+                dubins4d control in ompl RealVectorControl format
+            npCtrl : ndarray (2,)
+                dubins4d control represented in np array with [turnrate, acceleration] ordering
+                if not None, input argument is modified in place, else returned
+        """
+        ret = False
+        if npCtrl is None:
+            npCtrl = np.empty(2,)
+            ret = True
+
+        npCtrl[0] = omplCtrl[0]
+        npCtrl[1] = omplCtrl[1]
+
+        if ret:
+            return npCtrl
+        
+def control_numpy_to_ompl(npCtrl, omplCtrl):
+        """convert dubins4d control from numpy array to ompl control object in-place
+
+        Args:
+            npCtrl : ndarray (2,)
+                dubins4d control represented in np array with [turnrate, acceleration] ordering
+            omplCtrl : oc.Control
+                dubins4d control in ompl RealVectorControl format
+        """
+
+        assert npCtrl.shape == (2,), "Unexpected shape {}".format(npCtrl.shape)
+        omplCtrl[0] = npCtrl[0]
+        omplCtrl[1] = npCtrl[1]
 
 _DUMMY_DUBINS4DSTATESPACE = D4D.Dubins4dStateSpace()
 

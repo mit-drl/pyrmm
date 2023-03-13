@@ -316,7 +316,7 @@ def test_Dubins4dReachAvoidSetup_estimateRiskMetric_zero_risk_region_0():
     # create sampling point
     np_s_near = np.zeros((4,))
     s_near = ds.space_info.allocState()
-    state_numpy_to_ompl(np_state=np_s_near, omplState=s_near)
+    state_numpy_to_ompl(npState=np_s_near, omplState=s_near)
 
     # create sampler
     sampler = ds.space_info.allocStateSampler()
@@ -366,7 +366,7 @@ def test_Dubins4dReachAvoidSetup_estimateRiskMetric_inevitable_region_0():
     np_s0[2] = np.pi/4  # aim at obstacle
     np_s0[3] = 2.0  # set high speed
     s0 = ds.space_info.allocState()
-    state_numpy_to_ompl(np_state=np_s0, omplState=s0)
+    state_numpy_to_ompl(npState=np_s0, omplState=s0)
 
     # ~~~ ACT ~~~
 
@@ -464,7 +464,7 @@ def test_Dubins4dReachAvoidStatePropagator_propagate_path_0():
     # create initial state
     np_s0 = np.array([0.0, 0.0, 0.0, 1.0])
     s0 = state_space.allocState()
-    state_numpy_to_ompl(np_state=np_s0, omplState=s0)
+    state_numpy_to_ompl(npState=np_s0, omplState=s0)
 
     # create control input and duration
     c0 = control_space.allocControl()
@@ -519,7 +519,7 @@ def test_update_pickler_dubins4dstate_0():
     # set pre-specified random state
     np_state = np.array([-2.300, -1.537, -0.890, 0.070])
     omplState = D4D.Dubins4dStateSpace().allocState()
-    state_numpy_to_ompl(np_state=np_state, omplState=omplState)
+    state_numpy_to_ompl(npState=np_state, omplState=omplState)
 
     # ~~~ ACT ~~~
     # update pickler

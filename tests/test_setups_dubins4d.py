@@ -8,7 +8,6 @@ from ompl import control as oc
 from copy import deepcopy
 
 from pyrmm.setups.dubins4d import Dubins4dReachAvoidSetup, \
-    Dubins4dReachAvoidStatePropagator, \
     state_ompl_to_numpy, state_numpy_to_ompl, \
     update_pickler_dubins4dstate
 from pyrmm.environments.dubins4d_reachavoid import Dubins4dReachAvoidEnv

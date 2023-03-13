@@ -204,34 +204,13 @@ class DubinsPPMSetup(SystemSetup):
         assert self.lidar_angles is not None
         assert len(self.lidar_angles) > 0
         return [self.cast_ray(state, theta, self.lidar_resolution) for theta in self.lidar_angles]
-    
-    # def sample_control_numpy(self):
-    #     """Randomly sample valid control in numpy format using numpy random
-
-    #     Note: an error was found where the OMPL-provided control sampler
-    #     produced repeated values when run in parallel processes using
-    #     multiprocessing.Pool. No direct fix could be determined so
-    #     this is a workaround that forces control sampling in numpy
-
-    #     No equivalent bug has yet been identified in state sampling
-
-    #     Args: 
-    #         None
-
-    #     Returns:
-    #         np_ctrl : ArrayLike
-    #             the ranomly sampled control in numpy-format (instead of ompl-format)
-        
-    #     """
-    #     cbounds = self.space_info.getControlSpace().getBounds()
-    #     return np.random.uniform(cbounds.low[0], cbounds.high[0], (1,))
 
     def state_ompl_to_numpy(self, omplState, npState=None):
         """ redirect to static method """
-        return DubinsPPMSetup._state_ompl_to_numpy(omplState=omplState, npState=npState)
+        return DubinsPPMSetup.static_state_ompl_to_numpy(omplState=omplState, npState=npState)
 
     @staticmethod
-    def _state_ompl_to_numpy(omplState, npState=None):
+    def static_state_ompl_to_numpy(omplState, npState=None):
         """convert dubins ompl state to numpy array
 
         Args:
@@ -255,10 +234,10 @@ class DubinsPPMSetup(SystemSetup):
         
     def state_numpy_to_ompl(self, npState, omplState):
         """ redirect to static method """
-        return DubinsPPMSetup._state_numpy_to_ompl(npState=npState, omplState=omplState)
+        return DubinsPPMSetup.static_state_numpy_to_ompl(npState=npState, omplState=omplState)
 
     @staticmethod
-    def _state_numpy_to_ompl(npState, omplState):
+    def static_state_numpy_to_ompl(npState, omplState):
         """convert dubins state from numpy array to ompl object in-place
 
         Args:
@@ -273,10 +252,10 @@ class DubinsPPMSetup(SystemSetup):
 
     def control_ompl_to_numpy(self, omplCtrl, npCtrl=None):
         """ redirect to static method """
-        return DubinsPPMSetup._control_ompl_to_numpy(omplCtrl=omplCtrl, npCtrl=npCtrl)
+        return DubinsPPMSetup.static_control_ompl_to_numpy(omplCtrl=omplCtrl, npCtrl=npCtrl)
 
     @staticmethod
-    def _control_ompl_to_numpy(omplCtrl, npCtrl=None):
+    def static_control_ompl_to_numpy(omplCtrl, npCtrl=None):
         """convert Dubins ompl control object to numpy array
 
         Note: this is static so that it can be called elsewhere (e.g. within StatePropagator
@@ -303,10 +282,10 @@ class DubinsPPMSetup(SystemSetup):
         
     def control_numpy_to_ompl(self, npCtrl, omplCtrl):
         """redirect to static method"""
-        return DubinsPPMSetup._control_numpy_to_ompl(omplCtrl=omplCtrl, npCtrl=npCtrl)
+        return DubinsPPMSetup.static_control_numpy_to_ompl(omplCtrl=omplCtrl, npCtrl=npCtrl)
 
     @staticmethod
-    def _control_numpy_to_ompl(npCtrl, omplCtrl):
+    def static_control_numpy_to_ompl(npCtrl, omplCtrl):
         """convert dubins control from numpy array to ompl control object in-place
 
         Note: this is static so that it can be called elsewhere (e.g. within StatePropagator

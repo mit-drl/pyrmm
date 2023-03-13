@@ -792,9 +792,9 @@ def test_hypothesis_DubinsPPMSetup_convert_control_ompl_numpy_0(spd, trn,):
 
     # ~~~ ACT ~~~
     # convert to numpy then back to ompl
-    c_np = DubinsPPMSetup._control_ompl_to_numpy(c_ompl_orig)
+    c_np = DubinsPPMSetup.static_control_ompl_to_numpy(c_ompl_orig)
     c_ompl_copy = ds.space_info.allocControl()
-    DubinsPPMSetup._control_numpy_to_ompl(c_np, c_ompl_copy)
+    DubinsPPMSetup.static_control_numpy_to_ompl(c_np, c_ompl_copy)
 
     # ~~~ ASSERT ~~~
     # check that original and copy are the same
@@ -803,9 +803,9 @@ def test_hypothesis_DubinsPPMSetup_convert_control_ompl_numpy_0(spd, trn,):
     # ~~~ ACT ~~~
     # convert to numpy (in-place) then back to ompl
     c_np_2 = np.zeros(1)
-    DubinsPPMSetup._control_ompl_to_numpy(c_ompl_orig, c_np_2)
+    DubinsPPMSetup.static_control_ompl_to_numpy(c_ompl_orig, c_np_2)
     c_ompl_copy_2 = ds.space_info.allocControl()
-    DubinsPPMSetup._control_numpy_to_ompl(c_np_2, c_ompl_copy_2)
+    DubinsPPMSetup.static_control_numpy_to_ompl(c_np_2, c_ompl_copy_2)
 
     # ~~~ ASSERT ~~~
     # check that original and copy are the same

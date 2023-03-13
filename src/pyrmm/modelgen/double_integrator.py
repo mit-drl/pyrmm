@@ -81,7 +81,7 @@ class DoubleIntegrator1DDataModule(LSFORDataModule):
         # inconsistent observation sizes
         with warnings.catch_warnings():
             warnings.filterwarnings('error')
-            state_samples= np.concatenate([DoubleIntegrator1DSetup._state_ompl_to_numpy(s).reshape(1,2) for s in raw_data.state_samples], axis=0)
+            state_samples= np.concatenate([DoubleIntegrator1DSetup.static_state_ompl_to_numpy(s).reshape(1,2) for s in raw_data.state_samples], axis=0)
             risk_metrics = np.asarray(raw_data.risk_metrics).reshape(-1,1)
             observations = np.asarray(raw_data.observations)
 

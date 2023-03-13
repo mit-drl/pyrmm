@@ -287,9 +287,9 @@ def test_hypothesis_DoubleIntegrator1DSetup_convert_state_ompl_numpy_0(posb, vel
 
     # ~~~ ACT ~~~
     # convert to numpy then back to ompl
-    s_np = DoubleIntegrator1DSetup._state_ompl_to_numpy(s_ompl_orig)
+    s_np = DoubleIntegrator1DSetup.static_state_ompl_to_numpy(s_ompl_orig)
     s_ompl_copy = ds.space_info.allocState()
-    DoubleIntegrator1DSetup._state_numpy_to_ompl(s_np, s_ompl_copy)
+    DoubleIntegrator1DSetup.static_state_numpy_to_ompl(s_np, s_ompl_copy)
 
     # ~~~ ASSERT ~~~
     # check that original and copy are the same
@@ -299,9 +299,9 @@ def test_hypothesis_DoubleIntegrator1DSetup_convert_state_ompl_numpy_0(posb, vel
     # ~~~ ACT ~~~
     # convert to numpy (in-place) then back to ompl
     s_np_2 = np.zeros(2)
-    DoubleIntegrator1DSetup._state_ompl_to_numpy(s_ompl_orig, s_np_2)
+    DoubleIntegrator1DSetup.static_state_ompl_to_numpy(s_ompl_orig, s_np_2)
     s_ompl_copy_2 = ds.space_info.allocState()
-    DoubleIntegrator1DSetup._state_numpy_to_ompl(s_np_2, s_ompl_copy_2)
+    DoubleIntegrator1DSetup.static_state_numpy_to_ompl(s_np_2, s_ompl_copy_2)
 
     # ~~~ ASSERT ~~~
     # check that original and copy are the same
@@ -335,9 +335,9 @@ def test_hypothesis_DoubleIntegrator1DSetup_convert_control_ompl_numpy_0(posb, v
 
     # ~~~ ACT ~~~
     # convert to numpy then back to ompl
-    c_np = DoubleIntegrator1DSetup._control_ompl_to_numpy(c_ompl_orig)
+    c_np = DoubleIntegrator1DSetup.static_control_ompl_to_numpy(c_ompl_orig)
     c_ompl_copy = ds.space_info.allocControl()
-    DoubleIntegrator1DSetup._control_numpy_to_ompl(c_np, c_ompl_copy)
+    DoubleIntegrator1DSetup.static_control_numpy_to_ompl(c_np, c_ompl_copy)
 
     # ~~~ ASSERT ~~~
     # check that original and copy are the same
@@ -346,9 +346,9 @@ def test_hypothesis_DoubleIntegrator1DSetup_convert_control_ompl_numpy_0(posb, v
     # ~~~ ACT ~~~
     # convert to numpy (in-place) then back to ompl
     c_np_2 = np.zeros(1)
-    DoubleIntegrator1DSetup._control_ompl_to_numpy(c_ompl_orig, c_np_2)
+    DoubleIntegrator1DSetup.static_control_ompl_to_numpy(c_ompl_orig, c_np_2)
     c_ompl_copy_2 = ds.space_info.allocControl()
-    DoubleIntegrator1DSetup._control_numpy_to_ompl(c_np_2, c_ompl_copy_2)
+    DoubleIntegrator1DSetup.static_control_numpy_to_ompl(c_np_2, c_ompl_copy_2)
 
     # ~~~ ASSERT ~~~
     # check that original and copy are the same

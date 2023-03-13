@@ -183,10 +183,10 @@ class DoubleIntegrator1DSetup(SystemSetup):
     def control_ompl_to_numpy(self, omplCtrl, npCtrl=None):
         """redirect to static method
         """
-        return DoubleIntegrator1DSetup._control_ompl_to_numpy(omplCtrl=omplCtrl, npCtrl=npCtrl)
+        return DoubleIntegrator1DSetup.static_control_ompl_to_numpy(omplCtrl=omplCtrl, npCtrl=npCtrl)
 
     @staticmethod
-    def _control_ompl_to_numpy(omplCtrl, npCtrl=None):
+    def static_control_ompl_to_numpy(omplCtrl, npCtrl=None):
         """a static method to convert double integrator ompl control object to numpy array
 
         Note: this is static so that it can be called elsewhere (e.g. within StatePropagator
@@ -214,10 +214,10 @@ class DoubleIntegrator1DSetup(SystemSetup):
     def control_numpy_to_ompl(self, npCtrl, omplCtrl):
         """ redirect to static method
         """
-        return DoubleIntegrator1DSetup._control_numpy_to_ompl(omplCtrl=omplCtrl, npCtrl=npCtrl)
+        return DoubleIntegrator1DSetup.static_control_numpy_to_ompl(omplCtrl=omplCtrl, npCtrl=npCtrl)
 
     @staticmethod
-    def _control_numpy_to_ompl(npCtrl, omplCtrl):
+    def static_control_numpy_to_ompl(npCtrl, omplCtrl):
         """convert double integrator control from numpy array to ompl control object in-place
 
 
@@ -233,10 +233,10 @@ class DoubleIntegrator1DSetup(SystemSetup):
 
     def state_ompl_to_numpy(self, omplState, npState=None):
         """ redirect to static method"""
-        return DoubleIntegrator1DSetup._state_ompl_to_numpy(omplState=omplState, npState=npState)
+        return DoubleIntegrator1DSetup.static_state_ompl_to_numpy(omplState=omplState, npState=npState)
 
     @staticmethod
-    def _state_ompl_to_numpy(omplState, npState=None):
+    def static_state_ompl_to_numpy(omplState, npState=None):
         """convert 1D double integrator ompl state to numpy array
 
         Args:
@@ -258,10 +258,10 @@ class DoubleIntegrator1DSetup(SystemSetup):
         
     def state_numpy_to_ompl(self, npState, omplState):
         """ redirect to static method"""
-        return DoubleIntegrator1DSetup._state_numpy_to_ompl(npState=npState, omplState=omplState)
+        return DoubleIntegrator1DSetup.static_state_numpy_to_ompl(npState=npState, omplState=omplState)
 
     @staticmethod
-    def _state_numpy_to_ompl(npState, omplState):
+    def static_state_numpy_to_ompl(npState, omplState):
         """convert 1D double integrator state from numpy array to ompl object in-place
 
         Args:
@@ -309,8 +309,8 @@ def _pickle_PathControl_DoubleIntegrator1D(path):
         np_states=np_states, 
         np_controls=np_controls, 
         np_times=np_times,
-        state_ompl_to_numpy_func=DoubleIntegrator1DSetup._state_ompl_to_numpy,
-        control_ompl_to_numpy_func=DoubleIntegrator1DSetup._control_ompl_to_numpy)
+        state_ompl_to_numpy_func=DoubleIntegrator1DSetup.static_state_ompl_to_numpy,
+        control_ompl_to_numpy_func=DoubleIntegrator1DSetup.static_control_ompl_to_numpy)
 
     return _unpickle_PathControl_DoubleIntegrator1D, (np_states, np_controls, np_times)
 
@@ -328,8 +328,8 @@ def _unpickle_PathControl_DoubleIntegrator1D(np_states, np_controls, np_times):
         np_controls=np_controls, 
         np_times=np_times, 
         omplPath=path,
-        state_numpy_to_ompl_func=DoubleIntegrator1DSetup._state_numpy_to_ompl,
-        control_numpy_to_ompl_func=DoubleIntegrator1DSetup._control_numpy_to_ompl)
+        state_numpy_to_ompl_func=DoubleIntegrator1DSetup.static_state_numpy_to_ompl,
+        control_numpy_to_ompl_func=DoubleIntegrator1DSetup.static_control_numpy_to_ompl)
 
     return path
 

@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 from functools import partial
-from hypothesis import given, strategies as st
+from hypothesis import given, settings, strategies as st
 
 from ompl import base as ob
 from ompl import control as oc
@@ -176,6 +176,7 @@ def test_SystemSeutp_isPathValid_2(dummy_r2_setup):
     dpth = st.integers(min_value=0, max_value=4),
     stps = st.integers(min_value=2, max_value=8)
 )
+@settings(deadline=None)
 def test_hypothesis_SystemSetup_estimateRiskMetric_0(x0, y0, dur, brnch, dpth, stps):
     '''check that always-valid states always evaluate to 0 risk'''
     

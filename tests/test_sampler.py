@@ -123,7 +123,9 @@ def test_multiprocess_sampleReachableSet_0():
                     reachset_samples[i][j], 
                     np_paths_states[i][j],
                     np_paths_ctrls[i][j],
-                    np_paths_times[i][j])
+                    np_paths_times[i][j],
+                    DoubleIntegrator1DSetup._state_ompl_to_numpy,
+                    DoubleIntegrator1DSetup._control_ompl_to_numpy)
 
                 # within a sub-sample, assert all steps have same control inputs
                 assert len(np.unique(np_paths_ctrls[i][j])) == 1

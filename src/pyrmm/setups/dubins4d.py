@@ -235,39 +235,39 @@ def state_numpy_to_ompl(npState, omplState):
     omplState[2][0] = npState[3]
 
 def control_ompl_to_numpy(omplCtrl, npCtrl=None):
-        """convert Dubins4d ompl control object to numpy array
+    """convert Dubins4d ompl control object to numpy array
 
-        Args:
-            omplCtrl : oc.Control
-                dubins4d control in ompl RealVectorControl format
-            npCtrl : ndarray (2,)
-                dubins4d control represented in np array with [turnrate, acceleration] ordering
-                if not None, input argument is modified in place, else returned
-        """
-        ret = False
-        if npCtrl is None:
-            npCtrl = np.empty(2,)
-            ret = True
+    Args:
+        omplCtrl : oc.Control
+            dubins4d control in ompl RealVectorControl format
+        npCtrl : ndarray (2,)
+            dubins4d control represented in np array with [turnrate, acceleration] ordering
+            if not None, input argument is modified in place, else returned
+    """
+    ret = False
+    if npCtrl is None:
+        npCtrl = np.empty(2,)
+        ret = True
 
-        npCtrl[0] = omplCtrl[0]
-        npCtrl[1] = omplCtrl[1]
+    npCtrl[0] = omplCtrl[0]
+    npCtrl[1] = omplCtrl[1]
 
-        if ret:
-            return npCtrl
+    if ret:
+        return npCtrl
         
 def control_numpy_to_ompl(npCtrl, omplCtrl):
-        """convert dubins4d control from numpy array to ompl control object in-place
+    """convert dubins4d control from numpy array to ompl control object in-place
 
-        Args:
-            npCtrl : ndarray (2,)
-                dubins4d control represented in np array with [turnrate, acceleration] ordering
-            omplCtrl : oc.Control
-                dubins4d control in ompl RealVectorControl format
-        """
+    Args:
+        npCtrl : ndarray (2,)
+            dubins4d control represented in np array with [turnrate, acceleration] ordering
+        omplCtrl : oc.Control
+            dubins4d control in ompl RealVectorControl format
+    """
 
-        assert npCtrl.shape == (2,), "Unexpected shape {}".format(npCtrl.shape)
-        omplCtrl[0] = npCtrl[0]
-        omplCtrl[1] = npCtrl[1]
+    assert npCtrl.shape == (2,), "Unexpected shape {}".format(npCtrl.shape)
+    omplCtrl[0] = npCtrl[0]
+    omplCtrl[1] = npCtrl[1]
 
 _DUMMY_DUBINS4DSTATESPACE = D4D.Dubins4dStateSpace()
 

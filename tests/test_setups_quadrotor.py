@@ -14,48 +14,47 @@ import pyrmm.utils.utils as U
 import pyrmm.dynamics.quadrotor as QD
 from pyrmm.setups.quadrotor import \
     QuadrotorPyBulletSetup, \
-    QuadrotorPyBulletStatePropagator, \
     copy_state_ompl2pb, copy_state_pb2ompl, \
     update_pickler_quadrotorstate
 
 QUAD_URDF = str(pathlib.Path(__file__).parent.absolute().joinpath("quadrotor.urdf"))
 
-def get_quadrotor_pybullet_propagator_objects():
-    # connect to headless physics engine
-    pbClientId = pb.connect(pb.DIRECT)
+# def get_quadrotor_pybullet_propagator_objects():
+#     # connect to headless physics engine
+#     pbClientId = pb.connect(pb.DIRECT)
 
-    # create pybullet instance of quadrotor
-    pbQuadBodyId = pb.loadURDF(QUAD_URDF)
+#     # create pybullet instance of quadrotor
+#     pbQuadBodyId = pb.loadURDF(QUAD_URDF)
 
-    # create OMPL space information object
-    sspace = QD.QuadrotorStateSpace()
-    cspace = QD.QuadrotorThrustMomentControlSpace(
-        stateSpace=sspace,
-        fzmax=8.0,
-        mxmax=2.0,
-        mymax=2.0,
-        mzmax=1.0)
-    space_info = oc.SpaceInformation(stateSpace=sspace, controlSpace=cspace)
+#     # create OMPL space information object
+#     sspace = QD.QuadrotorStateSpace()
+#     cspace = QD.QuadrotorThrustMomentControlSpace(
+#         stateSpace=sspace,
+#         fzmax=8.0,
+#         mxmax=2.0,
+#         mymax=2.0,
+#         mzmax=1.0)
+#     space_info = oc.SpaceInformation(stateSpace=sspace, controlSpace=cspace)
 
-    # create state propagator
-    quadPropagator = QuadrotorPyBulletStatePropagator(
-        pbBodyId=pbQuadBodyId, 
-        pbClientId=pbClientId, 
-        spaceInformation=space_info)
+#     # create state propagator
+#     quadPropagator = QuadrotorPyBulletStatePropagator(
+#         pbBodyId=pbQuadBodyId, 
+#         pbClientId=pbClientId, 
+#         spaceInformation=space_info)
 
-    return space_info, quadPropagator
+#     return space_info, quadPropagator
 
-@pytest.fixture
-def quadrotor_pybullet_propagator():
-    # ~~ ARRANGE ~~
+# @pytest.fixture
+# def quadrotor_pybullet_propagator():
+#     # ~~ ARRANGE ~~
 
-    space_info, quadPropagator = get_quadrotor_pybullet_propagator_objects()
+#     space_info, quadPropagator = get_quadrotor_pybullet_propagator_objects()
 
-    yield space_info, quadPropagator
+#     yield space_info, quadPropagator
 
-    # ~~ TEARDOWN ~~
-    # disconnect from pybullet physics client
-    pb.disconnect()
+#     # ~~ TEARDOWN ~~
+#     # disconnect from pybullet physics client
+#     pb.disconnect()
 
 @pytest.fixture
 def quadrotor_pybullet_setup_no_lidar():
@@ -669,23 +668,26 @@ def test_QuadrotorPyBulletSetup_observeState_1():
     # disconnect from pybullet physics client
     pb.disconnect()
 
-def test_QuadrotorPyBulletStatePropagator_propagate_hover(quadrotor_pybullet_propagator):
+def test_QuadrotorPyBulletStatePropagator_propagate_hover(quadrotor_pybullet_setup_no_lidar):
     '''Test that perfect hover thrust does not move the quadrotor'''
 
     # ~~ ARRANGE ~~
 
-    # unpack fixture values
-    space_info, quadPropagator = quadrotor_pybullet_propagator
+    # get quadrotor setup object
+    if quadrotor_pybullet_setup_no_lidar is None:
+        qpbsetup = QuadrotorPyBulletSetup()
+    else:
+        qpbsetup = quadrotor_pybullet_setup_no_lidar
 
     # create initial and resulting OMPL state objects
-    init_state = space_info.getStateSpace().allocState()
-    copy_state_pb2ompl(quadPropagator.pbBodyId, quadPropagator.pbClientId, init_state)
-    result_state = space_info.getStateSpace().allocState()
+    init_state = qpbsetup.space_info.allocState()
+    copy_state_pb2ompl(qpbsetup.pbBodyId, qpbsetup.pbClientId, init_state)
+    result_state = qpbsetup.space_info.allocState()
 
     # calculate hovering thrust
     mass = 0.5  # see quadrotor.urdf
     thrust = mass * U.GRAV_CONST
-    control = space_info.getControlSpace().allocControl()
+    control = qpbsetup.space_info.getControlSpace().allocControl()
     control[0] = thrust
     control[1] = 0.0
     control[2] = 0.0
@@ -694,7 +696,7 @@ def test_QuadrotorPyBulletStatePropagator_propagate_hover(quadrotor_pybullet_pro
     # ~~ ACT ~~
 
     # apply hovering thrust
-    quadPropagator.propagate(
+    qpbsetup.propagate(
         state=init_state,
         control=control,
         duration=10.0,
@@ -719,41 +721,42 @@ def test_QuadrotorPyBulletStatePropagator_propagate_hover(quadrotor_pybullet_pro
     assert np.isclose(init_state[3][1], result_state[3][1])
     assert np.isclose(init_state[3][2], result_state[3][2])
 
-def test_QuadrotorPyBulletStatePropagator_propagate_drift(quadrotor_pybullet_propagator):
+def test_QuadrotorPyBulletStatePropagator_propagate_drift(quadrotor_pybullet_setup_no_lidar):
     '''Test that non-zero initial horizontal velocity drifts a known distance'''
 
     # ~~ ARRANGE ~~
 
-    if quadrotor_pybullet_propagator is None:
-        space_info, quadPropagator = get_quadrotor_pybullet_propagator_objects()
+    # get quadrotor setup object
+    if quadrotor_pybullet_setup_no_lidar is None:
+        qpbsetup = QuadrotorPyBulletSetup()
     else:
-        space_info, quadPropagator = quadrotor_pybullet_propagator
+        qpbsetup = quadrotor_pybullet_setup_no_lidar
 
     # set non-zero initial horizontal velocity
     xvel =  9.4810
     dur = 6.0445
     pb.resetBaseVelocity(
-        objectUniqueId=quadPropagator.pbBodyId,
+        objectUniqueId=qpbsetup.pbBodyId,
         linearVelocity=[xvel, 0, 0],
         angularVelocity=[0.0, 0.0, 0.0],
-        physicsClientId=quadPropagator.pbClientId)
+        physicsClientId=qpbsetup.pbClientId)
 
     # turn off linear damping for perfect drift
     pb.changeDynamics(
-        bodyUniqueId=quadPropagator.pbBodyId,
+        bodyUniqueId=qpbsetup.pbBodyId,
         linkIndex=-1,
         linearDamping=0.0
     )
 
     # create initial and resulting OMPL state objects
-    init_state = space_info.getStateSpace().allocState()
-    copy_state_pb2ompl(quadPropagator.pbBodyId, quadPropagator.pbClientId, init_state)
-    result_state = space_info.getStateSpace().allocState()
+    init_state = qpbsetup.space_info.getStateSpace().allocState()
+    copy_state_pb2ompl(qpbsetup.pbBodyId, qpbsetup.pbClientId, init_state)
+    result_state = qpbsetup.space_info.getStateSpace().allocState()
 
     # calculate hovering thrust
     mass = 0.5  # see quadrotor.urdf
     thrust = mass * U.GRAV_CONST
-    control = space_info.getControlSpace().allocControl()
+    control = qpbsetup.space_info.getControlSpace().allocControl()
     control[0] = thrust
     control[1] = 0.0
     control[2] = 0.0
@@ -762,7 +765,7 @@ def test_QuadrotorPyBulletStatePropagator_propagate_drift(quadrotor_pybullet_pro
     # ~~ ACT ~~
 
     # apply hovering thrust
-    quadPropagator.propagate(
+    qpbsetup.propagate(
         state=init_state,
         control=control,
         duration=dur,
@@ -788,24 +791,25 @@ def test_QuadrotorPyBulletStatePropagator_propagate_drift(quadrotor_pybullet_pro
     assert np.isclose(init_state[3][2], result_state[3][2])
 
 
-def test_QuadrotorPyBulletStatePropagator_propagate_climb(quadrotor_pybullet_propagator):
+def test_QuadrotorPyBulletStatePropagator_propagate_climb(quadrotor_pybullet_setup_no_lidar):
     '''Test that known climb rate results in expect climb distance'''
 
     # ~~ ARRANGE ~~
 
-    if quadrotor_pybullet_propagator is None:
-        space_info, quadPropagator = get_quadrotor_pybullet_propagator_objects()
+    # get quadrotor setup object
+    if quadrotor_pybullet_setup_no_lidar is None:
+        qpbsetup = QuadrotorPyBulletSetup()
     else:
-        space_info, quadPropagator = quadrotor_pybullet_propagator
+        qpbsetup = quadrotor_pybullet_setup_no_lidar
 
     # create initial and resulting OMPL state objects
-    init_state = space_info.getStateSpace().allocState()
-    copy_state_pb2ompl(quadPropagator.pbBodyId, quadPropagator.pbClientId, init_state)
-    result_state = space_info.getStateSpace().allocState()
+    init_state = qpbsetup.space_info.getStateSpace().allocState()
+    copy_state_pb2ompl(qpbsetup.pbBodyId, qpbsetup.pbClientId, init_state)
+    result_state = qpbsetup.space_info.getStateSpace().allocState()
 
     # turn off linear damping for no velocity damping
     pb.changeDynamics(
-        bodyUniqueId=quadPropagator.pbBodyId,
+        bodyUniqueId=qpbsetup.pbBodyId,
         linkIndex=-1,
         linearDamping=0.0
     )
@@ -815,7 +819,7 @@ def test_QuadrotorPyBulletStatePropagator_propagate_climb(quadrotor_pybullet_pro
     dur = 4.18569
     mass = 0.5  # see quadrotor.urdf
     thrust = mass * (U.GRAV_CONST + climb_acc)
-    control = space_info.getControlSpace().allocControl()
+    control = qpbsetup.space_info.getControlSpace().allocControl()
     control[0] = thrust
     control[1] = 0.0
     control[2] = 0.0
@@ -824,7 +828,7 @@ def test_QuadrotorPyBulletStatePropagator_propagate_climb(quadrotor_pybullet_pro
     # ~~ ACT ~~
 
     # apply hovering thrust
-    quadPropagator.propagate(
+    qpbsetup.propagate(
         state=init_state,
         control=control,
         duration=dur,
@@ -851,44 +855,46 @@ def test_QuadrotorPyBulletStatePropagator_propagate_climb(quadrotor_pybullet_pro
     assert np.isclose(init_state[3][2], result_state[3][2])
 
 
-def test_QuadrotorPyBulletStatePropagator_propagate_path_hover(quadrotor_pybullet_propagator):
+def test_QuadrotorPyBulletStatePropagator_propagate_path_hover(quadrotor_pybullet_setup_no_lidar):
     '''Test that perfect hover thrust does not move the quadrotor using propagate_path'''
 
     # ~~ ARRANGE ~~
 
-    # unpack fixture values
-    space_info, quadPropagator = quadrotor_pybullet_propagator
+    # get quadrotor setup object
+    if quadrotor_pybullet_setup_no_lidar is None:
+        qpbsetup = QuadrotorPyBulletSetup()
+    else:
+        qpbsetup = quadrotor_pybullet_setup_no_lidar
 
     # create initial and resulting OMPL state objects
-    init_state = space_info.getStateSpace().allocState()
-    copy_state_pb2ompl(quadPropagator.pbBodyId, quadPropagator.pbClientId, init_state)
+    init_state = qpbsetup.space_info.getStateSpace().allocState()
+    copy_state_pb2ompl(qpbsetup.pbBodyId, qpbsetup.pbClientId, init_state)
 
     # calculate hovering thrust
     mass = 0.5  # see quadrotor.urdf
     thrust = mass * U.GRAV_CONST
-    control = space_info.getControlSpace().allocControl()
+    control = qpbsetup.space_info.getControlSpace().allocControl()
     control[0] = thrust
     control[1] = 0.0
     control[2] = 0.0
     control[3] = 0.0
 
     # create path object and alloc a randomized number of intermediate steps
-    path = oc.PathControl(space_info)
+    path = oc.PathControl(qpbsetup.space_info)
     nsteps = np.random.randint(5, 10)
     for _ in range(nsteps-1):
-        path.append(state=space_info.allocState(), control=space_info.allocControl(), duration=0)
-    path.append(state=space_info.allocState())
+        path.append(state=qpbsetup.space_info.allocState(), control=qpbsetup.space_info.allocControl(), duration=0)
+    path.append(state=qpbsetup.space_info.allocState())
 
     # ~~ ACT ~~
 
     # apply hovering thrust
-    quadPropagator.propagate_path(
+    qpbsetup.propagate_path(
         state = init_state,
         control = control,
         duration = 10.0,
         path = path
     )
-
 
     # ~~ ASSERT ~~
 
@@ -909,23 +915,24 @@ def test_QuadrotorPyBulletStatePropagator_propagate_path_hover(quadrotor_pybulle
         assert np.isclose(init_state[3][1], result_state[3][1])
         assert np.isclose(init_state[3][2], result_state[3][2])
 
-def test_QuadrotorPyBulletStatePropagator_propagate_path_climb(quadrotor_pybullet_propagator):
+def test_QuadrotorPyBulletStatePropagator_propagate_path_climb(quadrotor_pybullet_setup_no_lidar):
     '''Test that known climb rate results in expected climb distance at each point on path'''
 
     # ~~ ARRANGE ~~
 
-    if quadrotor_pybullet_propagator is None:
-        space_info, quadPropagator = get_quadrotor_pybullet_propagator_objects()
+    # get quadrotor setup object
+    if quadrotor_pybullet_setup_no_lidar is None:
+        qpbsetup = QuadrotorPyBulletSetup()
     else:
-        space_info, quadPropagator = quadrotor_pybullet_propagator
+        qpbsetup = quadrotor_pybullet_setup_no_lidar
 
     # create initial and resulting OMPL state objects
-    init_state = space_info.getStateSpace().allocState()
-    copy_state_pb2ompl(quadPropagator.pbBodyId, quadPropagator.pbClientId, init_state)
+    init_state = qpbsetup.space_info.getStateSpace().allocState()
+    copy_state_pb2ompl(qpbsetup.pbBodyId, qpbsetup.pbClientId, init_state)
 
     # turn off linear damping for no velocity damping
     pb.changeDynamics(
-        bodyUniqueId=quadPropagator.pbBodyId,
+        bodyUniqueId=qpbsetup.pbBodyId,
         linkIndex=-1,
         linearDamping=0.0
     )
@@ -935,23 +942,23 @@ def test_QuadrotorPyBulletStatePropagator_propagate_path_climb(quadrotor_pybulle
     req_dur = np.random.rand()*10 + 1
     mass = 0.5  # see quadrotor.urdf
     thrust = mass * (U.GRAV_CONST + climb_acc)
-    control = space_info.getControlSpace().allocControl()
+    control = qpbsetup.space_info.getControlSpace().allocControl()
     control[0] = thrust
     control[1] = 0.0
     control[2] = 0.0
     control[3] = 0.0
 
     # create path object and alloc a randomized number of intermediate steps
-    path = oc.PathControl(space_info)
+    path = oc.PathControl(qpbsetup.space_info)
     nsteps = np.random.randint(5, 10)
     for _ in range(nsteps-1):
-        path.append(state=space_info.allocState(), control=space_info.allocControl(), duration=0)
-    path.append(state=space_info.allocState())
+        path.append(state=qpbsetup.space_info.allocState(), control=qpbsetup.space_info.allocControl(), duration=0)
+    path.append(state=qpbsetup.space_info.allocState())
 
     # ~~ ACT ~~
 
     # apply hovering thrust
-    true_duration = quadPropagator.propagate_path(
+    true_duration = qpbsetup.propagate_path(
         state=init_state,
         control=control,
         duration=req_dur,

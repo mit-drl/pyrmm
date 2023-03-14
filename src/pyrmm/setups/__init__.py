@@ -63,16 +63,21 @@ class SystemSetup:
         
         # ensure that equations of motion ODE have been defined
         self.eom_ode = eom_ode
-        if not callable(self.eom_ode):
-            raise AttributeError("Equations of motion ODE must be callable")
         
-        # ensure eoms only have three input arguments: [y, t, u]
-        # which correspond to state, time, and control vectors.
-        # This ensurese the EOM it is compatible with scipy.odeint API 
-        # Other parameters of EOMS should be defined by using a lambda function
-        # to make a parameterized function have only the three above variables
-        if len(inspect.getfullargspec(self.eom_ode)[0]) != 3:
-            raise AttributeError("callable equation of motion ODE must only have 3 input arguments!")
+        # equations of motion can be set to None if child class
+        # implements propagate_path. If not None, check 
+        # that eoms are callable and have appropriate inputs
+        if self.eom_ode is not None:
+            if not callable(self.eom_ode):
+                raise AttributeError("Equations of motion ODE must be callable")
+            
+            # ensure eoms only have three input arguments: [y, t, u]
+            # which correspond to state, time, and control vectors.
+            # This ensurese the EOM it is compatible with scipy.odeint API 
+            # Other parameters of EOMS should be defined by using a lambda function
+            # to make a parameterized function have only the three above variables
+            if len(inspect.getfullargspec(self.eom_ode)[0]) != 3:
+                raise AttributeError("callable equation of motion ODE must only have 3 input arguments!")
 
     def isPathValid(self, path):
         '''check if any state on path is in collision with obstacles
@@ -463,6 +468,10 @@ class SystemSetup:
             because it's perform the numerical integration in python instead of C++. 
             Could be improved later
         """
+
+        # ensure that equations of motion ODE have been defined
+        if self.eom_ode is None:
+            raise AttributeError("If equations of motion are None, then child class must implement propagate_path")
 
         # unpack objects from space information for ease of use
         nstatedims = self.space_info.getStateDimension()

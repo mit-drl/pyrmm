@@ -147,22 +147,22 @@ class QuadrotorPyBulletSetup(SystemSetup):
 
         # create space information for state and control space
         space_info = oc.SpaceInformation(stateSpace=state_space, controlSpace=control_space)
-        # space_info = oc.SpaceInformation(stateSpace=state_space)
         self.space_info = space_info
-
-        # create and set propagator class from ODEs
-        propagator = QuadrotorPyBulletStatePropagator(
-            pbBodyId=self.pbBodyId, 
-            pbClientId=self.pbClientId, 
-            spaceInformation=space_info)
-        space_info.setStatePropagator(propagator)
 
         # create and set state validity checker
         validityChecker = ob.StateValidityCheckerFn(partial(self.isStateValid, space_info))
         space_info.setStateValidityChecker(validityChecker)
 
+        # set gravity assuming world-up reference frame (positive z-axis points anti-gravity)
+        pb.setGravity(0, 0, -U.GRAV_CONST, physicsClientId=self.pbClientId)
+
         # call parent init to create simple setup
-        super().__init__(space_information=space_info)
+        # equations of motion are None because custom 
+        # propagate_path function implemented
+        super().__init__(
+            space_information = space_info,
+            eom_ode = None
+        )
 
     def __reduce__(self):
         ''' Function to enable re-creation of unpickable object
@@ -288,35 +288,6 @@ class QuadrotorPyBulletSetup(SystemSetup):
 
         return obs
 
-
-
-class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
-
-    def __init__(self, pbBodyId, pbClientId, spaceInformation):
-        '''
-        Args:
-            pbBodyId :
-                PyBullet unique object ID of quadrotor body associated with propagator
-            pbClientId : int
-                ID number of pybullet physics client
-            spaceInformation : oc.SpaceInformation
-                OMPL object containing information about state and control space
-        '''
-
-        self.pbClientId = pbClientId
-        self.pbBodyId = pbBodyId
-
-        # set gravity assuming world-up reference frame (positive z-axis points anti-gravity)
-        pb.setGravity(0, 0, -U.GRAV_CONST, physicsClientId=self.pbClientId)
-
-        # Store information about space propagator operates on
-        # NOTE: this serves the same purpose asthe  protected attribute si_ 
-        # but si_ does not seem to be accessible in python
-        # Ref: https://ompl.kavrakilab.org/classompl_1_1control_1_1StatePropagator.html
-        self.__si = spaceInformation
-        super().__init__(si=spaceInformation)
-
-
     def propagate(self, state, control, duration, result, **kwargs):
         ''' propagate from start based on control, store in state
         Args:
@@ -357,7 +328,7 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
         )
 
         # clip the control to ensure it is within the control bounds
-        bounded_control = U.clip_control(controlSpace=self.__si.getControlSpace(), control=control)
+        bounded_control = U.clip_control(controlSpace=self.space_info.getControlSpace(), control=control)
 
         # call pybullet's simulator step, performs ode propagation
         t = 0.0
@@ -405,8 +376,8 @@ class QuadrotorPyBulletStatePropagator(oc.StatePropagator):
         '''
 
         # unpack objects from space information for ease of use
-        sspace = self.__si.getStateSpace()
-        cspace = self.__si.getControlSpace()
+        sspace = self.space_info.getStateSpace()
+        cspace = self.space_info.getControlSpace()
         nsteps = path.getStateCount()
         pstates = path.getStates()
         pcontrols = path.getControls()
